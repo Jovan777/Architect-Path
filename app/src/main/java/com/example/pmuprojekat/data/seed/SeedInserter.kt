@@ -1,25 +1,82 @@
 package com.example.pmuprojekat.data.seed
 
+import androidx.room.withTransaction
+import com.example.pmuprojekat.core.model.StepType
+import com.example.pmuprojekat.data.local.PMUDatabase
 import com.example.pmuprojekat.data.local.dao.QuestionDao
+import com.example.pmuprojekat.data.local.dao.SeedMetaDao
 import com.example.pmuprojekat.data.local.dao.UserDao
 import com.example.pmuprojekat.data.local.entity.CodeBlankEntity
 import com.example.pmuprojekat.data.local.entity.QuestionEntity
 import com.example.pmuprojekat.data.local.entity.QuestionStepEntity
+import com.example.pmuprojekat.data.local.entity.SeedMetaEntity
 import com.example.pmuprojekat.data.local.entity.StepOptionEntity
 import com.example.pmuprojekat.data.local.entity.StepZoneEntity
 import com.example.pmuprojekat.data.local.entity.UserEntity
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class SeedInserter(
+@Singleton
+class SeedInserter @Inject constructor(
+    private val database: PMUDatabase,
     private val userDao: UserDao,
-    private val questionDao: QuestionDao
+    private val questionDao: QuestionDao,
+    private val seedMetaDao: SeedMetaDao
 ) {
+
+    private companion object {
+        const val CURRENT_SEED_VERSION = 1
+    }
+
     suspend fun seedIfNeeded() {
-        if (questionDao.countQuestions() > 0) return
+        database.withTransaction {
+            ensureDefaultUserExists()
 
-        userDao.upsertUser(UserEntity())
+            val seedQuestions = InitialSeedData.allQuestions()
+            val meta = seedMetaDao.getSeedMeta()
 
-        val seedQuestions = InitialSeedData.allQuestions()
+            val shouldReseed =
+                meta == null ||
+                        meta.version != CURRENT_SEED_VERSION ||
+                        meta.questionCount != seedQuestions.size
 
+            if (!shouldReseed) return@withTransaction
+
+            questionDao.clearAllQuestionData()
+
+            insertQuestions(seedQuestions)
+            insertSteps(seedQuestions)
+            insertZones(seedQuestions)
+            insertOptions(seedQuestions)
+            insertBlanks(seedQuestions)
+
+            seedMetaDao.upsertSeedMeta(
+                SeedMetaEntity(
+                    version = CURRENT_SEED_VERSION,
+                    questionCount = seedQuestions.size
+                )
+            )
+        }
+    }
+
+    private suspend fun ensureDefaultUserExists() {
+        val existingUser = userDao.getUserById("local_user")
+
+        if (existingUser == null) {
+            userDao.upsertUser(
+                UserEntity(
+                    userId = "local_user",
+                    displayName = "Marko",
+                    currentLevel = "beginner",
+                    xp = 0,
+                    streakDays = 0,
+                    completedQuestions = 0
+                )
+            )
+        }
+    }
+
+    private suspend fun insertQuestions(seedQuestions: List<SeedQuestion>) {
         questionDao.insertQuestions(
             seedQuestions.map { question ->
                 QuestionEntity(
@@ -37,10 +94,16 @@ class SeedInserter(
                 )
             }
         )
+    }
 
+    private suspend fun insertSteps(seedQuestions: List<SeedQuestion>) {
         questionDao.insertSteps(
             seedQuestions.flatMap { question ->
                 question.steps.mapIndexed { index, step ->
+                    val isAutoEvaluated =
+                        step.type != StepType.FREE_TEXT.id &&
+                                step.type != StepType.MINI_ADR.id
+
                     QuestionStepEntity(
                         stepId = step.stepId,
                         questionId = question.questionId,
@@ -50,12 +113,17 @@ class SeedInserter(
                         instruction = step.instruction,
                         requiredCount = step.requiredCount,
                         codeBlock = step.codeBlock,
-                        explanation = step.explanation
+                        explanation = step.explanation,
+                        isRequired = true,
+                        isAutoEvaluated = isAutoEvaluated,
+                        points = if (isAutoEvaluated) 1 else 0
                     )
                 }
             }
         )
+    }
 
+    private suspend fun insertZones(seedQuestions: List<SeedQuestion>) {
         questionDao.insertZones(
             seedQuestions.flatMap { question ->
                 question.steps.flatMap { step ->
@@ -70,7 +138,9 @@ class SeedInserter(
                 }
             }
         )
+    }
 
+    private suspend fun insertOptions(seedQuestions: List<SeedQuestion>) {
         questionDao.insertOptions(
             seedQuestions.flatMap { question ->
                 question.steps.flatMap { step ->
@@ -91,7 +161,9 @@ class SeedInserter(
                 }
             }
         )
+    }
 
+    private suspend fun insertBlanks(seedQuestions: List<SeedQuestion>) {
         questionDao.insertBlanks(
             seedQuestions.flatMap { question ->
                 question.steps.flatMap { step ->

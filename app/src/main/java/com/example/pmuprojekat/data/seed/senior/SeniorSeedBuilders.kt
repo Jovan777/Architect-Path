@@ -214,14 +214,15 @@ internal object SeniorSeedBuilders {
                     type = StepType.ORDERED_CARDS.id,
                     title = "Odredi prioritetni redosled intervencija",
                     instruction = "Poređaj intervencije od najhitnije do najmanje prioritetne u datom incidentu.",
-                    requiredCount = interventionCards.size,
+                    requiredCount = correctOrder.size,
                     explanation = "Tačan redosled: ${correctOrder.joinToString(" → ")}.",
                     options = interventionCards.mapIndexed { index, card ->
                         SeedOption(
                             optionId = "${questionId}_s1_o${index + 1}",
                             text = card,
                             optionOrder = index + 1,
-                            correctOrder = correctOrder.indexOf(card).takeIf { it >= 0 }?.plus(1)
+                            correctOrder = correctOrder.indexOf(card).takeIf { it >= 0 }?.plus(1),
+                            isDistractor = !correctOrder.contains(card)
                         )
                     }
                 ),

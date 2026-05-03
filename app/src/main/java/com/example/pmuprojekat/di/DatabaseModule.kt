@@ -8,7 +8,6 @@ import com.example.pmuprojekat.data.local.dao.QuestionDao
 import com.example.pmuprojekat.data.local.dao.SeedMetaDao
 import com.example.pmuprojekat.data.local.dao.UserAnswerDao
 import com.example.pmuprojekat.data.local.dao.UserDao
-import com.example.pmuprojekat.data.seed.SeedInserter
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -39,16 +38,10 @@ object DatabaseModule {
     }
 
     @Provides
-    @Singleton
-    fun provideSeedInserter(
-        userDao: UserDao,
-        questionDao: QuestionDao
-    ): SeedInserter {
-        return SeedInserter(
-            userDao = userDao,
-            questionDao = questionDao
-        )
+    fun provideSeedMetaDao(database: PMUDatabase): SeedMetaDao {
+        return database.seedMetaDao()
     }
+
 
     @Provides
     fun provideUserDao(database: PMUDatabase): UserDao {
@@ -58,11 +51,6 @@ object DatabaseModule {
     @Provides
     fun provideQuestionDao(database: PMUDatabase): QuestionDao {
         return database.questionDao()
-    }
-
-    @Provides
-    fun provideSeedMetaDao(database: PMUDatabase): SeedMetaDao {
-        return database.seedMetaDao()
     }
 
     @Provides
