@@ -48,6 +48,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.pmuprojekat.core.model.TaskFocusPreference
+import com.example.pmuprojekat.core.model.TaskFormatPreference
+import com.example.pmuprojekat.core.model.TaskPersonalizer
 import com.example.pmuprojekat.ui.home.AppPalette
 import com.example.pmuprojekat.ui.home.HomeUiState
 
@@ -72,8 +75,12 @@ fun SettingsScreen(
         mutableStateOf(uiState.learningGoal)
     }
 
-    var preferredTaskFormat by remember(uiState.preferredTaskFormat) {
-        mutableStateOf(uiState.preferredTaskFormat)
+    var preferredTaskFormats by remember(uiState.preferredTaskFormat) {
+        mutableStateOf(
+            TaskPersonalizer.parsePreferredFormats(uiState.preferredTaskFormat)
+                .map { it.displayName }
+                .toSet()
+        )
     }
 
     var learningFocus by remember(uiState.learningFocus) {
@@ -133,9 +140,9 @@ fun SettingsScreen(
                     learningGoal = it
                     savedMessageVisible = false
                 },
-                preferredTaskFormat = preferredTaskFormat,
+                preferredTaskFormat = preferredTaskFormats,
                 onPreferredTaskFormatChange = {
-                    preferredTaskFormat = it
+                    preferredTaskFormats = it
                     savedMessageVisible = false
                 },
                 learningFocus = learningFocus,
@@ -157,7 +164,7 @@ fun SettingsScreen(
                     onSaveProfile(
                         safeName,
                         learningGoal,
-                        preferredTaskFormat,
+                        encodePreferredTaskFormats(preferredTaskFormats),
                         learningFocus,
                         aiFollowUpEnabled
                     )
@@ -369,8 +376,8 @@ private fun SettingsProfileCard(
 private fun SettingsLearningCard(
     learningGoal: String,
     onLearningGoalChange: (String) -> Unit,
-    preferredTaskFormat: String,
-    onPreferredTaskFormatChange: (String) -> Unit,
+    preferredTaskFormat: Set<String>,
+    onPreferredTaskFormatChange: (Set<String>) -> Unit,
     learningFocus: String,
     onLearningFocusChange: (String) -> Unit,
     aiFollowUpEnabled: Boolean,
@@ -407,28 +414,28 @@ private fun SettingsLearningCard(
                 onValueSelected = onLearningGoalChange
             )
 
-            SettingsDropdown(
+            SettingsMultiSelectChips(
                 title = "Preferirani format",
-                value = preferredTaskFormat,
                 options = listOf(
-                    "Interaktivni koraci",
-                    "Kviz pitanja",
-                    "Kod i pseudo-kod",
-                    "Mapiranje i kartice",
-                    "Arhitektonski scenariji"
+                    TaskFormatPreference.INTERACTIVE_STEPS.displayName,
+                    TaskFormatPreference.QUIZ_QUESTIONS.displayName,
+                    TaskFormatPreference.CODE_PSEUDOCODE.displayName,
+                    TaskFormatPreference.MAPPING_CARDS.displayName,
+                    TaskFormatPreference.ARCHITECTURAL_SCENARIOS.displayName
                 ),
-                onValueSelected = onPreferredTaskFormatChange
+                selected = preferredTaskFormat,
+                onSelectedChange = onPreferredTaskFormatChange
             )
 
             SettingsDropdown(
                 title = "Fokus učenja",
                 value = learningFocus,
                 options = listOf(
-                    "Balansirano učenje",
-                    "Obrasci projektovanja",
-                    "Refaktorisanje",
-                    "Produkcijsko razmišljanje",
-                    "Arhitektonsko odlučivanje"
+                    TaskFocusPreference.BALANCED_LEARNING.displayName,
+                    TaskFocusPreference.DESIGN_PATTERNS.displayName,
+                    TaskFocusPreference.REFACTORING.displayName,
+                    TaskFocusPreference.PRODUCTION_THINKING.displayName,
+                    TaskFocusPreference.ARCHITECTURAL_DECISION_MAKING.displayName
                 ),
                 onValueSelected = onLearningFocusChange
             )
@@ -542,6 +549,87 @@ private fun SettingsDropdown(
             }
         }
     }
+}
+
+@Composable
+private fun SettingsMultiSelectChips(
+    title: String,
+    options: List<String>,
+    selected: Set<String>,
+    onSelectedChange: (Set<String>) -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = title,
+            color = AppPalette.TextPrimary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+
+        options.forEach { option ->
+            val isSelected = selected.contains(option)
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        val updated = if (isSelected) {
+                            selected - option
+                        } else {
+                            selected + option
+                        }
+
+                        onSelectedChange(
+                            updated.ifEmpty { setOf(option) }
+                        )
+                    },
+                shape = RoundedCornerShape(18.dp),
+                color = if (isSelected) AppPalette.Blue.copy(alpha = 0.12f) else Color(0xFFF8FAFC),
+                border = BorderStroke(
+                    width = if (isSelected) 1.5.dp else 1.dp,
+                    color = if (isSelected) AppPalette.Blue else AppPalette.Border
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = if (isSelected) AppPalette.Blue else Color.White,
+                        border = BorderStroke(1.dp, if (isSelected) AppPalette.Blue else AppPalette.Border)
+                    ) {
+                        Text(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            text = if (isSelected) "✓" else "",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Text(
+                        text = option,
+                        color = AppPalette.TextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun encodePreferredTaskFormats(selected: Set<String>): String {
+    val formats = TaskFormatPreference.entries
+        .filter { selected.contains(it.displayName) }
+        .toSet()
+
+    return TaskPersonalizer.encodePreferredFormats(formats)
 }
 
 @Composable

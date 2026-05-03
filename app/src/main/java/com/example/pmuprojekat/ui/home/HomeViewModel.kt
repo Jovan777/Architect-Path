@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pmuprojekat.core.model.LearningLevel
 import com.example.pmuprojekat.core.model.QuestionType
+import com.example.pmuprojekat.core.model.TaskPersonalizer
 import com.example.pmuprojekat.data.local.entity.QuestionEntity
 import com.example.pmuprojekat.data.repository.LearningRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +28,12 @@ class HomeViewModel @Inject constructor(
 
         val selectedLevelId = user?.currentLevel ?: LearningLevel.BEGINNER.id
         val selectedLevel = LearningLevel.fromId(selectedLevelId)
+        val preferredFormats = TaskPersonalizer.parsePreferredFormats(
+            user?.preferredTaskFormat ?: "Interaktivni koraci"
+        )
+        val learningFocus = TaskPersonalizer.parseLearningFocus(
+            user?.learningFocus ?: "Balansirano učenje"
+        )
 
         val completedIds = progress
             .filter { it.status == "completed" }
@@ -83,6 +90,11 @@ class HomeViewModel @Inject constructor(
                     .thenBy { it.orderIndex }
             )
             .map { question ->
+                val metadata = TaskPersonalizer.metadataFor(
+                    questionType = question.type,
+                    level = question.level
+                )
+
                 QuestionPreviewUi(
                     questionId = question.questionId,
                     levelId = question.level,
@@ -92,9 +104,25 @@ class HomeViewModel @Inject constructor(
                     wave = question.wave,
                     orderIndex = question.orderIndex,
                     isCompleted = completedIds.contains(question.questionId),
-                    bestScorePercent = bestScoreByQuestionId[question.questionId] ?: 0
+                    bestScorePercent = bestScoreByQuestionId[question.questionId] ?: 0,
+                    format = metadata.format.displayName,
+                    focus = metadata.focus.displayName,
+                    personalizationScore = TaskPersonalizer.score(
+                        metadata = metadata,
+                        preferredFormats = preferredFormats,
+                        learningFocus = learningFocus
+                    )
                 )
             }
+
+        val personalizedQuestionPreviews = allQuestionPreviews
+            .sortedWith(
+                compareByDescending<QuestionPreviewUi> { it.personalizationScore }
+                    .thenBy { levelOrder(it.levelId) }
+                    .thenBy { it.wave ?: 0 }
+                    .thenBy { it.orderIndex }
+                    .thenBy { it.questionId }
+            )
 
         val questionPreviews = allQuestionPreviews
             .filter { it.levelId == selectedLevelId }
@@ -160,6 +188,7 @@ class HomeViewModel @Inject constructor(
             levels = levels,
             questionPreviews = questionPreviews,
             allQuestions = allQuestionPreviews,
+            personalizedQuestions = personalizedQuestionPreviews,
             completedQuestionIds = completedIds,
             skillStats = skillStats,
             lastCompletedQuestion = lastCompletedQuestion,

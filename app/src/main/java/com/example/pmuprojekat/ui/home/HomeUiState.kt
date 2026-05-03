@@ -24,6 +24,7 @@ data class HomeUiState(
 
     val questionPreviews: List<QuestionPreviewUi> = emptyList(),
     val allQuestions: List<QuestionPreviewUi> = emptyList(),
+    val personalizedQuestions: List<QuestionPreviewUi> = emptyList(),
 
     val completedQuestionIds: Set<String> = emptySet(),
     val skillStats: List<SkillProgressUi> = emptyList(),
@@ -55,7 +56,10 @@ data class QuestionPreviewUi(
     val wave: Int?,
     val orderIndex: Int = 0,
     val isCompleted: Boolean = false,
-    val bestScorePercent: Int = 0
+    val bestScorePercent: Int = 0,
+    val format: String = "",
+    val focus: String = "",
+    val personalizationScore: Int = 0
 )
 
 data class SkillProgressUi(

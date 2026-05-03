@@ -75,7 +75,7 @@ fun TasksScreen(
         mutableStateOf("")
     }
 
-    val filteredQuestions = uiState.allQuestions
+    val filteredQuestions = uiState.personalizedQuestions
         .filter { it.levelId == selectedLevelId }
         .filter { question ->
             when (statusFilter) {
@@ -90,10 +90,6 @@ fun TasksScreen(
                     question.questionId.contains(search, ignoreCase = true) ||
                     question.typeLabel.contains(search, ignoreCase = true)
         }
-        .sortedWith(
-            compareBy<QuestionPreviewUi> { it.wave ?: 0 }
-                .thenBy { it.orderIndex }
-        )
 
     Scaffold(
         containerColor = AppPalette.Background,
