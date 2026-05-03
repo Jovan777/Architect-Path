@@ -1292,10 +1292,12 @@ fun SoftwareDesignHomeScreenPreview() {
                 questionPreviews = listOf(
                     QuestionPreviewUi(
                         questionId = "P1.1",
+                        levelId = "beginner",
                         title = "Jedna instanca za ceo program",
                         typeLabel = "Prepoznavanje obrasca",
                         difficulty = "Lako",
-                        wave = null
+                        wave = 1,
+                        orderIndex = 1
                     )
                 )
             ),

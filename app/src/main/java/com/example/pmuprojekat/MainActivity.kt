@@ -12,6 +12,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.pmuprojekat.ui.home.HomeViewModel
+import com.example.pmuprojekat.ui.home.LevelQuestionsScreen
 import com.example.pmuprojekat.ui.home.SoftwareDesignHomeScreen
 import com.example.pmuprojekat.ui.question.QuestionScreen
 import com.example.pmuprojekat.ui.question.QuestionViewModel
@@ -33,6 +34,10 @@ class MainActivity : ComponentActivity() {
                 val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
                 val questionUiState by questionViewModel.uiState.collectAsStateWithLifecycle()
 
+                var openedLevelId by rememberSaveable {
+                    mutableStateOf<String?>(null)
+                }
+
                 var openedQuestionId by rememberSaveable {
                     mutableStateOf<String?>(null)
                 }
@@ -43,42 +48,56 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                if (openedQuestionId == null) {
-                    SoftwareDesignHomeScreen(
-                        uiState = homeUiState,
-                        onLevelSelected = homeViewModel::selectLevel,
-                        onStartLearning = {
-                            val firstQuestionId = homeUiState.questionPreviews
-                                .firstOrNull()
-                                ?.questionId
+                when {
+                    openedQuestionId != null -> {
+                        QuestionScreen(
+                            uiState = questionUiState,
+                            onBack = {
+                                openedQuestionId = null
+                            },
+                            onToggleOption = questionViewModel::toggleOption,
+                            onMoveOrderedOption = questionViewModel::moveOrderedOption,
+                            onExcludeOrderedOption = questionViewModel::excludeOrderedOption,
+                            onRestoreOrderedOption = questionViewModel::restoreOrderedOption,
+                            onMapOptionToZone = questionViewModel::mapOptionToZone,
+                            onRemoveOptionZone = questionViewModel::removeOptionZone,
+                            onUpdateBlankAnswer = questionViewModel::updateBlankAnswer,
+                            onUpdateFreeText = questionViewModel::updateFreeText,
+                            onCheckStep = questionViewModel::checkCurrentStep,
+                            onPreviousStep = questionViewModel::goToPreviousStep,
+                            onNextStep = questionViewModel::goToNextStep,
+                            onFinishQuestion = questionViewModel::finishQuestion
+                        )
+                    }
 
-                            if (firstQuestionId != null) {
-                                openedQuestionId = firstQuestionId
+                    openedLevelId != null -> {
+                        LevelQuestionsScreen(
+                            uiState = homeUiState,
+                            levelId = openedLevelId!!,
+                            onBack = {
+                                openedLevelId = null
+                            },
+                            onQuestionClick = { questionId ->
+                                openedQuestionId = questionId
                             }
-                        },
-                        onQuestionClick = { questionId ->
-                            openedQuestionId = questionId
-                        }
-                    )
-                } else {
-                    QuestionScreen(
-                        uiState = questionUiState,
-                        onBack = {
-                            openedQuestionId = null
-                        },
-                        onToggleOption = questionViewModel::toggleOption,
-                        onMoveOrderedOption = questionViewModel::moveOrderedOption,
-                        onExcludeOrderedOption = questionViewModel::excludeOrderedOption,
-                        onRestoreOrderedOption = questionViewModel::restoreOrderedOption,
-                        onMapOptionToZone = questionViewModel::mapOptionToZone,
-                        onRemoveOptionZone = questionViewModel::removeOptionZone,
-                        onUpdateBlankAnswer = questionViewModel::updateBlankAnswer,
-                        onUpdateFreeText = questionViewModel::updateFreeText,
-                        onCheckStep = questionViewModel::checkCurrentStep,
-                        onPreviousStep = questionViewModel::goToPreviousStep,
-                        onNextStep = questionViewModel::goToNextStep,
-                        onFinishQuestion = questionViewModel::finishQuestion
-                    )
+                        )
+                    }
+
+                    else -> {
+                        SoftwareDesignHomeScreen(
+                            uiState = homeUiState,
+                            onLevelSelected = { levelId ->
+                                homeViewModel.selectLevel(levelId)
+                                openedLevelId = levelId
+                            },
+                            onStartLearning = {
+                                openedLevelId = homeUiState.selectedLevel
+                            },
+                            onQuestionClick = { questionId ->
+                                openedQuestionId = questionId
+                            }
+                        )
+                    }
                 }
             }
         }

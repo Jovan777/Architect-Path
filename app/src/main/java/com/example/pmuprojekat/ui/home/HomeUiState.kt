@@ -21,7 +21,17 @@ data class HomeUiState(
     val activeCardProgressPercent: Int = 0,
 
     val levels: List<LevelSummaryUi> = emptyList(),
-    val questionPreviews: List<QuestionPreviewUi> = emptyList()
+
+    /**
+     * Kratak prikaz na početnoj strani.
+     */
+    val questionPreviews: List<QuestionPreviewUi> = emptyList(),
+
+    /**
+     * Sva pitanja iz baze, da možemo da otvorimo ekran nivoa
+     * i prikažemo sve zadatke tog nivoa.
+     */
+    val allQuestions: List<QuestionPreviewUi> = emptyList()
 )
 
 data class LevelSummaryUi(
@@ -36,8 +46,10 @@ data class LevelSummaryUi(
 
 data class QuestionPreviewUi(
     val questionId: String,
+    val levelId: String,
     val title: String,
     val typeLabel: String,
     val difficulty: String,
-    val wave: Int?
+    val wave: Int?,
+    val orderIndex: Int
 )

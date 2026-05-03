@@ -57,17 +57,27 @@ class HomeViewModel @Inject constructor(
             )
         }
 
-        val questionPreviews = selectedLevelQuestions
-            .take(4)
+        val allQuestionPreviews = questions
+            .sortedWith(
+                compareBy<QuestionEntity> { it.level }
+                    .thenBy { it.wave ?: 0 }
+                    .thenBy { it.orderIndex }
+            )
             .map { question ->
                 QuestionPreviewUi(
                     questionId = question.questionId,
+                    levelId = question.level,
                     title = question.title,
                     typeLabel = questionTypeLabel(question.type),
                     difficulty = difficultyLabel(question.difficulty),
-                    wave = question.wave
+                    wave = question.wave,
+                    orderIndex = question.orderIndex
                 )
             }
+
+        val questionPreviews = allQuestionPreviews
+            .filter { it.levelId == selectedLevelId }
+            .take(4)
 
         HomeUiState(
             isLoading = false,
@@ -91,7 +101,8 @@ class HomeViewModel @Inject constructor(
             ),
             activeCardProgressPercent = selectedProgress,
             levels = levels,
-            questionPreviews = questionPreviews
+            questionPreviews = questionPreviews,
+            allQuestions = allQuestionPreviews
         )
     }.stateIn(
         scope = viewModelScope,
