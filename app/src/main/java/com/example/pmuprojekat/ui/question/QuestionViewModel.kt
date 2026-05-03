@@ -31,6 +31,7 @@ class QuestionViewModel @Inject constructor(
     private val answeredStepIds = MutableStateFlow<Set<String>>(emptySet())
     private val correctStepIds = MutableStateFlow<Set<String>>(emptySet())
     private val completedQuestionIds = MutableStateFlow<Set<String>>(emptySet())
+    private val shuffledOptionIdsByStepId = MutableStateFlow<Map<String, List<String>>>(emptyMap())
 
     private data class QuestionRuntimeState(
         val questionWithSteps: QuestionWithSteps?,
@@ -97,8 +98,16 @@ class QuestionViewModel @Inject constructor(
         initialValue = QuestionUiState()
     )
 
-    fun loadQuestion(questionId: String) {
-        if (selectedQuestionId.value == questionId) return
+    fun startQuestion(questionId: String) {
+        loadQuestion(questionId = questionId, restartAttempt = true)
+    }
+
+    fun ensureQuestionLoaded(questionId: String) {
+        loadQuestion(questionId = questionId, restartAttempt = false)
+    }
+
+    private fun loadQuestion(questionId: String, restartAttempt: Boolean) {
+        if (!restartAttempt && selectedQuestionId.value == questionId) return
 
         selectedQuestionId.value = questionId
         currentStepIndex.value = 0
@@ -106,6 +115,11 @@ class QuestionViewModel @Inject constructor(
         feedbackByStepId.value = emptyMap()
         answeredStepIds.value = emptySet()
         correctStepIds.value = emptySet()
+        shuffledOptionIdsByStepId.value = emptyMap()
+
+        if (restartAttempt) {
+            completedQuestionIds.value = completedQuestionIds.value - questionId
+        }
     }
 
     fun toggleOption(step: QuestionStepUi, optionId: String) {
@@ -310,9 +324,7 @@ class QuestionViewModel @Inject constructor(
         val initialDraft = when (step.type) {
             StepType.ORDERED_CARDS.id -> {
                 StepAnswerDraft(
-                    orderedOptionIds = step.options
-                        .sortedBy { it.optionOrder }
-                        .map { it.optionId }
+                    orderedOptionIds = step.options.map { it.optionId }
                 )
             }
 
@@ -530,7 +542,8 @@ class QuestionViewModel @Inject constructor(
                                 isDistractor = option.isDistractor,
                                 metadata = option.metadata
                             )
-                        },
+                        }
+                        .shuffledForAttempt(relation.step.stepId),
                     zones = relation.zones
                         .sortedBy { it.zoneOrder }
                         .map { zone ->
@@ -606,12 +619,26 @@ class QuestionViewModel @Inject constructor(
     private fun defaultDraftForStep(step: QuestionStepUi): StepAnswerDraft {
         return when (step.type) {
             StepType.ORDERED_CARDS.id -> StepAnswerDraft(
-                orderedOptionIds = step.options
-                    .sortedBy { it.optionOrder }
-                    .map { it.optionId }
+                orderedOptionIds = step.options.map { it.optionId }
             )
 
             else -> StepAnswerDraft()
         }
+    }
+
+    private fun List<StepOptionUi>.shuffledForAttempt(stepId: String): List<StepOptionUi> {
+        if (size <= 1) return this
+
+        val optionById = associateBy { it.optionId }
+        val currentOrder = shuffledOptionIdsByStepId.value[stepId]
+
+        if (currentOrder != null && currentOrder.toSet() == optionById.keys) {
+            return currentOrder.mapNotNull { optionById[it] }
+        }
+
+        val shuffledIds = shuffled().map { it.optionId }
+        shuffledOptionIdsByStepId.value = shuffledOptionIdsByStepId.value + (stepId to shuffledIds)
+
+        return shuffledIds.mapNotNull { optionById[it] }
     }
 }

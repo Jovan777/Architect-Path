@@ -65,9 +65,14 @@ class MainActivity : ComponentActivity() {
                     openedSettings = false
                 }
 
+                fun openQuestion(questionId: String) {
+                    questionViewModel.startQuestion(questionId)
+                    openedQuestionId = questionId
+                }
+
                 LaunchedEffect(openedQuestionId) {
                     openedQuestionId?.let { questionId ->
-                        questionViewModel.loadQuestion(questionId)
+                        questionViewModel.ensureQuestionLoaded(questionId)
                     }
                 }
 
@@ -111,9 +116,7 @@ class MainActivity : ComponentActivity() {
                             onBack = {
                                 openedLevelId = null
                             },
-                            onQuestionClick = { questionId ->
-                                openedQuestionId = questionId
-                            }
+                            onQuestionClick = ::openQuestion
                         )
                     }
 
@@ -127,9 +130,7 @@ class MainActivity : ComponentActivity() {
                             onStartLearning = {
                                 openedLevelId = homeUiState.selectedLevel
                             },
-                            onQuestionClick = { questionId ->
-                                openedQuestionId = questionId
-                            },
+                            onQuestionClick = ::openQuestion,
                             selectedTab = MainTab.HOME,
                             onBottomTabSelected = ::selectTab
                         )
@@ -141,9 +142,7 @@ class MainActivity : ComponentActivity() {
                             selectedTab = MainTab.WAVES,
                             onBottomTabSelected = ::selectTab,
                             onLevelSelected = homeViewModel::selectLevel,
-                            onQuestionClick = { questionId ->
-                                openedQuestionId = questionId
-                            }
+                            onQuestionClick = ::openQuestion
                         )
                     }
 
@@ -152,9 +151,7 @@ class MainActivity : ComponentActivity() {
                             uiState = homeUiState,
                             selectedTab = MainTab.TASKS,
                             onBottomTabSelected = ::selectTab,
-                            onQuestionClick = { questionId ->
-                                openedQuestionId = questionId
-                            }
+                            onQuestionClick = ::openQuestion
                         )
                     }
 
