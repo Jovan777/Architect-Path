@@ -23,6 +23,7 @@ import com.example.pmuprojekat.ui.question.QuestionScreen
 import com.example.pmuprojekat.ui.question.QuestionViewModel
 import com.example.pmuprojekat.ui.theme.PMUProjekatTheme
 import dagger.hilt.android.AndroidEntryPoint
+import com.example.pmuprojekat.ui.main.SettingsScreen
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -51,12 +52,17 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf<String?>(null)
                 }
 
+                var openedSettings by rememberSaveable {
+                    mutableStateOf(false)
+                }
+
                 val selectedTab = MainTab.valueOf(selectedTabName)
 
                 fun selectTab(tab: MainTab) {
                     selectedTabName = tab.name
                     openedLevelId = null
                     openedQuestionId = null
+                    openedSettings = false
                 }
 
                 LaunchedEffect(openedQuestionId) {
@@ -84,6 +90,17 @@ class MainActivity : ComponentActivity() {
                             onPreviousStep = questionViewModel::goToPreviousStep,
                             onNextStep = questionViewModel::goToNextStep,
                             onFinishQuestion = questionViewModel::finishQuestion
+                        )
+                    }
+
+                    openedSettings -> {
+                        SettingsScreen(
+                            uiState = homeUiState,
+                            onBack = {
+                                openedSettings = false
+                            },
+                            onSaveProfile = homeViewModel::updateProfileSettings,
+                            onResetProgress = homeViewModel::resetProgress
                         )
                     }
 
@@ -156,7 +173,8 @@ class MainActivity : ComponentActivity() {
                         ProfileScreen(
                             uiState = homeUiState,
                             selectedTab = MainTab.PROFILE,
-                            onBottomTabSelected = ::selectTab
+                            onBottomTabSelected = ::selectTab,
+                            onOpenSettings = {openedSettings = true}
                         )
                     }
                 }

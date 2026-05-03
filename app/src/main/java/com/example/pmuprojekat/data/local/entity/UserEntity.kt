@@ -1,6 +1,5 @@
 package com.example.pmuprojekat.data.local.entity
 
-
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -15,6 +14,11 @@ data class UserEntity(
     val xp: Int = 0,
     val streakDays: Int = 0,
     val completedQuestions: Int = 0,
+
+    val learningGoal: String = "1–2 zadatka dnevno",
+    val preferredTaskFormat: String = "Interaktivni koraci",
+    val learningFocus: String = "Balansirano učenje",
+    val aiFollowUpEnabled: Boolean = true,
 
     val createdAt: Long = System.currentTimeMillis(),
     val lastActiveAt: Long = System.currentTimeMillis(),

@@ -28,6 +28,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,7 +47,8 @@ import com.example.pmuprojekat.ui.home.HomeUiState
 fun ProfileScreen(
     uiState: HomeUiState,
     selectedTab: MainTab,
-    onBottomTabSelected: (MainTab) -> Unit
+    onBottomTabSelected: (MainTab) -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     Scaffold(
         containerColor = AppPalette.Background,
@@ -89,7 +91,10 @@ fun ProfileScreen(
 
             LearningPortfolioCard(uiState)
 
-            ProfileSettingsPreview()
+            ProfileSettingsPreview(
+                uiState = uiState,
+                onOpenSettings = onOpenSettings
+            )
         }
     }
 }
@@ -522,7 +527,10 @@ private fun PortfolioRow(
 }
 
 @Composable
-private fun ProfileSettingsPreview() {
+private fun ProfileSettingsPreview(
+    uiState: HomeUiState,
+    onOpenSettings: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
@@ -534,16 +542,35 @@ private fun ProfileSettingsPreview() {
             modifier = Modifier.padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "Podešavanja profila",
-                color = AppPalette.TextPrimary,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    modifier = Modifier.weight(1f),
+                    text = "Podešavanja profila",
+                    color = AppPalette.TextPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
 
-            SettingPreviewRow("Cilj učenja", "1–2 zadatka dnevno")
-            SettingPreviewRow("Preferirani format", "Interaktivni koraci")
-            SettingPreviewRow("AI follow-up", "Uključen")
+                TextButton(
+                    onClick = onOpenSettings
+                ) {
+                    Text(
+                        text = "Uredi",
+                        color = AppPalette.Blue,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            SettingPreviewRow("Cilj učenja", uiState.learningGoal)
+            SettingPreviewRow("Preferirani format", uiState.preferredTaskFormat)
+            SettingPreviewRow("Fokus učenja", uiState.learningFocus)
+            SettingPreviewRow(
+                label = "AI follow-up",
+                value = if (uiState.aiFollowUpEnabled) "Uključen" else "Isključen"
+            )
         }
     }
 }

@@ -162,7 +162,11 @@ class HomeViewModel @Inject constructor(
             allQuestions = allQuestionPreviews,
             completedQuestionIds = completedIds,
             skillStats = skillStats,
-            lastCompletedQuestion = lastCompletedQuestion
+            lastCompletedQuestion = lastCompletedQuestion,
+            learningGoal = user?.learningGoal ?: "1–2 zadatka dnevno",
+            preferredTaskFormat = user?.preferredTaskFormat ?: "Interaktivni koraci",
+            learningFocus = user?.learningFocus ?: "Balansirano učenje",
+            aiFollowUpEnabled = user?.aiFollowUpEnabled ?: true,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -179,6 +183,30 @@ class HomeViewModel @Inject constructor(
     fun selectLevel(levelId: String) {
         viewModelScope.launch {
             repository.updateCurrentLevel(levelId)
+        }
+    }
+
+    fun updateProfileSettings(
+        displayName: String,
+        learningGoal: String,
+        preferredTaskFormat: String,
+        learningFocus: String,
+        aiFollowUpEnabled: Boolean
+    ) {
+        viewModelScope.launch {
+            repository.updateProfileSettings(
+                displayName = displayName,
+                learningGoal = learningGoal,
+                preferredTaskFormat = preferredTaskFormat,
+                learningFocus = learningFocus,
+                aiFollowUpEnabled = aiFollowUpEnabled
+            )
+        }
+    }
+
+    fun resetProgress() {
+        viewModelScope.launch {
+            repository.resetProgress()
         }
     }
 

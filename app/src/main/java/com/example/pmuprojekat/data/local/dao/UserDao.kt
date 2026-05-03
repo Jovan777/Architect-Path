@@ -44,4 +44,37 @@ interface UserDao {
         xpDelta: Int,
         updatedAt: Long = System.currentTimeMillis()
     )
+
+    @Query("""
+        UPDATE users
+        SET displayName = :displayName,
+            learningGoal = :learningGoal,
+            preferredTaskFormat = :preferredTaskFormat,
+            learningFocus = :learningFocus,
+            aiFollowUpEnabled = :aiFollowUpEnabled,
+            lastActiveAt = :updatedAt
+        WHERE userId = :userId
+    """)
+    suspend fun updateProfileSettings(
+        userId: String,
+        displayName: String,
+        learningGoal: String,
+        preferredTaskFormat: String,
+        learningFocus: String,
+        aiFollowUpEnabled: Boolean,
+        updatedAt: Long = System.currentTimeMillis()
+    )
+
+    @Query("""
+        UPDATE users
+        SET xp = 0,
+            streakDays = 0,
+            completedQuestions = 0,
+            lastActiveAt = :updatedAt
+        WHERE userId = :userId
+    """)
+    suspend fun resetLearningStats(
+        userId: String,
+        updatedAt: Long = System.currentTimeMillis()
+    )
 }

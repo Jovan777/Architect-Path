@@ -27,7 +27,12 @@ data class HomeUiState(
 
     val completedQuestionIds: Set<String> = emptySet(),
     val skillStats: List<SkillProgressUi> = emptyList(),
-    val lastCompletedQuestion: QuestionPreviewUi? = null
+    val lastCompletedQuestion: QuestionPreviewUi? = null,
+
+    val learningGoal: String = "1–2 zadatka dnevno",
+    val preferredTaskFormat: String = "Interaktivni koraci",
+    val learningFocus: String = "Balansirano učenje",
+    val aiFollowUpEnabled: Boolean = true,
 )
 
 data class LevelSummaryUi(

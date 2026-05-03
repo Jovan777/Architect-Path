@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.example.pmuprojekat.data.local.entity.UserQuestionProgressEntity
 import com.example.pmuprojekat.data.local.entity.UserStepAnswerEntity
 import kotlinx.coroutines.flow.Flow
@@ -42,4 +43,16 @@ interface UserAnswerDao {
         userId: String,
         questionId: String
     ): List<UserStepAnswerEntity>
+
+    @Query("DELETE FROM user_step_answers WHERE userId = :userId")
+    suspend fun clearStepAnswersForUser(userId: String)
+
+    @Query("DELETE FROM user_question_progress WHERE userId = :userId")
+    suspend fun clearQuestionProgressForUser(userId: String)
+
+    @Transaction
+    suspend fun clearUserProgress(userId: String) {
+        clearStepAnswersForUser(userId)
+        clearQuestionProgressForUser(userId)
+    }
 }

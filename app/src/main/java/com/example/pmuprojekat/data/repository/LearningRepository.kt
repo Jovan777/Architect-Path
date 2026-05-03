@@ -53,6 +53,28 @@ class LearningRepository @Inject constructor(
         )
     }
 
+    suspend fun updateProfileSettings(
+        displayName: String,
+        learningGoal: String,
+        preferredTaskFormat: String,
+        learningFocus: String,
+        aiFollowUpEnabled: Boolean
+    ) {
+        userDao.updateProfileSettings(
+            userId = LOCAL_USER_ID,
+            displayName = displayName,
+            learningGoal = learningGoal,
+            preferredTaskFormat = preferredTaskFormat,
+            learningFocus = learningFocus,
+            aiFollowUpEnabled = aiFollowUpEnabled
+        )
+    }
+
+    suspend fun resetProgress() {
+        userAnswerDao.clearUserProgress(LOCAL_USER_ID)
+        userDao.resetLearningStats(LOCAL_USER_ID)
+    }
+
     suspend fun saveStepAnswer(answer: UserStepAnswerEntity) {
         userAnswerDao.upsertStepAnswer(answer)
     }
