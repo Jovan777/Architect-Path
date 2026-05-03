@@ -37,6 +37,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -528,9 +531,19 @@ private fun OrderedCardsStepContent(
     onExcludeOrderedOption: (QuestionStepUi, String) -> Unit,
     onRestoreOrderedOption: (QuestionStepUi, String) -> Unit
 ) {
-    val optionById = step.options.associateBy { it.optionId }
-    val orderedOptions = draft.orderedOptionIds.mapNotNull { optionById[it] }
-    val excludedOptions = step.options.filter { draft.excludedOptionIds.contains(it.optionId) }
+    val optionById = remember(step.options) {
+        step.options.associateBy { it.optionId }
+    }
+    val orderedOptions by remember(draft.orderedOptionIds, optionById) {
+        derivedStateOf {
+            draft.orderedOptionIds.mapNotNull { optionById[it] }
+        }
+    }
+    val excludedOptions by remember(step.options, draft.excludedOptionIds) {
+        derivedStateOf {
+            step.options.filter { draft.excludedOptionIds.contains(it.optionId) }
+        }
+    }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)

@@ -1,6 +1,8 @@
 package com.example.pmuprojekat.ui.question
 
+import androidx.compose.runtime.Immutable
 
+@Immutable
 data class QuestionUiState(
     val isLoading: Boolean = true,
     val questionId: String? = null,
@@ -34,6 +36,7 @@ data class QuestionUiState(
         get() = currentStepIndex == totalSteps - 1
 }
 
+@Immutable
 data class QuestionStepUi(
     val stepId: String,
     val type: String,
@@ -49,6 +52,7 @@ data class QuestionStepUi(
     val blanks: List<CodeBlankUi>
 )
 
+@Immutable
 data class StepOptionUi(
     val optionId: String,
     val label: String?,
@@ -61,12 +65,14 @@ data class StepOptionUi(
     val metadata: String?
 )
 
+@Immutable
 data class StepZoneUi(
     val zoneId: String,
     val title: String,
     val zoneOrder: Int
 )
 
+@Immutable
 data class CodeBlankUi(
     val blankId: String,
     val blankOrder: Int,
@@ -74,6 +80,7 @@ data class CodeBlankUi(
     val correctValue: String
 )
 
+@Immutable
 data class StepAnswerDraft(
     val selectedOptionIds: Set<String> = emptySet(),
     val orderedOptionIds: List<String> = emptyList(),
@@ -83,6 +90,7 @@ data class StepAnswerDraft(
     val freeTextAnswer: String = ""
 )
 
+@Immutable
 data class StepFeedbackUi(
     val isCorrect: Boolean,
     val title: String,

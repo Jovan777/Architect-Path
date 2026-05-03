@@ -1,5 +1,8 @@
 package com.example.pmuprojekat.ui.home
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class HomeUiState(
     val isLoading: Boolean = true,
 
@@ -36,6 +39,7 @@ data class HomeUiState(
     val aiFollowUpEnabled: Boolean = true,
 )
 
+@Immutable
 data class LevelSummaryUi(
     val levelId: String,
     val number: Int,
@@ -47,6 +51,7 @@ data class LevelSummaryUi(
     val progressPercent: Int = 0
 )
 
+@Immutable
 data class QuestionPreviewUi(
     val questionId: String,
     val levelId: String = "",
@@ -62,6 +67,7 @@ data class QuestionPreviewUi(
     val personalizationScore: Int = 0
 )
 
+@Immutable
 data class SkillProgressUi(
     val typeLabel: String,
     val totalCount: Int,

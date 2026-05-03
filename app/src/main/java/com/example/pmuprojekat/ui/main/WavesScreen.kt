@@ -20,9 +20,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
@@ -30,6 +31,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,16 +62,34 @@ fun WavesScreen(
         mutableStateOf(uiState.selectedLevel)
     }
 
-    val level = uiState.levels.firstOrNull { it.levelId == selectedLevelId }
+    val level by remember(uiState.levels, selectedLevelId) {
+        derivedStateOf {
+            uiState.levels.firstOrNull { it.levelId == selectedLevelId }
+        }
+    }
 
-    val questions = uiState.allQuestions
-        .filter { it.levelId == selectedLevelId }
-        .sortedWith(
-            compareBy<QuestionPreviewUi> { it.wave ?: 0 }
-                .thenBy { it.orderIndex }
-        )
+    val questions by remember(uiState.allQuestions, selectedLevelId) {
+        derivedStateOf {
+            uiState.allQuestions
+                .filter { it.levelId == selectedLevelId }
+                .sortedWith(
+                    compareBy<QuestionPreviewUi> { it.wave ?: 0 }
+                        .thenBy { it.orderIndex }
+                )
+        }
+    }
 
-    val waves = questions.groupBy { it.wave ?: 0 }.toSortedMap()
+    val waves by remember(questions) {
+        derivedStateOf {
+            questions.groupBy { it.wave ?: 0 }.toSortedMap().toList()
+        }
+    }
+
+    val completedCount by remember(questions) {
+        derivedStateOf {
+            questions.count { it.isCompleted }
+        }
+    }
 
     Scaffold(
         containerColor = AppPalette.Background,
@@ -80,7 +100,7 @@ fun WavesScreen(
             )
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
@@ -96,45 +116,61 @@ fun WavesScreen(
                 .padding(
                     top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
                     bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                )
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp)
-                .padding(top = 12.dp, bottom = 24.dp),
+                ),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                start = 18.dp,
+                top = 12.dp,
+                end = 18.dp,
+                bottom = 24.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
+            item(key = "title") {
+                Text(
                 text = "Talasi",
                 color = AppPalette.TextPrimary,
                 fontSize = 30.sp,
                 fontWeight = FontWeight.ExtraBold
-            )
+                )
+            }
 
-            Text(
+            item(key = "subtitle") {
+                Text(
                 text = "Uči kroz zaokružene celine. Svaki talas povezuje više tipova zadataka istog nivoa znanja.",
                 color = AppPalette.TextSecondary,
                 fontSize = 14.sp,
                 lineHeight = 20.sp
-            )
+                )
+            }
 
-            LevelSelectorRow(
+            item(key = "level-selector") {
+                LevelSelectorRow(
                 levels = uiState.levels,
                 selectedLevelId = selectedLevelId,
                 onLevelSelected = { levelId ->
                     selectedLevelId = levelId
                     onLevelSelected(levelId)
                 }
-            )
+                )
+            }
 
-            WavePathHero(
+            item(key = "hero") {
+                WavePathHero(
                 levelName = level?.title ?: "Nivo",
                 questionCount = questions.size,
-                completedCount = questions.count { it.isCompleted }
-            )
+                    completedCount = completedCount
+                )
+            }
 
             if (waves.isEmpty()) {
-                EmptyWaveCard()
+                item(key = "empty") {
+                    EmptyWaveCard()
+                }
             } else {
-                waves.forEach { (wave, waveQuestions) ->
+                items(
+                    items = waves,
+                    key = { (wave, _) -> "wave-$wave" }
+                ) { (wave, waveQuestions) ->
                     WaveCard(
                         wave = wave,
                         questions = waveQuestions,

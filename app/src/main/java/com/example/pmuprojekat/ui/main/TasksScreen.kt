@@ -20,10 +20,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Scaffold
@@ -31,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,20 +77,29 @@ fun TasksScreen(
         mutableStateOf("")
     }
 
-    val filteredQuestions = uiState.personalizedQuestions
-        .filter { it.levelId == selectedLevelId }
-        .filter { question ->
-            when (statusFilter) {
-                TaskStatusFilter.ALL -> true
-                TaskStatusFilter.OPEN -> !question.isCompleted
-                TaskStatusFilter.DONE -> question.isCompleted
+    val filteredQuestions by remember(
+        uiState.personalizedQuestions,
+        selectedLevelId,
+        statusFilter,
+        search
+    ) {
+        derivedStateOf {
+            uiState.personalizedQuestions
+                .filter { it.levelId == selectedLevelId }
+                .filter { question ->
+                    when (statusFilter) {
+                        TaskStatusFilter.ALL -> true
+                        TaskStatusFilter.OPEN -> !question.isCompleted
+                        TaskStatusFilter.DONE -> question.isCompleted
+                    }
+                }
+                .filter { question ->
+                    search.isBlank() ||
+                            question.title.contains(search, ignoreCase = true) ||
+                            question.questionId.contains(search, ignoreCase = true) ||
+                            question.typeLabel.contains(search, ignoreCase = true)
+                }
             }
-        }
-        .filter { question ->
-            search.isBlank() ||
-                    question.title.contains(search, ignoreCase = true) ||
-                    question.questionId.contains(search, ignoreCase = true) ||
-                    question.typeLabel.contains(search, ignoreCase = true)
         }
 
     Scaffold(
@@ -100,7 +111,7 @@ fun TasksScreen(
             )
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
@@ -116,54 +127,72 @@ fun TasksScreen(
                 .padding(
                     top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
                     bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                )
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp)
-                .padding(top = 12.dp, bottom = 24.dp),
+                ),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                start = 18.dp,
+                top = 12.dp,
+                end = 18.dp,
+                bottom = 24.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "Zadaci",
-                color = AppPalette.TextPrimary,
-                fontSize = 30.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
+            item(key = "title") {
+                Text(
+                    text = "Zadaci",
+                    color = AppPalette.TextPrimary,
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
 
-            Text(
+            item(key = "subtitle") {
+                Text(
                 text = "Katalog svih zadataka. Pretraži, filtriraj i direktno uđi u vežbu.",
                 color = AppPalette.TextSecondary,
                 fontSize = 14.sp,
                 lineHeight = 20.sp
-            )
+                )
+            }
 
-            OutlinedTextField(
+            item(key = "search") {
+                OutlinedTextField(
                 modifier = Modifier.fillMaxWidth(),
                 value = search,
                 onValueChange = { search = it },
                 label = { Text("Pretraži po ID-u, nazivu ili tipu") },
                 singleLine = true,
                 shape = RoundedCornerShape(20.dp)
-            )
+                )
+            }
 
-            LevelFilterRow(
+            item(key = "level-filter") {
+                LevelFilterRow(
                 levels = uiState.levels,
                 selectedLevelId = selectedLevelId,
                 onSelected = { selectedLevelId = it }
-            )
+                )
+            }
 
-            StatusFilterRow(
+            item(key = "status-filter") {
+                StatusFilterRow(
                 selected = statusFilter,
                 onSelected = { statusFilter = it }
-            )
+                )
+            }
 
-            Text(
+            item(key = "count") {
+                Text(
                 text = "${filteredQuestions.size} zadataka",
                 color = AppPalette.TextPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.ExtraBold
-            )
+                )
+            }
 
-            filteredQuestions.forEach { question ->
+            items(
+                items = filteredQuestions,
+                key = { it.questionId }
+            ) { question ->
                 TaskCatalogCard(
                     question = question,
                     onClick = { onQuestionClick(question.questionId) }

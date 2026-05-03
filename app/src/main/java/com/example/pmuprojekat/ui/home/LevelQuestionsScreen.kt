@@ -32,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,28 +56,44 @@ fun LevelQuestionsScreen(
     onBack: () -> Unit,
     onQuestionClick: (String) -> Unit
 ) {
-    val level = uiState.levels.firstOrNull { it.levelId == levelId }
+    val level by remember(uiState.levels, levelId) {
+        derivedStateOf {
+            uiState.levels.firstOrNull { it.levelId == levelId }
+        }
+    }
 
-    val levelQuestions = uiState.allQuestions
-        .filter { it.levelId == levelId }
-        .sortedWith(
-            compareBy<QuestionPreviewUi> { it.wave ?: 0 }
-                .thenBy { it.orderIndex }
-        )
+    val levelQuestions by remember(uiState.allQuestions, levelId) {
+        derivedStateOf {
+            uiState.allQuestions
+                .filter { it.levelId == levelId }
+                .sortedWith(
+                    compareBy<QuestionPreviewUi> { it.wave ?: 0 }
+                        .thenBy { it.orderIndex }
+                )
+        }
+    }
 
-    val availableWaves = levelQuestions
-        .mapNotNull { it.wave }
-        .distinct()
-        .sorted()
+    val availableWaves by remember(levelQuestions) {
+        derivedStateOf {
+            levelQuestions
+                .mapNotNull { it.wave }
+                .distinct()
+                .sorted()
+        }
+    }
 
     var selectedWave by remember(levelId) {
         mutableStateOf<Int?>(null)
     }
 
-    val visibleQuestions = if (selectedWave == null) {
-        levelQuestions
-    } else {
-        levelQuestions.filter { it.wave == selectedWave }
+    val visibleQuestions by remember(levelQuestions, selectedWave) {
+        derivedStateOf {
+            if (selectedWave == null) {
+                levelQuestions
+            } else {
+                levelQuestions.filter { it.wave == selectedWave }
+            }
+        }
     }
 
     Scaffold(
@@ -388,12 +405,16 @@ private fun QuestionsByWaveList(
     showWaveHeaders: Boolean,
     onQuestionClick: (String) -> Unit
 ) {
-    val grouped = questions.groupBy { it.wave ?: 0 }
+    val grouped by remember(questions) {
+        derivedStateOf {
+            questions.groupBy { it.wave ?: 0 }.toSortedMap()
+        }
+    }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        grouped.toSortedMap().forEach { (wave, waveQuestions) ->
+        grouped.forEach { (wave, waveQuestions) ->
             if (showWaveHeaders) {
                 Text(
                     text = if (wave == 0) "Bez talasa" else "Talas $wave",

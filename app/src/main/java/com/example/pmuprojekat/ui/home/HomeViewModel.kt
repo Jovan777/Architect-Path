@@ -10,9 +10,11 @@ import com.example.pmuprojekat.data.repository.LearningRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlin.math.roundToInt
 
 @HiltViewModel
@@ -197,7 +199,9 @@ class HomeViewModel @Inject constructor(
             learningFocus = user?.learningFocus ?: "Balansirano učenje",
             aiFollowUpEnabled = user?.aiFollowUpEnabled ?: true,
         )
-    }.stateIn(
+    }
+        .flowOn(Dispatchers.Default)
+        .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = HomeUiState()
