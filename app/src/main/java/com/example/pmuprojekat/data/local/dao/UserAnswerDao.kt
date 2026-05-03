@@ -1,6 +1,5 @@
 package com.example.pmuprojekat.data.local.dao
 
-
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -24,6 +23,16 @@ interface UserAnswerDao {
         ORDER BY updatedAt DESC
     """)
     fun observeUserProgress(userId: String): Flow<List<UserQuestionProgressEntity>>
+
+    @Query("""
+        SELECT * FROM user_question_progress
+        WHERE userId = :userId AND questionId = :questionId
+        LIMIT 1
+    """)
+    suspend fun getQuestionProgress(
+        userId: String,
+        questionId: String
+    ): UserQuestionProgressEntity?
 
     @Query("""
         SELECT * FROM user_step_answers

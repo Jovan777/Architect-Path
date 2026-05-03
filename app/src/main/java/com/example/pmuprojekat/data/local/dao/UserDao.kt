@@ -1,6 +1,5 @@
 package com.example.pmuprojekat.data.local.dao
 
-
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -29,6 +28,20 @@ interface UserDao {
     suspend fun updateCurrentLevel(
         userId: String,
         level: String,
+        updatedAt: Long = System.currentTimeMillis()
+    )
+
+    @Query("""
+        UPDATE users
+        SET completedQuestions = completedQuestions + :completedDelta,
+            xp = xp + :xpDelta,
+            lastActiveAt = :updatedAt
+        WHERE userId = :userId
+    """)
+    suspend fun increaseLearningStats(
+        userId: String,
+        completedDelta: Int,
+        xpDelta: Int,
         updatedAt: Long = System.currentTimeMillis()
     )
 }

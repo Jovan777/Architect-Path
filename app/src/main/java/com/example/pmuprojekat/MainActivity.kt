@@ -5,10 +5,16 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import com.example.pmuprojekat.ui.home.SoftwareDesignHomeScreen
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.pmuprojekat.ui.home.HomeViewModel
+import com.example.pmuprojekat.ui.home.SoftwareDesignHomeScreen
+import com.example.pmuprojekat.ui.question.QuestionScreen
+import com.example.pmuprojekat.ui.question.QuestionViewModel
 import com.example.pmuprojekat.ui.theme.PMUProjekatTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -16,6 +22,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val homeViewModel: HomeViewModel by viewModels()
+    private val questionViewModel: QuestionViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,24 +30,56 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             PMUProjekatTheme {
-                val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+                val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+                val questionUiState by questionViewModel.uiState.collectAsStateWithLifecycle()
 
-                SoftwareDesignHomeScreen(
-                    uiState = uiState,
-                    onLevelSelected = homeViewModel::selectLevel,
-                    onStartLearning = {
-                        /*
-                         * Ovde kasnije otvaramo ekran zadatka.
-                         * Za sada ostaje pripremljeno mesto za navigaciju.
-                         */
-                    },
-                    onQuestionClick = { questionId ->
-                        /*
-                         * Ovde kasnije otvaramo konkretan zadatak po ID-u.
-                         * Primer: P1.1, J1.1, A2.3...
-                         */
+                var openedQuestionId by rememberSaveable {
+                    mutableStateOf<String?>(null)
+                }
+
+                LaunchedEffect(openedQuestionId) {
+                    openedQuestionId?.let { questionId ->
+                        questionViewModel.loadQuestion(questionId)
                     }
-                )
+                }
+
+                if (openedQuestionId == null) {
+                    SoftwareDesignHomeScreen(
+                        uiState = homeUiState,
+                        onLevelSelected = homeViewModel::selectLevel,
+                        onStartLearning = {
+                            val firstQuestionId = homeUiState.questionPreviews
+                                .firstOrNull()
+                                ?.questionId
+
+                            if (firstQuestionId != null) {
+                                openedQuestionId = firstQuestionId
+                            }
+                        },
+                        onQuestionClick = { questionId ->
+                            openedQuestionId = questionId
+                        }
+                    )
+                } else {
+                    QuestionScreen(
+                        uiState = questionUiState,
+                        onBack = {
+                            openedQuestionId = null
+                        },
+                        onToggleOption = questionViewModel::toggleOption,
+                        onMoveOrderedOption = questionViewModel::moveOrderedOption,
+                        onExcludeOrderedOption = questionViewModel::excludeOrderedOption,
+                        onRestoreOrderedOption = questionViewModel::restoreOrderedOption,
+                        onMapOptionToZone = questionViewModel::mapOptionToZone,
+                        onRemoveOptionZone = questionViewModel::removeOptionZone,
+                        onUpdateBlankAnswer = questionViewModel::updateBlankAnswer,
+                        onUpdateFreeText = questionViewModel::updateFreeText,
+                        onCheckStep = questionViewModel::checkCurrentStep,
+                        onPreviousStep = questionViewModel::goToPreviousStep,
+                        onNextStep = questionViewModel::goToNextStep,
+                        onFinishQuestion = questionViewModel::finishQuestion
+                    )
+                }
             }
         }
     }

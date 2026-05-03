@@ -5,6 +5,8 @@ import com.example.pmuprojekat.data.local.dao.UserAnswerDao
 import com.example.pmuprojekat.data.local.dao.UserDao
 import com.example.pmuprojekat.data.local.entity.QuestionEntity
 import com.example.pmuprojekat.data.local.entity.UserEntity
+import com.example.pmuprojekat.data.local.entity.UserQuestionProgressEntity
+import com.example.pmuprojekat.data.local.entity.UserStepAnswerEntity
 import com.example.pmuprojekat.data.local.relation.QuestionWithSteps
 import com.example.pmuprojekat.data.seed.SeedInserter
 import kotlinx.coroutines.flow.Flow
@@ -41,8 +43,50 @@ class LearningRepository @Inject constructor(
 
     suspend fun updateCurrentLevel(level: String) {
         userDao.updateCurrentLevel(
-            userId = "local_user",
+            userId = LOCAL_USER_ID,
             level = level
         )
+    }
+
+    suspend fun saveStepAnswer(answer: UserStepAnswerEntity) {
+        userAnswerDao.upsertStepAnswer(answer)
+    }
+
+    suspend fun completeQuestion(
+        questionId: String,
+        scorePercent: Int,
+        xpReward: Int
+    ) {
+        val existingProgress = userAnswerDao.getQuestionProgress(
+            userId = LOCAL_USER_ID,
+            questionId = questionId
+        )
+
+        val alreadyCompleted = existingProgress?.status == "completed"
+
+        val updatedProgress = UserQuestionProgressEntity(
+            userId = LOCAL_USER_ID,
+            questionId = questionId,
+            status = "completed",
+            attempts = (existingProgress?.attempts ?: 0) + 1,
+            bestScorePercent = maxOf(existingProgress?.bestScorePercent ?: 0, scorePercent),
+            startedAt = existingProgress?.startedAt ?: System.currentTimeMillis(),
+            completedAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis()
+        )
+
+        userAnswerDao.upsertQuestionProgress(updatedProgress)
+
+        if (!alreadyCompleted) {
+            userDao.increaseLearningStats(
+                userId = LOCAL_USER_ID,
+                completedDelta = 1,
+                xpDelta = xpReward
+            )
+        }
+    }
+
+    companion object {
+        const val LOCAL_USER_ID = "local_user"
     }
 }
