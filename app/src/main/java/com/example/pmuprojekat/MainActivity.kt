@@ -1,6 +1,7 @@
 package com.example.pmuprojekat
 
 import android.os.Bundle
+import androidx.activity.compose.BackHandler
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -40,34 +41,47 @@ class MainActivity : ComponentActivity() {
                 val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
                 val questionUiState by questionViewModel.uiState.collectAsStateWithLifecycle()
 
-                var selectedTabName by rememberSaveable {
-                    mutableStateOf(MainTab.HOME.name)
+                var routeBackStack by rememberSaveable {
+                    mutableStateOf(listOf(tabRoute(MainTab.HOME)))
                 }
 
-                var openedLevelId by rememberSaveable {
-                    mutableStateOf<String?>(null)
+                val currentRoute = routeBackStack.last()
+                val selectedTab = tabFromRoute(currentRoute) ?: MainTab.HOME
+                val openedLevelId = levelIdFromRoute(currentRoute)
+                val openedQuestionId = questionIdFromRoute(currentRoute)
+                val openedSettings = currentRoute == settingsRoute()
+
+                fun popBackStack() {
+                    if (routeBackStack.size > 1) {
+                        routeBackStack = routeBackStack.dropLast(1)
+                    }
                 }
 
-                var openedQuestionId by rememberSaveable {
-                    mutableStateOf<String?>(null)
+                fun navigateTo(route: String) {
+                    if (routeBackStack.lastOrNull() == route) return
+                    routeBackStack = routeBackStack + route
                 }
-
-                var openedSettings by rememberSaveable {
-                    mutableStateOf(false)
-                }
-
-                val selectedTab = MainTab.valueOf(selectedTabName)
 
                 fun selectTab(tab: MainTab) {
-                    selectedTabName = tab.name
-                    openedLevelId = null
-                    openedQuestionId = null
-                    openedSettings = false
+                    if (tab == MainTab.HOME) {
+                        routeBackStack = listOf(tabRoute(MainTab.HOME))
+                    } else {
+                        navigateTo(tabRoute(tab))
+                    }
+                }
+
+                fun openLevel(levelId: String) {
+                    homeViewModel.selectLevel(levelId)
+                    navigateTo(levelRoute(levelId))
                 }
 
                 fun openQuestion(questionId: String) {
                     questionViewModel.startQuestion(questionId)
-                    openedQuestionId = questionId
+                    navigateTo(questionRoute(questionId))
+                }
+
+                BackHandler(enabled = routeBackStack.size > 1) {
+                    popBackStack()
                 }
 
                 LaunchedEffect(openedQuestionId) {
@@ -81,7 +95,7 @@ class MainActivity : ComponentActivity() {
                         QuestionScreen(
                             uiState = questionUiState,
                             onBack = {
-                                openedQuestionId = null
+                                popBackStack()
                             },
                             onToggleOption = questionViewModel::toggleOption,
                             onMoveOrderedOption = questionViewModel::moveOrderedOption,
@@ -102,7 +116,7 @@ class MainActivity : ComponentActivity() {
                         SettingsScreen(
                             uiState = homeUiState,
                             onBack = {
-                                openedSettings = false
+                                popBackStack()
                             },
                             onSaveProfile = homeViewModel::updateProfileSettings,
                             onResetProgress = homeViewModel::resetProgress
@@ -112,9 +126,9 @@ class MainActivity : ComponentActivity() {
                     openedLevelId != null -> {
                         LevelQuestionsScreen(
                             uiState = homeUiState,
-                            levelId = openedLevelId!!,
+                            levelId = openedLevelId,
                             onBack = {
-                                openedLevelId = null
+                                popBackStack()
                             },
                             onQuestionClick = ::openQuestion
                         )
@@ -123,12 +137,9 @@ class MainActivity : ComponentActivity() {
                     selectedTab == MainTab.HOME -> {
                         SoftwareDesignHomeScreen(
                             uiState = homeUiState,
-                            onLevelSelected = { levelId ->
-                                homeViewModel.selectLevel(levelId)
-                                openedLevelId = levelId
-                            },
+                            onLevelSelected = ::openLevel,
                             onStartLearning = {
-                                openedLevelId = homeUiState.selectedLevel
+                                openLevel(homeUiState.selectedLevel)
                             },
                             onQuestionClick = ::openQuestion,
                             selectedTab = MainTab.HOME,
@@ -161,7 +172,7 @@ class MainActivity : ComponentActivity() {
                             selectedTab = MainTab.PROGRESS,
                             onBottomTabSelected = ::selectTab,
                             onOpenTasks = {
-                                selectTab(MainTab.TASKS)
+                                navigateTo(tabRoute(MainTab.TASKS))
                             }
                         )
                     }
@@ -171,11 +182,49 @@ class MainActivity : ComponentActivity() {
                             uiState = homeUiState,
                             selectedTab = MainTab.PROFILE,
                             onBottomTabSelected = ::selectTab,
-                            onOpenSettings = {openedSettings = true}
+                            onOpenSettings = {
+                                navigateTo(settingsRoute())
+                            }
                         )
                     }
                 }
             }
         }
     }
+}
+
+private fun tabRoute(tab: MainTab): String {
+    return "tab:${tab.name}"
+}
+
+private fun levelRoute(levelId: String): String {
+    return "level:$levelId"
+}
+
+private fun questionRoute(questionId: String): String {
+    return "question:$questionId"
+}
+
+private fun settingsRoute(): String {
+    return "settings"
+}
+
+private fun tabFromRoute(route: String): MainTab? {
+    if (!route.startsWith("tab:")) return null
+
+    return runCatching {
+        MainTab.valueOf(route.substringAfter("tab:"))
+    }.getOrNull()
+}
+
+private fun levelIdFromRoute(route: String): String? {
+    return route
+        .takeIf { it.startsWith("level:") }
+        ?.substringAfter("level:")
+}
+
+private fun questionIdFromRoute(route: String): String? {
+    return route
+        .takeIf { it.startsWith("question:") }
+        ?.substringAfter("question:")
 }
