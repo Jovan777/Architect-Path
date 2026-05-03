@@ -22,16 +22,12 @@ data class HomeUiState(
 
     val levels: List<LevelSummaryUi> = emptyList(),
 
-    /**
-     * Kratak prikaz na početnoj strani.
-     */
     val questionPreviews: List<QuestionPreviewUi> = emptyList(),
+    val allQuestions: List<QuestionPreviewUi> = emptyList(),
 
-    /**
-     * Sva pitanja iz baze, da možemo da otvorimo ekran nivoa
-     * i prikažemo sve zadatke tog nivoa.
-     */
-    val allQuestions: List<QuestionPreviewUi> = emptyList()
+    val completedQuestionIds: Set<String> = emptySet(),
+    val skillStats: List<SkillProgressUi> = emptyList(),
+    val lastCompletedQuestion: QuestionPreviewUi? = null
 )
 
 data class LevelSummaryUi(
@@ -41,15 +37,25 @@ data class LevelSummaryUi(
     val description: String,
     val topicCount: Int,
     val questionCount: Int,
-    val completedCount: Int = 0
+    val completedCount: Int = 0,
+    val progressPercent: Int = 0
 )
 
 data class QuestionPreviewUi(
     val questionId: String,
-    val levelId: String,
+    val levelId: String = "",
     val title: String,
     val typeLabel: String,
     val difficulty: String,
     val wave: Int?,
-    val orderIndex: Int
+    val orderIndex: Int = 0,
+    val isCompleted: Boolean = false,
+    val bestScorePercent: Int = 0
+)
+
+data class SkillProgressUi(
+    val typeLabel: String,
+    val totalCount: Int,
+    val completedCount: Int,
+    val averageScorePercent: Int
 )

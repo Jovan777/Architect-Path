@@ -41,6 +41,11 @@ class LearningRepository @Inject constructor(
         seedInserter.seedIfNeeded()
     }
 
+    fun observeLocalUserProgress() =
+        userAnswerDao.observeUserProgress(LOCAL_USER_ID)
+
+
+
     suspend fun updateCurrentLevel(level: String) {
         userDao.updateCurrentLevel(
             userId = LOCAL_USER_ID,

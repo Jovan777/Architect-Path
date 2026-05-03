@@ -21,30 +21,45 @@ class HomeViewModel @Inject constructor(
 
     val uiState = combine(
         repository.observeActiveUser(),
-        repository.observeAllQuestions()
-    ) { user, questions ->
+        repository.observeAllQuestions(),
+        repository.observeLocalUserProgress()
+    ) { user, questions, progress ->
 
         val selectedLevelId = user?.currentLevel ?: LearningLevel.BEGINNER.id
         val selectedLevel = LearningLevel.fromId(selectedLevelId)
+
+        val completedIds = progress
+            .filter { it.status == "completed" }
+            .map { it.questionId }
+            .toSet()
+
+        val bestScoreByQuestionId = progress.associate {
+            it.questionId to it.bestScorePercent
+        }
 
         val selectedLevelQuestions = questions
             .filter { it.level == selectedLevelId }
             .sortedBy { it.orderIndex }
 
-        val completedQuestions = user?.completedQuestions ?: 0
+        val completedQuestionsCount = completedIds.size
 
         val overallProgress = calculatePercent(
-            completed = completedQuestions,
+            completed = completedQuestionsCount,
             total = questions.size
         )
 
+        val selectedCompletedCount = selectedLevelQuestions.count {
+            completedIds.contains(it.questionId)
+        }
+
         val selectedProgress = calculatePercent(
-            completed = 0,
+            completed = selectedCompletedCount,
             total = selectedLevelQuestions.size
         )
 
         val levels = LearningLevel.entries.mapIndexed { index, level ->
             val levelQuestions = questions.filter { it.level == level.id }
+            val completedInLevel = levelQuestions.count { completedIds.contains(it.questionId) }
 
             LevelSummaryUi(
                 levelId = level.id,
@@ -53,13 +68,17 @@ class HomeViewModel @Inject constructor(
                 description = levelDescription(level.id),
                 topicCount = levelQuestions.map { it.type }.distinct().size,
                 questionCount = levelQuestions.size,
-                completedCount = 0
+                completedCount = completedInLevel,
+                progressPercent = calculatePercent(
+                    completed = completedInLevel,
+                    total = levelQuestions.size
+                )
             )
         }
 
         val allQuestionPreviews = questions
             .sortedWith(
-                compareBy<QuestionEntity> { it.level }
+                compareBy<QuestionEntity> { levelOrder(it.level) }
                     .thenBy { it.wave ?: 0 }
                     .thenBy { it.orderIndex }
             )
@@ -71,13 +90,51 @@ class HomeViewModel @Inject constructor(
                     typeLabel = questionTypeLabel(question.type),
                     difficulty = difficultyLabel(question.difficulty),
                     wave = question.wave,
-                    orderIndex = question.orderIndex
+                    orderIndex = question.orderIndex,
+                    isCompleted = completedIds.contains(question.questionId),
+                    bestScorePercent = bestScoreByQuestionId[question.questionId] ?: 0
                 )
             }
 
         val questionPreviews = allQuestionPreviews
             .filter { it.levelId == selectedLevelId }
+            .filter { !it.isCompleted }
             .take(4)
+            .ifEmpty {
+                allQuestionPreviews
+                    .filter { it.levelId == selectedLevelId }
+                    .take(4)
+            }
+
+        val skillStats = questions
+            .groupBy { questionTypeLabel(it.type) }
+            .map { (typeLabel, typeQuestions) ->
+                val completedInType = typeQuestions.filter { completedIds.contains(it.questionId) }
+
+                val averageScore = completedInType
+                    .mapNotNull { bestScoreByQuestionId[it.questionId] }
+                    .takeIf { it.isNotEmpty() }
+                    ?.average()
+                    ?.roundToInt()
+                    ?: 0
+
+                SkillProgressUi(
+                    typeLabel = typeLabel,
+                    totalCount = typeQuestions.size,
+                    completedCount = completedInType.size,
+                    averageScorePercent = averageScore
+                )
+            }
+            .sortedByDescending { it.completedCount }
+
+        val lastCompletedId = progress
+            .filter { it.status == "completed" }
+            .maxByOrNull { it.updatedAt }
+            ?.questionId
+
+        val lastCompletedQuestion = allQuestionPreviews.firstOrNull {
+            it.questionId == lastCompletedId
+        }
 
         HomeUiState(
             isLoading = false,
@@ -86,7 +143,7 @@ class HomeViewModel @Inject constructor(
             selectedLevelName = selectedLevel.displayName,
             totalQuestions = questions.size,
             selectedLevelQuestions = selectedLevelQuestions.size,
-            completedQuestions = completedQuestions,
+            completedQuestions = completedQuestionsCount,
             streakDays = user?.streakDays ?: 0,
             xp = user?.xp ?: 0,
             overallProgressPercent = overallProgress,
@@ -102,7 +159,10 @@ class HomeViewModel @Inject constructor(
             activeCardProgressPercent = selectedProgress,
             levels = levels,
             questionPreviews = questionPreviews,
-            allQuestions = allQuestionPreviews
+            allQuestions = allQuestionPreviews,
+            completedQuestionIds = completedIds,
+            skillStats = skillStats,
+            lastCompletedQuestion = lastCompletedQuestion
         )
     }.stateIn(
         scope = viewModelScope,
@@ -132,6 +192,17 @@ class HomeViewModel @Inject constructor(
             .coerceIn(0, 100)
     }
 
+    private fun levelOrder(levelId: String): Int {
+        return when (levelId) {
+            LearningLevel.BEGINNER.id -> 1
+            LearningLevel.JUNIOR.id -> 2
+            LearningLevel.MEDIOR.id -> 3
+            LearningLevel.SENIOR.id -> 4
+            LearningLevel.ARCHITECT.id -> 5
+            else -> 99
+        }
+    }
+
     private fun levelDescription(levelId: String): String {
         return when (levelId) {
             LearningLevel.BEGINNER.id -> "Osnove obrazaca i dobrih praksi"
@@ -155,6 +226,7 @@ class HomeViewModel @Inject constructor(
             "easy" -> "Lako"
             "medium" -> "Srednje"
             "hard" -> "Teže"
+            "expert" -> "Expert"
             else -> difficulty
         }
     }

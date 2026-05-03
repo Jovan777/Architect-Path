@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pmuprojekat.core.model.LearningLevel
 import com.example.pmuprojekat.ui.theme.PMUProjekatTheme
+import com.example.pmuprojekat.ui.main.MainBottomBar
+import com.example.pmuprojekat.ui.main.MainTab
 
 object AppPalette {
     val Navy = Color(0xFF0F172A)
@@ -97,12 +99,17 @@ fun SoftwareDesignHomeScreen(
     uiState: HomeUiState,
     onLevelSelected: (String) -> Unit,
     onStartLearning: () -> Unit,
-    onQuestionClick: (String) -> Unit
+    onQuestionClick: (String) -> Unit,
+    selectedTab: MainTab = MainTab.HOME,
+    onBottomTabSelected: (MainTab) -> Unit = {}
 ) {
     Scaffold(
         containerColor = AppPalette.Background,
         bottomBar = {
-            DesignBottomNavigation()
+            MainBottomBar(
+                selectedTab = selectedTab,
+                onTabSelected = onBottomTabSelected
+            )
         }
     ) { innerPadding ->
         Box(
