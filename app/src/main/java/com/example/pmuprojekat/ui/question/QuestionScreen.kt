@@ -53,13 +53,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pmuprojekat.core.model.StepType
 import com.example.pmuprojekat.ui.home.AppPalette
+import androidx.compose.material3.OutlinedTextFieldDefaults
 
 @Composable
 fun QuestionScreen(
     uiState: QuestionUiState,
     onBack: () -> Unit,
+    onBackToQuestionList: () -> Unit,
     hasNextQuestion: Boolean,
     onNextQuestion: () -> Unit,
+    onRetryQuestion: () -> Unit,
     onToggleOption: (QuestionStepUi, String) -> Unit,
     onMoveOrderedOption: (QuestionStepUi, String, Int) -> Unit,
     onExcludeOrderedOption: (QuestionStepUi, String) -> Unit,
@@ -96,7 +99,8 @@ fun QuestionScreen(
                     uiState = uiState,
                     hasNextQuestion = hasNextQuestion,
                     onNextQuestion = onNextQuestion,
-                    onBack = onBack
+                    onBack = onBackToQuestionList,
+                    onRetryQuestion =  onRetryQuestion
                 )
             } else {
                 Column(
@@ -426,7 +430,6 @@ private fun StepCard(
                         step = step,
                         draft = draft,
                         isLocked = isLocked,
-                        enabled = !isLocked,
                         onUpdateBlankAnswer = onUpdateBlankAnswer
                     )
                 }
@@ -437,7 +440,6 @@ private fun StepCard(
                         step = step,
                         draft = draft,
                         isLocked = isLocked,
-                        enabled = !isLocked,
                         onUpdateFreeText = onUpdateFreeText
                     )
                 }
@@ -813,12 +815,38 @@ private fun MappingOptionCard(
     }
 }
 
+
+@Composable
+private fun solidInputColors() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = Color.Black,
+    unfocusedTextColor = Color.Black,
+    disabledTextColor = Color.Black,
+    errorTextColor = Color.Black,
+
+    cursorColor = Color.Black,
+    errorCursorColor = Color.Black,
+
+    focusedLabelColor = AppPalette.TextPrimary,
+    unfocusedLabelColor = AppPalette.TextPrimary,
+    disabledLabelColor = AppPalette.TextPrimary,
+    errorLabelColor = AppPalette.TextPrimary,
+
+    focusedBorderColor = AppPalette.Blue,
+    unfocusedBorderColor = AppPalette.Border,
+    disabledBorderColor = AppPalette.Border,
+    errorBorderColor = Color(0xFFE11D48),
+
+    focusedContainerColor = Color.White,
+    unfocusedContainerColor = Color.White,
+    disabledContainerColor = Color.White,
+    errorContainerColor = Color.White
+)
+
 @Composable
 private fun CodeCompletionStepContent(
     step: QuestionStepUi,
     draft: StepAnswerDraft,
     isLocked: Boolean,
-    enabled: Boolean,
     onUpdateBlankAnswer: (QuestionStepUi, String, String) -> Unit
 ) {
     Column(
@@ -831,11 +859,21 @@ private fun CodeCompletionStepContent(
                 onValueChange = { value ->
                     onUpdateBlankAnswer(step, blank.blankId, value)
                 },
+                enabled = !isLocked,
                 label = {
-                    Text("Prazno mesto ${blank.blankOrder}")
+                    Text(
+                        text = "Prazno mesto ${blank.blankOrder}",
+                        color = AppPalette.TextPrimary
+                    )
                 },
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    color = Color.Black,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                ),
                 singleLine = true,
-                shape = RoundedCornerShape(18.dp)
+                shape = RoundedCornerShape(18.dp),
+                colors = solidInputColors()
             )
         }
     }
@@ -844,9 +882,8 @@ private fun CodeCompletionStepContent(
 @Composable
 private fun FreeTextStepContent(
     step: QuestionStepUi,
-    isLocked: Boolean,
-    enabled: Boolean,
     draft: StepAnswerDraft,
+    isLocked: Boolean,
     onUpdateFreeText: (QuestionStepUi, String) -> Unit
 ) {
     OutlinedTextField(
@@ -857,10 +894,20 @@ private fun FreeTextStepContent(
         onValueChange = { value ->
             onUpdateFreeText(step, value)
         },
+        enabled = !isLocked,
         label = {
-            Text("Tvoje obrazloženje")
+            Text(
+                text = "Tvoje obrazloženje",
+                color = AppPalette.TextPrimary
+            )
         },
-        shape = RoundedCornerShape(18.dp)
+        textStyle = androidx.compose.ui.text.TextStyle(
+            color = Color.Black,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold
+        ),
+        shape = RoundedCornerShape(18.dp),
+        colors = solidInputColors()
     )
 }
 
@@ -993,6 +1040,7 @@ private fun QuestionResultScreen(
     uiState: QuestionUiState,
     hasNextQuestion: Boolean,
     onNextQuestion: () -> Unit,
+    onRetryQuestion: () -> Unit,
     onBack: () -> Unit
 ) {
     val resultVisual = remember(uiState.scorePercent) {
@@ -1135,6 +1183,41 @@ private fun QuestionResultScreen(
                 fontWeight = FontWeight.Bold
             )
         }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clickable { onRetryQuestion() },
+                shape = CircleShape,
+                color = Color.White,
+                shadowElevation = 6.dp,
+                border = BorderStroke(1.dp, AppPalette.Border)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "↻",
+                        color = AppPalette.Blue,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+
+            Text(
+                text = "Ponovi zadatak",
+                color = AppPalette.TextSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
     }
 }
 

@@ -81,6 +81,40 @@ class MainActivity : ComponentActivity() {
                     navigateTo(questionRoute(questionId))
                 }
 
+                fun replaceCurrentQuestion(questionId: String) {
+                    questionViewModel.startQuestion(questionId)
+
+                    val newRoute = questionRoute(questionId)
+
+                    routeBackStack = if (routeBackStack.lastOrNull()?.startsWith("question:") == true) {
+                        routeBackStack.dropLast(1) + newRoute
+                    } else {
+                        routeBackStack + newRoute
+                    }
+                }
+
+                fun goBackToQuestionList(questionId: String?) {
+                    val levelId = homeUiState.allQuestions
+                        .firstOrNull { it.questionId == questionId }
+                        ?.levelId
+                        ?: questionUiState.level.takeIf { it.isNotBlank() }
+                        ?: homeUiState.selectedLevel
+
+                    homeViewModel.selectLevel(levelId)
+
+                    val targetLevelRoute = levelRoute(levelId)
+                    val existingLevelIndex = routeBackStack.indexOfLast { it == targetLevelRoute }
+
+                    routeBackStack = if (existingLevelIndex >= 0) {
+                        routeBackStack.take(existingLevelIndex + 1)
+                    } else {
+                        listOf(
+                            tabRoute(MainTab.HOME),
+                            targetLevelRoute
+                        )
+                    }
+                }
+
                 BackHandler(enabled = routeBackStack.size > 1) {
                     popBackStack()
                 }
@@ -103,10 +137,18 @@ class MainActivity : ComponentActivity() {
                             onBack = {
                                 popBackStack()
                             },
+                            onBackToQuestionList = {
+                                goBackToQuestionList(openedQuestionId)
+                            },
                             hasNextQuestion = nextQuestionId != null,
                             onNextQuestion = {
                                 nextQuestionId?.let { questionId ->
-                                    openQuestion(questionId)
+                                    replaceCurrentQuestion(questionId)
+                                }
+                            },
+                            onRetryQuestion = {
+                                openedQuestionId?.let { questionId ->
+                                    questionViewModel.startQuestion(questionId)
                                 }
                             },
                             onToggleOption = questionViewModel::toggleOption,
