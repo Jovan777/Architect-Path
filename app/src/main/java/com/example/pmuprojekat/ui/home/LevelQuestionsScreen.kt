@@ -1,6 +1,5 @@
 package com.example.pmuprojekat.ui.home
 
-
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,7 +20,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
@@ -30,7 +28,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -48,6 +45,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pmuprojekat.core.model.LearningLevel
+
+private data class TypeProgressUi(
+    val totalCount: Int,
+    val completedCount: Int
+)
 
 @Composable
 fun LevelQuestionsScreen(
@@ -69,6 +71,7 @@ fun LevelQuestionsScreen(
                 .sortedWith(
                     compareBy<QuestionPreviewUi> { it.wave ?: 0 }
                         .thenBy { it.orderIndex }
+                        .thenBy { it.questionId }
                 )
         }
     }
@@ -96,6 +99,19 @@ fun LevelQuestionsScreen(
         }
     }
 
+    val typeProgressByLabel by remember(levelQuestions) {
+        derivedStateOf {
+            levelQuestions
+                .groupBy { it.typeLabel }
+                .mapValues { (_, questionsOfType) ->
+                    TypeProgressUi(
+                        totalCount = questionsOfType.size,
+                        completedCount = questionsOfType.count { it.isCompleted }
+                    )
+                }
+        }
+    }
+
     Scaffold(
         containerColor = AppPalette.Background
     ) { innerPadding ->
@@ -118,7 +134,8 @@ fun LevelQuestionsScreen(
                     .padding(innerPadding)
                     .padding(
                         top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
-                        bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                        bottom = WindowInsets.navigationBars.asPaddingValues()
+                            .calculateBottomPadding()
                     )
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 18.dp)
@@ -133,7 +150,8 @@ fun LevelQuestionsScreen(
 
                 LevelOverviewCard(
                     level = level,
-                    totalQuestions = levelQuestions.size
+                    totalQuestions = levelQuestions.size,
+                    typeProgressByLabel = typeProgressByLabel
                 )
 
                 if (availableWaves.isNotEmpty()) {
@@ -155,6 +173,7 @@ fun LevelQuestionsScreen(
                     QuestionsByWaveList(
                         questions = visibleQuestions,
                         showWaveHeaders = selectedWave == null,
+                        typeProgressByLabel = typeProgressByLabel,
                         onQuestionClick = onQuestionClick
                     )
                 }
@@ -239,7 +258,8 @@ private fun LevelBadge(levelId: String) {
 @Composable
 private fun LevelOverviewCard(
     level: LevelSummaryUi?,
-    totalQuestions: Int
+    totalQuestions: Int,
+    typeProgressByLabel: Map<String, TypeProgressUi>
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -272,19 +292,19 @@ private fun LevelOverviewCard(
 
                 LevelStatChip(
                     modifier = Modifier.weight(1f),
-                    title = (level?.topicCount ?: 0).toString(),
-                    subtitle = "tipova"
+                    title = (level?.completedCount ?: 0).toString(),
+                    subtitle = "rešeno"
                 )
 
                 LevelStatChip(
                     modifier = Modifier.weight(1f),
-                    title = "0",
-                    subtitle = "rešeno"
+                    title = "${level?.progressPercent ?: 0}%",
+                    subtitle = "napredak"
                 )
             }
 
             LinearProgressIndicator(
-                progress = { 0f },
+                progress = { (level?.progressPercent ?: 0) / 100f },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)
@@ -293,10 +313,15 @@ private fun LevelOverviewCard(
                 trackColor = Color(0xFFE2E8F0),
                 strokeCap = StrokeCap.Round
             )
+
+            if (typeProgressByLabel.isNotEmpty()) {
+                TypeProgressSummary(
+                    typeProgressByLabel = typeProgressByLabel
+                )
+            }
         }
     }
 }
-
 
 @Composable
 private fun LevelStatChip(
@@ -328,6 +353,60 @@ private fun LevelStatChip(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+    }
+}
+
+@Composable
+private fun TypeProgressSummary(
+    typeProgressByLabel: Map<String, TypeProgressUi>
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "Napredak po tipu zadatka",
+            color = AppPalette.TextPrimary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            typeProgressByLabel
+                .toSortedMap()
+                .forEach { (typeLabel, progress) ->
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, AppPalette.Border)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Text(
+                                text = typeLabel,
+                                color = AppPalette.TextPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            Text(
+                                text = "${progress.completedCount}/${progress.totalCount} završeno",
+                                color = AppPalette.Blue,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+                }
         }
     }
 }
@@ -403,6 +482,7 @@ private fun FilterChip(
 private fun QuestionsByWaveList(
     questions: List<QuestionPreviewUi>,
     showWaveHeaders: Boolean,
+    typeProgressByLabel: Map<String, TypeProgressUi>,
     onQuestionClick: (String) -> Unit
 ) {
     val grouped by remember(questions) {
@@ -430,6 +510,7 @@ private fun QuestionsByWaveList(
                 waveQuestions.forEach { question ->
                     LevelQuestionCard(
                         question = question,
+                        typeProgress = typeProgressByLabel[question.typeLabel],
                         onClick = { onQuestionClick(question.questionId) }
                     )
                 }
@@ -441,6 +522,7 @@ private fun QuestionsByWaveList(
 @Composable
 private fun LevelQuestionCard(
     question: QuestionPreviewUi,
+    typeProgress: TypeProgressUi?,
     onClick: () -> Unit
 ) {
     val color = difficultyColor(question.difficulty)
@@ -510,6 +592,28 @@ private fun LevelQuestionCard(
                     Text(
                         text = question.difficulty,
                         color = color,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                if (typeProgress != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "${typeProgress.completedCount}/${typeProgress.totalCount} završeno za ovaj tip",
+                        color = AppPalette.Blue,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+
+                if (question.isCompleted) {
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Zadatak završen • najbolji rezultat ${question.bestScorePercent}%",
+                        color = AppPalette.Green,
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold
                     )

@@ -123,6 +123,9 @@ class QuestionViewModel @Inject constructor(
     }
 
     fun toggleOption(step: QuestionStepUi, optionId: String) {
+        if (isStepLocked(step.stepId)) return
+
+
         val draft = getOrCreateDraft(step)
 
         val updatedSelected = when (step.type) {
@@ -149,9 +152,16 @@ class QuestionViewModel @Inject constructor(
         )
     }
 
+
+
     fun moveOrderedOption(step: QuestionStepUi, optionId: String, direction: Int) {
+        if (isStepLocked(step.stepId)) return
+
+
         val draft = getOrCreateDraft(step)
         val current = draft.orderedOptionIds.toMutableList()
+
+
 
         val index = current.indexOf(optionId)
         if (index == -1) return
@@ -169,6 +179,9 @@ class QuestionViewModel @Inject constructor(
     }
 
     fun excludeOrderedOption(step: QuestionStepUi, optionId: String) {
+
+        if (isStepLocked(step.stepId)) return
+
         val draft = getOrCreateDraft(step)
 
         updateDraft(
@@ -181,6 +194,8 @@ class QuestionViewModel @Inject constructor(
     }
 
     fun restoreOrderedOption(step: QuestionStepUi, optionId: String) {
+        if (isStepLocked(step.stepId)) return
+
         val draft = getOrCreateDraft(step)
 
         updateDraft(
@@ -193,6 +208,9 @@ class QuestionViewModel @Inject constructor(
     }
 
     fun mapOptionToZone(step: QuestionStepUi, optionId: String, zoneId: String) {
+
+        if (isStepLocked(step.stepId)) return
+
         val draft = getOrCreateDraft(step)
 
         updateDraft(
@@ -204,6 +222,9 @@ class QuestionViewModel @Inject constructor(
     }
 
     fun removeOptionZone(step: QuestionStepUi, optionId: String) {
+        if (isStepLocked(step.stepId)) return
+
+
         val draft = getOrCreateDraft(step)
 
         updateDraft(
@@ -215,6 +236,10 @@ class QuestionViewModel @Inject constructor(
     }
 
     fun updateBlankAnswer(step: QuestionStepUi, blankId: String, value: String) {
+
+        if (isStepLocked(step.stepId)) return
+
+
         val draft = getOrCreateDraft(step)
 
         updateDraft(
@@ -226,6 +251,8 @@ class QuestionViewModel @Inject constructor(
     }
 
     fun updateFreeText(step: QuestionStepUi, value: String) {
+        if (isStepLocked(step.stepId)) return
+
         val draft = getOrCreateDraft(step)
 
         updateDraft(
@@ -238,6 +265,9 @@ class QuestionViewModel @Inject constructor(
         val state = uiState.value
         val step = state.currentStep ?: return
         val questionId = state.questionId ?: return
+
+        if (isStepLocked(step.stepId)) return
+
         val draft = getOrCreateDraft(step)
 
         val result = evaluateStep(step, draft)
@@ -261,7 +291,7 @@ class QuestionViewModel @Inject constructor(
                     orderedOptionIds = draft.orderedOptionIds,
                     mappedZoneByOptionId = draft.mappedZoneByOptionId,
                     blankAnswersByBlankId = draft.blankAnswersByBlankId,
-                    freeTextAnswer = draft.freeTextAnswer.takeIf { it.isNotBlank() },
+                    freeTextAnswer = draft.freeTextAnswer,
                     isCorrect = result.isCorrect
                 )
             )
@@ -336,8 +366,17 @@ class QuestionViewModel @Inject constructor(
     }
 
     private fun updateDraft(stepId: String, draft: StepAnswerDraft) {
+        if (isStepLocked(stepId)) return
+
         draftsByStepId.value = draftsByStepId.value + (stepId to draft)
         feedbackByStepId.value = feedbackByStepId.value - stepId
+    }
+
+    private fun isStepLocked(stepId: String): Boolean {
+        val questionId = selectedQuestionId.value
+
+        return answeredStepIds.value.contains(stepId) ||
+                questionId != null && completedQuestionIds.value.contains(questionId)
     }
 
     private fun evaluateStep(
@@ -345,16 +384,10 @@ class QuestionViewModel @Inject constructor(
         draft: StepAnswerDraft
     ): StepFeedbackUi {
         if (!step.isAutoEvaluated) {
-            val isValid = draft.freeTextAnswer.trim().length >= 10
-
             return StepFeedbackUi(
-                isCorrect = isValid,
-                title = if (isValid) "Odgovor je zabeležen" else "Dopuni obrazloženje",
-                message = if (isValid) {
-                    "Ovaj korak se ne ocenjuje automatski. Odgovor je sačuvan za kasniju analizu."
-                } else {
-                    "Upiši bar jednu jasnu rečenicu da bi odgovor bio zabeležen."
-                }
+                isCorrect = true,
+                title = "Odgovor je zabeležen",
+                message = "Ovaj korak se ne ocenjuje automatski. Odgovor je sačuvan za kasniju ručnu analizu."
             )
         }
 

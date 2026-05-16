@@ -58,6 +58,8 @@ import com.example.pmuprojekat.ui.home.AppPalette
 fun QuestionScreen(
     uiState: QuestionUiState,
     onBack: () -> Unit,
+    hasNextQuestion: Boolean,
+    onNextQuestion: () -> Unit,
     onToggleOption: (QuestionStepUi, String) -> Unit,
     onMoveOrderedOption: (QuestionStepUi, String, Int) -> Unit,
     onExcludeOrderedOption: (QuestionStepUi, String) -> Unit,
@@ -92,6 +94,8 @@ fun QuestionScreen(
             } else if (uiState.isCompleted) {
                 QuestionResultScreen(
                     uiState = uiState,
+                    hasNextQuestion = hasNextQuestion,
+                    onNextQuestion = onNextQuestion,
                     onBack = onBack
                 )
             } else {
@@ -127,6 +131,7 @@ fun QuestionScreen(
                             step = step,
                             draft = uiState.draft,
                             feedback = uiState.feedback,
+                            isLocked = uiState.answeredStepIds.contains(step.stepId),
                             onToggleOption = onToggleOption,
                             onMoveOrderedOption = onMoveOrderedOption,
                             onExcludeOrderedOption = onExcludeOrderedOption,
@@ -336,6 +341,7 @@ private fun PromptCard(
 private fun StepCard(
     step: QuestionStepUi,
     draft: StepAnswerDraft,
+    isLocked: Boolean,
     feedback: StepFeedbackUi?,
     onToggleOption: (QuestionStepUi, String) -> Unit,
     onMoveOrderedOption: (QuestionStepUi, String, Int) -> Unit,
@@ -388,6 +394,7 @@ private fun StepCard(
                     ChoiceStepContent(
                         step = step,
                         draft = draft,
+                        isLocked = isLocked,
                         onToggleOption = onToggleOption
                     )
                 }
@@ -396,6 +403,7 @@ private fun StepCard(
                     OrderedCardsStepContent(
                         step = step,
                         draft = draft,
+                        isLocked = isLocked,
                         onMoveOrderedOption = onMoveOrderedOption,
                         onExcludeOrderedOption = onExcludeOrderedOption,
                         onRestoreOrderedOption = onRestoreOrderedOption
@@ -407,6 +415,7 @@ private fun StepCard(
                     MappingStepContent(
                         step = step,
                         draft = draft,
+                        isLocked = isLocked,
                         onMapOptionToZone = onMapOptionToZone,
                         onRemoveOptionZone = onRemoveOptionZone
                     )
@@ -416,6 +425,8 @@ private fun StepCard(
                     CodeCompletionStepContent(
                         step = step,
                         draft = draft,
+                        isLocked = isLocked,
+                        enabled = !isLocked,
                         onUpdateBlankAnswer = onUpdateBlankAnswer
                     )
                 }
@@ -425,6 +436,8 @@ private fun StepCard(
                     FreeTextStepContent(
                         step = step,
                         draft = draft,
+                        isLocked = isLocked,
+                        enabled = !isLocked,
                         onUpdateFreeText = onUpdateFreeText
                     )
                 }
@@ -441,6 +454,7 @@ private fun StepCard(
 private fun ChoiceStepContent(
     step: QuestionStepUi,
     draft: StepAnswerDraft,
+    isLocked: Boolean,
     onToggleOption: (QuestionStepUi, String) -> Unit
 ) {
     Column(
@@ -453,6 +467,7 @@ private fun ChoiceStepContent(
                 label = option.label,
                 text = option.text,
                 selected = selected,
+                enabled = !isLocked,
                 onClick = { onToggleOption(step, option.optionId) }
             )
         }
@@ -464,6 +479,7 @@ private fun SelectableOptionCard(
     label: String?,
     text: String,
     selected: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit
 ) {
     val borderColor = if (selected) AppPalette.Blue else AppPalette.Border
@@ -472,7 +488,13 @@ private fun SelectableOptionCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .then(
+                if (enabled) {
+                    Modifier.clickable { onClick() }
+                } else {
+                    Modifier
+                }
+            ),
         shape = RoundedCornerShape(20.dp),
         color = background,
         border = BorderStroke(if (selected) 1.5.dp else 1.dp, borderColor),
@@ -527,6 +549,7 @@ private fun SelectableOptionCard(
 private fun OrderedCardsStepContent(
     step: QuestionStepUi,
     draft: StepAnswerDraft,
+    isLocked: Boolean,
     onMoveOrderedOption: (QuestionStepUi, String, Int) -> Unit,
     onExcludeOrderedOption: (QuestionStepUi, String) -> Unit,
     onRestoreOrderedOption: (QuestionStepUi, String) -> Unit
@@ -559,6 +582,7 @@ private fun OrderedCardsStepContent(
             OrderedCardRow(
                 number = index + 1,
                 option = option,
+                enabled = !isLocked,
                 onUp = { onMoveOrderedOption(step, option.optionId, -1) },
                 onDown = { onMoveOrderedOption(step, option.optionId, 1) },
                 onExclude = { onExcludeOrderedOption(step, option.optionId) }
@@ -609,6 +633,7 @@ private fun OrderedCardRow(
     number: Int,
     option: StepOptionUi,
     onUp: () -> Unit,
+    enabled: Boolean,
     onDown: () -> Unit,
     onExclude: () -> Unit
 ) {
@@ -652,15 +677,24 @@ private fun OrderedCardRow(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                TextButton(onClick = onUp) {
+                TextButton(
+                    onClick = onUp,
+                    enabled = enabled
+                ) {
                     Text("↑")
                 }
 
-                TextButton(onClick = onDown) {
+                TextButton(
+                    onClick = onDown,
+                    enabled = enabled
+                ) {
                     Text("↓")
                 }
 
-                TextButton(onClick = onExclude) {
+                TextButton(
+                    onClick = onExclude,
+                    enabled = enabled
+                ) {
                     Text("Izbaci", fontSize = 11.sp)
                 }
             }
@@ -672,6 +706,7 @@ private fun OrderedCardRow(
 private fun MappingStepContent(
     step: QuestionStepUi,
     draft: StepAnswerDraft,
+    isLocked: Boolean,
     onMapOptionToZone: (QuestionStepUi, String, String) -> Unit,
     onRemoveOptionZone: (QuestionStepUi, String) -> Unit
 ) {
@@ -682,6 +717,7 @@ private fun MappingStepContent(
             MappingOptionCard(
                 step = step,
                 option = option,
+                isLocked = isLocked,
                 selectedZoneId = draft.mappedZoneByOptionId[option.optionId],
                 onMapOptionToZone = onMapOptionToZone,
                 onRemoveOptionZone = onRemoveOptionZone
@@ -695,6 +731,7 @@ private fun MappingOptionCard(
     step: QuestionStepUi,
     option: StepOptionUi,
     selectedZoneId: String?,
+    isLocked: Boolean,
     onMapOptionToZone: (QuestionStepUi, String, String) -> Unit,
     onRemoveOptionZone: (QuestionStepUi, String) -> Unit
 ) {
@@ -725,8 +762,12 @@ private fun MappingOptionCard(
                     val selected = selectedZoneId == zone.zoneId
 
                     Surface(
-                        modifier = Modifier.clickable {
-                            onMapOptionToZone(step, option.optionId, zone.zoneId)
+                        modifier = if (!isLocked) {
+                            Modifier.clickable {
+                                onMapOptionToZone(step, option.optionId, zone.zoneId)
+                            }
+                        } else {
+                            Modifier
                         },
                         shape = RoundedCornerShape(16.dp),
                         color = if (selected) AppPalette.Blue else Color(0xFFF8FAFC),
@@ -747,8 +788,12 @@ private fun MappingOptionCard(
 
                 if (selectedZoneId != null) {
                     Surface(
-                        modifier = Modifier.clickable {
-                            onRemoveOptionZone(step, option.optionId)
+                        modifier = if (!isLocked) {
+                            Modifier.clickable {
+                                onRemoveOptionZone(step, option.optionId)
+                            }
+                        } else {
+                            Modifier
                         },
                         shape = RoundedCornerShape(16.dp),
                         color = Color(0xFFFFF1F2),
@@ -772,6 +817,8 @@ private fun MappingOptionCard(
 private fun CodeCompletionStepContent(
     step: QuestionStepUi,
     draft: StepAnswerDraft,
+    isLocked: Boolean,
+    enabled: Boolean,
     onUpdateBlankAnswer: (QuestionStepUi, String, String) -> Unit
 ) {
     Column(
@@ -797,6 +844,8 @@ private fun CodeCompletionStepContent(
 @Composable
 private fun FreeTextStepContent(
     step: QuestionStepUi,
+    isLocked: Boolean,
+    enabled: Boolean,
     draft: StepAnswerDraft,
     onUpdateFreeText: (QuestionStepUi, String) -> Unit
 ) {
@@ -864,7 +913,6 @@ private fun FeedbackCard(feedback: StepFeedbackUi) {
         }
     }
 }
-
 @Composable
 private fun QuestionActionBar(
     uiState: QuestionUiState,
@@ -882,15 +930,18 @@ private fun QuestionActionBar(
     ) {
         Button(
             onClick = onCheckStep,
+            enabled = currentStep != null && !hasAnsweredCurrent,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = AppPalette.Blue,
-                contentColor = Color.White
+                contentColor = Color.White,
+                disabledContainerColor = Color(0xFFCBD5E1),
+                disabledContentColor = Color.White
             )
         ) {
             Text(
-                text = "Proveri korak",
+                text = if (hasAnsweredCurrent) "Korak proveren" else "Proveri korak",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -929,7 +980,7 @@ private fun QuestionActionBar(
                 )
             ) {
                 Text(
-                    text = if (uiState.isLastStep) "Završi" else "Dalje",
+                    text = if (uiState.isLastStep) "Završi zadatak" else "Dalje",
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -940,8 +991,14 @@ private fun QuestionActionBar(
 @Composable
 private fun QuestionResultScreen(
     uiState: QuestionUiState,
+    hasNextQuestion: Boolean,
+    onNextQuestion: () -> Unit,
     onBack: () -> Unit
 ) {
+    val resultVisual = remember(uiState.scorePercent) {
+        questionResultVisual(uiState.scorePercent)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -954,7 +1011,7 @@ private fun QuestionResultScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         TextButton(onClick = onBack) {
-            Text("‹ Nazad na početnu")
+            Text("‹ Nazad")
         }
 
         Card(
@@ -970,15 +1027,22 @@ private fun QuestionResultScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "🏆",
+                    text = resultVisual.symbol,
                     fontSize = 44.sp
                 )
 
                 Text(
-                    text = "Zadatak završen",
+                    text = resultVisual.title,
                     color = AppPalette.TextPrimary,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold
+                )
+
+                Text(
+                    text = resultVisual.message,
+                    color = AppPalette.TextSecondary,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
                 )
 
                 Text(
@@ -1038,6 +1102,25 @@ private fun QuestionResultScreen(
         }
 
         Button(
+            onClick = onNextQuestion,
+            enabled = hasNextQuestion,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = AppPalette.Navy,
+                contentColor = Color.White,
+                disabledContainerColor = Color(0xFFCBD5E1),
+                disabledContentColor = Color.White
+            )
+        ) {
+            Text(
+                text = "Pređi na sledeći zadatak",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Button(
             onClick = onBack,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
@@ -1047,13 +1130,14 @@ private fun QuestionResultScreen(
             )
         ) {
             Text(
-                text = "Vrati se na početnu",
+                text = "Vrati se na listu zadataka",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
         }
     }
 }
+
 
 @Composable
 private fun ResultStatCard(
@@ -1084,5 +1168,46 @@ private fun ResultStatCard(
                 fontSize = 12.sp
             )
         }
+    }
+}
+
+
+private data class QuestionResultVisual(
+    val symbol: String,
+    val title: String,
+    val message: String
+)
+
+private fun questionResultVisual(scorePercent: Int): QuestionResultVisual {
+    return when {
+        scorePercent > 85 -> QuestionResultVisual(
+            symbol = "🏆",
+            title = "Odličan rezultat",
+            message = "Zadatak je rešen veoma uspešno. Možeš odmah da pređeš na sledeći izazov."
+        )
+
+        scorePercent >= 70 -> QuestionResultVisual(
+            symbol = "⭐",
+            title = "Vrlo dobar rezultat",
+            message = "Razumevanje je dobro. Vredi kratko pogledati korake u kojima si imao nesigurnost."
+        )
+
+        scorePercent >= 50 -> QuestionResultVisual(
+            symbol = "👍",
+            title = "Solidan pokušaj",
+            message = "Osnova postoji, ali bi ponavljanje ovog tipa zadatka dodatno učvrstilo znanje."
+        )
+
+        scorePercent >= 30 -> QuestionResultVisual(
+            symbol = "📘",
+            title = "Potrebno je ponavljanje",
+            message = "Zadatak je delimično savladan. Vrati se na objašnjenja i pokušaj sličan primer."
+        )
+
+        else -> QuestionResultVisual(
+            symbol = "🔁",
+            title = "Pokušaj ponovo",
+            message = "Ovaj rezultat pokazuje da temu treba obnoviti pre prelaska na složenije zadatke."
+        )
     }
 }

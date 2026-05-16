@@ -25,6 +25,7 @@ import com.example.pmuprojekat.ui.question.QuestionViewModel
 import com.example.pmuprojekat.ui.theme.PMUProjekatTheme
 import dagger.hilt.android.AndroidEntryPoint
 import com.example.pmuprojekat.ui.main.SettingsScreen
+import com.example.pmuprojekat.ui.home.QuestionPreviewUi
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -92,10 +93,21 @@ class MainActivity : ComponentActivity() {
 
                 when {
                     openedQuestionId != null -> {
+                        val nextQuestionId = nextQuestionIdAfter(
+                            currentQuestionId = openedQuestionId,
+                            questions = homeUiState.allQuestions
+                        )
+
                         QuestionScreen(
                             uiState = questionUiState,
                             onBack = {
                                 popBackStack()
+                            },
+                            hasNextQuestion = nextQuestionId != null,
+                            onNextQuestion = {
+                                nextQuestionId?.let { questionId ->
+                                    openQuestion(questionId)
+                                }
                             },
                             onToggleOption = questionViewModel::toggleOption,
                             onMoveOrderedOption = questionViewModel::moveOrderedOption,
@@ -227,4 +239,39 @@ private fun questionIdFromRoute(route: String): String? {
     return route
         .takeIf { it.startsWith("question:") }
         ?.substringAfter("question:")
+}
+
+private fun nextQuestionIdAfter(
+    currentQuestionId: String?,
+    questions: List<QuestionPreviewUi>
+): String? {
+    if (currentQuestionId == null) return null
+
+    val orderedQuestions = questions.sortedWith(
+        compareBy<QuestionPreviewUi> { mainLevelOrder(it.levelId) }
+            .thenBy { it.wave ?: 0 }
+            .thenBy { it.orderIndex }
+            .thenBy { it.questionId }
+    )
+
+    val currentIndex = orderedQuestions.indexOfFirst {
+        it.questionId == currentQuestionId
+    }
+
+    if (currentIndex == -1) return null
+
+    return orderedQuestions
+        .getOrNull(currentIndex + 1)
+        ?.questionId
+}
+
+private fun mainLevelOrder(levelId: String): Int {
+    return when (levelId) {
+        "beginner" -> 1
+        "junior" -> 2
+        "medior" -> 3
+        "senior" -> 4
+        "architect" -> 5
+        else -> 99
+    }
 }
