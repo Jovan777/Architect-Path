@@ -412,7 +412,14 @@ class QuestionViewModel @Inject constructor(
                 }
             }
 
-            StepType.CATEGORIZATION.id,
+            StepType.CATEGORIZATION.id -> {
+                if (isArchitectType6DefenseStep(step)) {
+                    evaluateArchitectType6DefenseBoard(step, draft)
+                } else {
+                    evaluateMapping(step, draft)
+                }
+            }
+
             StepType.ROLE_MAPPING.id -> evaluateMapping(step, draft)
 
             StepType.CODE_COMPLETION.id -> evaluateCodeCompletion(step, draft)
@@ -592,6 +599,46 @@ class QuestionViewModel @Inject constructor(
                 "Tačno raspoređeno: $correctCount/$totalCount. Raspoređeno ukupno: $answeredCount/$totalCount. Zelene kartice su tačne, crvene treba ponoviti."
             }
         )
+    }
+
+    private fun evaluateArchitectType6DefenseBoard(
+        step: QuestionStepUi,
+        draft: StepAnswerDraft
+    ): StepFeedbackUi {
+        val requiredDefenses = step.options.filter { !it.isDistractor && it.correctZoneId != null }
+        val assignedDistractors = step.options.count { option ->
+            option.isDistractor && draft.mappedZoneByOptionId[option.optionId] != null
+        }
+        val correctCount = requiredDefenses.count { option ->
+            draft.mappedZoneByOptionId[option.optionId] == option.correctZoneId
+        }
+        val assignedRequiredCount = requiredDefenses.count { option ->
+            draft.mappedZoneByOptionId[option.optionId] != null
+        }
+        val missingRequired = requiredDefenses.size - assignedRequiredCount
+        val isCorrect = requiredDefenses.isNotEmpty() &&
+                correctCount == requiredDefenses.size &&
+                assignedDistractors == 0
+
+        return StepFeedbackUi(
+            isCorrect = isCorrect,
+            title = if (isCorrect) {
+                "Odluka je odbranjena"
+            } else {
+                "Odbrana joÅ¡ nije stabilna"
+            },
+            message = if (isCorrect) {
+                step.explanation ?: "Svaki pritisak ima odgovarajuÄ‡u odbranu, bez pogreÅ¡nih argumenata."
+            } else {
+                "TaÄno povezane odbrane: $correctCount/${requiredDefenses.size}. Nedostaje: $missingRequired. PogreÅ¡ne odbrane koje su prikaÄene: $assignedDistractors."
+            }
+        )
+    }
+
+    private fun isArchitectType6DefenseStep(step: QuestionStepUi): Boolean {
+        return step.type == StepType.CATEGORIZATION.id &&
+                step.stepId.startsWith("A6.") &&
+                step.stepId.endsWith("_s2")
     }
 
     private fun evaluateCodeCompletion(
