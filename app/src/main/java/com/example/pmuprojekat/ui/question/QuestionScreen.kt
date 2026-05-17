@@ -346,6 +346,7 @@ private fun PromptCard(
         }
     }
 }
+
 @Composable
 private fun StepCard(
     step: QuestionStepUi,
@@ -420,14 +421,40 @@ private fun StepCard(
                 }
 
                 StepType.CATEGORIZATION.id -> {
-                    BinaryCategorizationStepContent(
-                        step = step,
-                        draft = draft,
-                        feedback = feedback,
-                        isLocked = isLocked,
-                        onMapOptionToZone = onMapOptionToZone,
-                        onRemoveOptionZone = onRemoveOptionZone
-                    )
+                    when {
+                        isSeniorDiagnosisCategorizationStep(step) -> {
+                            SeniorDiagnosisCategorizationStepContent(
+                                step = step,
+                                draft = draft,
+                                feedback = feedback,
+                                isLocked = isLocked,
+                                onMapOptionToZone = onMapOptionToZone,
+                                onRemoveOptionZone = onRemoveOptionZone
+                            )
+                        }
+
+                        isSeniorBalanceCategorizationStep(step) -> {
+                            SeniorBalanceCategorizationStepContent(
+                                step = step,
+                                draft = draft,
+                                feedback = feedback,
+                                isLocked = isLocked,
+                                onMapOptionToZone = onMapOptionToZone,
+                                onRemoveOptionZone = onRemoveOptionZone
+                            )
+                        }
+
+                        else -> {
+                            BinaryCategorizationStepContent(
+                                step = step,
+                                draft = draft,
+                                feedback = feedback,
+                                isLocked = isLocked,
+                                onMapOptionToZone = onMapOptionToZone,
+                                onRemoveOptionZone = onRemoveOptionZone
+                            )
+                        }
+                    }
                 }
 
                 StepType.ROLE_MAPPING.id -> {
@@ -889,6 +916,618 @@ private fun MappingStepContent(
     }
 }
 
+private fun isSeniorDiagnosisCategorizationStep(step: QuestionStepUi): Boolean {
+    return step.type == StepType.CATEGORIZATION.id &&
+            step.stepId.startsWith("S1.") &&
+            step.zones.any { it.title.contains("Simptomi", ignoreCase = true) } &&
+            step.zones.any { it.title.contains("uzroci", ignoreCase = true) }
+}
+
+private fun isSeniorBalanceCategorizationStep(step: QuestionStepUi): Boolean {
+    return step.type == StepType.CATEGORIZATION.id &&
+            (step.stepId.startsWith("S2.") || step.stepId.startsWith("S4.")) &&
+            step.zones.any { it.title.contains("Šta se dobija", ignoreCase = true) } &&
+            step.zones.any {
+                it.title.contains("gubi", ignoreCase = true) ||
+                        it.title.contains("rizici", ignoreCase = true) ||
+                        it.title.contains("cena", ignoreCase = true)
+            }
+}
+
+@Composable
+private fun SeniorDiagnosisCategorizationStepContent(
+    step: QuestionStepUi,
+    draft: StepAnswerDraft,
+    feedback: StepFeedbackUi?,
+    isLocked: Boolean,
+    onMapOptionToZone: (QuestionStepUi, String, String) -> Unit,
+    onRemoveOptionZone: (QuestionStepUi, String) -> Unit
+) {
+    val zones = remember(step.zones) {
+        step.zones.sortedBy { it.zoneOrder }
+    }
+
+    val symptomZone = zones.firstOrNull {
+        it.title.contains("Simptomi", ignoreCase = true)
+    } ?: zones.firstOrNull()
+
+    val causeZone = zones.firstOrNull {
+        it.title.contains("uzroci", ignoreCase = true)
+    } ?: zones.drop(1).firstOrNull()
+
+    if (symptomZone == null || causeZone == null) {
+        BinaryCategorizationStepContent(
+            step = step,
+            draft = draft,
+            feedback = feedback,
+            isLocked = isLocked,
+            onMapOptionToZone = onMapOptionToZone,
+            onRemoveOptionZone = onRemoveOptionZone
+        )
+        return
+    }
+
+    SeniorSwipeCategorizationContent(
+        step = step,
+        draft = draft,
+        feedback = feedback,
+        isLocked = isLocked,
+        leftZone = symptomZone,
+        rightZone = causeZone,
+        leftTitle = "Simptomi",
+        rightTitle = "Mogući uzroci",
+        leftHint = "Prevuci levo za simptom",
+        rightHint = "Prevuci desno za uzrok",
+        introText = if (isLocked) {
+            "Raspored je zaključan. Zelene kartice su tačne, crvene nisu."
+        } else {
+            "Zadrži karticu i prevuci je levo ili desno. Kartica ostaje vidljiva, a nakon puštanja prelazi u izabranu grupu."
+        },
+        leftAccent = AppPalette.Blue,
+        rightAccent = AppPalette.Purple,
+        onMapOptionToZone = onMapOptionToZone
+    )
+}
+
+@Composable
+private fun SeniorBalanceCategorizationStepContent(
+    step: QuestionStepUi,
+    draft: StepAnswerDraft,
+    feedback: StepFeedbackUi?,
+    isLocked: Boolean,
+    onMapOptionToZone: (QuestionStepUi, String, String) -> Unit,
+    onRemoveOptionZone: (QuestionStepUi, String) -> Unit
+) {
+    val zones = remember(step.zones) {
+        step.zones.sortedBy { it.zoneOrder }
+    }
+
+    val gainZone = zones.firstOrNull {
+        it.title.contains("dobija", ignoreCase = true)
+    } ?: zones.firstOrNull()
+
+    val costZone = zones.firstOrNull {
+        it.title.contains("gubi", ignoreCase = true) ||
+                it.title.contains("rizici", ignoreCase = true) ||
+                it.title.contains("cena", ignoreCase = true)
+    } ?: zones.drop(1).firstOrNull()
+
+    if (gainZone == null || costZone == null) {
+        BinaryCategorizationStepContent(
+            step = step,
+            draft = draft,
+            feedback = feedback,
+            isLocked = isLocked,
+            onMapOptionToZone = onMapOptionToZone,
+            onRemoveOptionZone = onRemoveOptionZone
+        )
+        return
+    }
+
+    val rightTitle = if (costZone.title.contains("cena", ignoreCase = true)) {
+        "Prihvaćena cena"
+    } else {
+        "Rizici / gubici"
+    }
+
+    SeniorSwipeCategorizationContent(
+        step = step,
+        draft = draft,
+        feedback = feedback,
+        isLocked = isLocked,
+        leftZone = gainZone,
+        rightZone = costZone,
+        leftTitle = "Šta se dobija",
+        rightTitle = rightTitle,
+        leftHint = "Prevuci levo za dobitak",
+        rightHint = "Prevuci desno za cenu / rizik",
+        introText = if (isLocked) {
+            "Balans odluke je zaključan. Zelene kartice su tačne, crvene nisu."
+        } else {
+            "Zadrži karticu i prevuci je levo ako predstavlja dobitak, odnosno desno ako predstavlja cenu, gubitak ili rizik."
+        },
+        leftAccent = AppPalette.Green,
+        rightAccent = AppPalette.Orange,
+        onMapOptionToZone = onMapOptionToZone
+    )
+}
+
+@Composable
+private fun SeniorSwipeCategorizationContent(
+    step: QuestionStepUi,
+    draft: StepAnswerDraft,
+    feedback: StepFeedbackUi?,
+    isLocked: Boolean,
+    leftZone: StepZoneUi,
+    rightZone: StepZoneUi,
+    leftTitle: String,
+    rightTitle: String,
+    leftHint: String,
+    rightHint: String,
+    introText: String,
+    leftAccent: Color,
+    rightAccent: Color,
+    onMapOptionToZone: (QuestionStepUi, String, String) -> Unit
+) {
+    val showResultColors = feedback != null
+
+    val unassignedOptions = step.options.filter { option ->
+        draft.mappedZoneByOptionId[option.optionId] == null
+    }
+
+    val leftOptions = step.options.filter { option ->
+        draft.mappedZoneByOptionId[option.optionId] == leftZone.zoneId
+    }
+
+    val rightOptions = step.options.filter { option ->
+        draft.mappedZoneByOptionId[option.optionId] == rightZone.zoneId
+    }
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        SeniorSwipeInstructionCard(
+            text = introText,
+            leftTitle = leftTitle,
+            rightTitle = rightTitle,
+            leftAccent = leftAccent,
+            rightAccent = rightAccent,
+            leftCount = leftOptions.size,
+            rightCount = rightOptions.size
+        )
+
+        if (unassignedOptions.isNotEmpty()) {
+            SeniorSwipeSection(
+                title = "Kartice za raspoređivanje",
+                subtitle = "Prevuci svaku karticu levo ili desno.",
+                accentColor = AppPalette.Navy,
+                options = unassignedOptions,
+                step = step,
+                selectedZoneId = null,
+                leftZone = leftZone,
+                rightZone = rightZone,
+                leftHint = leftHint,
+                rightHint = rightHint,
+                leftAccent = leftAccent,
+                rightAccent = rightAccent,
+                showResultColors = showResultColors,
+                isLocked = isLocked,
+                onMapOptionToZone = onMapOptionToZone
+            )
+        }
+
+        SeniorSwipeSection(
+            title = leftTitle,
+            subtitle = leftZone.title,
+            accentColor = leftAccent,
+            options = leftOptions,
+            step = step,
+            selectedZoneId = leftZone.zoneId,
+            leftZone = leftZone,
+            rightZone = rightZone,
+            leftHint = leftHint,
+            rightHint = rightHint,
+            leftAccent = leftAccent,
+            rightAccent = rightAccent,
+            showResultColors = showResultColors,
+            isLocked = isLocked,
+            onMapOptionToZone = onMapOptionToZone
+        )
+
+        SeniorSwipeSection(
+            title = rightTitle,
+            subtitle = rightZone.title,
+            accentColor = rightAccent,
+            options = rightOptions,
+            step = step,
+            selectedZoneId = rightZone.zoneId,
+            leftZone = leftZone,
+            rightZone = rightZone,
+            leftHint = leftHint,
+            rightHint = rightHint,
+            leftAccent = leftAccent,
+            rightAccent = rightAccent,
+            showResultColors = showResultColors,
+            isLocked = isLocked,
+            onMapOptionToZone = onMapOptionToZone
+        )
+    }
+}
+
+@Composable
+private fun SeniorSwipeInstructionCard(
+    text: String,
+    leftTitle: String,
+    rightTitle: String,
+    leftAccent: Color,
+    rightAccent: Color,
+    leftCount: Int,
+    rightCount: Int
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0xFFF8FAFC),
+        border = BorderStroke(1.dp, AppPalette.Border)
+    ) {
+        Column(
+            modifier = Modifier.padding(13.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = text,
+                color = AppPalette.TextSecondary,
+                fontSize = 12.5.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SeniorTargetPill(
+                    modifier = Modifier.weight(1f),
+                    title = leftTitle,
+                    count = leftCount,
+                    accentColor = leftAccent
+                )
+
+                SeniorTargetPill(
+                    modifier = Modifier.weight(1f),
+                    title = rightTitle,
+                    count = rightCount,
+                    accentColor = rightAccent
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeniorTargetPill(
+    modifier: Modifier,
+    title: String,
+    count: Int,
+    accentColor: Color
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        color = accentColor.copy(alpha = 0.10f),
+        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.30f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                modifier = Modifier.weight(1f),
+                text = title,
+                color = accentColor,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Text(
+                text = count.toString(),
+                color = accentColor,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Black
+            )
+        }
+    }
+}
+
+@Composable
+private fun SeniorSwipeSection(
+    title: String,
+    subtitle: String,
+    accentColor: Color,
+    options: List<StepOptionUi>,
+    step: QuestionStepUi,
+    selectedZoneId: String?,
+    leftZone: StepZoneUi,
+    rightZone: StepZoneUi,
+    leftHint: String,
+    rightHint: String,
+    leftAccent: Color,
+    rightAccent: Color,
+    showResultColors: Boolean,
+    isLocked: Boolean,
+    onMapOptionToZone: (QuestionStepUi, String, String) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = accentColor.copy(alpha = 0.07f),
+        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.24f))
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = title,
+                    color = accentColor,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Text(
+                    text = subtitle,
+                    color = AppPalette.TextSecondary,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp
+                )
+            }
+
+            if (options.isEmpty()) {
+                Text(
+                    text = "Još nema kartica.",
+                    color = AppPalette.TextMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp
+                )
+            } else {
+                options.forEach { option ->
+                    SeniorStableSwipeCard(
+                        step = step,
+                        option = option,
+                        selectedZoneId = selectedZoneId,
+                        leftZone = leftZone,
+                        rightZone = rightZone,
+                        leftHint = leftHint,
+                        rightHint = rightHint,
+                        leftAccent = leftAccent,
+                        rightAccent = rightAccent,
+                        showResultColors = showResultColors,
+                        isLocked = isLocked,
+                        onMapOptionToZone = onMapOptionToZone
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeniorStableSwipeCard(
+    step: QuestionStepUi,
+    option: StepOptionUi,
+    selectedZoneId: String?,
+    leftZone: StepZoneUi,
+    rightZone: StepZoneUi,
+    leftHint: String,
+    rightHint: String,
+    leftAccent: Color,
+    rightAccent: Color,
+    showResultColors: Boolean,
+    isLocked: Boolean,
+    onMapOptionToZone: (QuestionStepUi, String, String) -> Unit
+) {
+    var dragX by remember(option.optionId, selectedZoneId) {
+        mutableStateOf(0f)
+    }
+
+    val threshold = 80f
+    val limitedVisualOffset = dragX.coerceIn(-28f, 28f)
+
+    val targetZoneId = when {
+        dragX <= -threshold -> leftZone.zoneId
+        dragX >= threshold -> rightZone.zoneId
+        else -> null
+    }
+
+    val isCorrect = selectedZoneId != null && selectedZoneId == option.correctZoneId
+    val isWrong = showResultColors && !isCorrect
+
+    val backgroundColor = when {
+        showResultColors && isCorrect -> Color(0xFFDCFCE7)
+        isWrong -> Color(0xFFFEE2E2)
+        targetZoneId == leftZone.zoneId -> leftAccent.copy(alpha = 0.14f)
+        targetZoneId == rightZone.zoneId -> rightAccent.copy(alpha = 0.14f)
+        selectedZoneId != null -> Color.White
+        else -> Color(0xFFFFFFFF)
+    }
+
+    val borderColor = when {
+        showResultColors && isCorrect -> Color(0xFF22C55E)
+        isWrong -> Color(0xFFEF4444)
+        targetZoneId == leftZone.zoneId -> leftAccent
+        targetZoneId == rightZone.zoneId -> rightAccent
+        selectedZoneId != null -> AppPalette.Border
+        else -> Color(0xFFCBD5E1)
+    }
+
+    val resultSymbol = when {
+        showResultColors && isCorrect -> "✓"
+        showResultColors && !isCorrect -> "✕"
+        else -> null
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .zIndex(if (dragX != 0f) 5f else 0f)
+            .graphicsLayer {
+                translationX = limitedVisualOffset
+                rotationZ = (dragX / 60f).coerceIn(-2.5f, 2.5f)
+                scaleX = if (dragX != 0f) 1.01f else 1f
+                scaleY = if (dragX != 0f) 1.01f else 1f
+            }
+            .then(
+                if (!isLocked) {
+                    Modifier.pointerInput(option.optionId, selectedZoneId) {
+                        detectDragGesturesAfterLongPress(
+                            onDragEnd = {
+                                when {
+                                    dragX <= -threshold -> {
+                                        onMapOptionToZone(
+                                            step,
+                                            option.optionId,
+                                            leftZone.zoneId
+                                        )
+                                    }
+
+                                    dragX >= threshold -> {
+                                        onMapOptionToZone(
+                                            step,
+                                            option.optionId,
+                                            rightZone.zoneId
+                                        )
+                                    }
+                                }
+
+                                dragX = 0f
+                            },
+                            onDragCancel = {
+                                dragX = 0f
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                dragX += dragAmount.x
+                            }
+                        )
+                    }
+                } else {
+                    Modifier
+                }
+            ),
+        shape = RoundedCornerShape(18.dp),
+        color = backgroundColor,
+        border = BorderStroke(
+            width = if (dragX != 0f) 1.6.dp else 1.dp,
+            color = borderColor
+        ),
+        shadowElevation = if (dragX != 0f) 8.dp else 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.Top
+            ) {
+                Text(
+                    modifier = Modifier.weight(1f),
+                    text = option.text,
+                    color = AppPalette.TextPrimary,
+                    fontSize = 13.5.sp,
+                    lineHeight = 19.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                if (resultSymbol != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text(
+                        text = resultSymbol,
+                        color = if (isCorrect) Color(0xFF15803D) else Color(0xFFB91C1C),
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+
+            if (!isLocked) {
+                SeniorSwipeHintRow(
+                    dragX = dragX,
+                    threshold = threshold,
+                    leftHint = leftHint,
+                    rightHint = rightHint,
+                    leftAccent = leftAccent,
+                    rightAccent = rightAccent
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeniorSwipeHintRow(
+    dragX: Float,
+    threshold: Float,
+    leftHint: String,
+    rightHint: String,
+    leftAccent: Color,
+    rightAccent: Color
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SeniorSwipeHintPill(
+            modifier = Modifier.weight(1f),
+            text = leftHint,
+            active = dragX <= -threshold,
+            accentColor = leftAccent
+        )
+
+        SeniorSwipeHintPill(
+            modifier = Modifier.weight(1f),
+            text = rightHint,
+            active = dragX >= threshold,
+            accentColor = rightAccent
+        )
+    }
+}
+
+@Composable
+private fun SeniorSwipeHintPill(
+    modifier: Modifier,
+    text: String,
+    active: Boolean,
+    accentColor: Color
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = if (active) accentColor else Color(0xFFF8FAFC),
+        border = BorderStroke(
+            1.dp,
+            if (active) accentColor else AppPalette.Border
+        )
+    ) {
+        Text(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+            text = text,
+            color = if (active) Color.White else AppPalette.TextSecondary,
+            fontSize = 10.5.sp,
+            fontWeight = FontWeight.ExtraBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+
+
 @Composable
 private fun MappingOptionCard(
     step: QuestionStepUi,
@@ -1172,7 +1811,6 @@ private fun BinaryCategoryColumn(
         }
     }
 }
-
 @Composable
 private fun BinaryCategoryCard(
     step: QuestionStepUi,
@@ -1242,17 +1880,41 @@ private fun BinaryCategoryCard(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
+                } else if (!isLocked && isAssigned) {
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Surface(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clickable {
+                                onRemoveOptionZone(step, option.optionId)
+                            },
+                        shape = CircleShape,
+                        color = Color(0xFFFFE4E6),
+                        border = BorderStroke(1.dp, Color(0xFFFDA4AF))
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "×",
+                                color = Color(0xFFE11D48),
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
                 }
             }
 
-            if (!isLocked) {
+            if (!isLocked && !isAssigned) {
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     CategoryMoveChip(
                         text = "Prednosti",
-                        selected = selectedZoneId == leftZone.zoneId,
+                        selected = false,
                         onClick = {
                             onMapOptionToZone(step, option.optionId, leftZone.zoneId)
                         }
@@ -1260,22 +1922,11 @@ private fun BinaryCategoryCard(
 
                     CategoryMoveChip(
                         text = "Rizici",
-                        selected = selectedZoneId == rightZone.zoneId,
+                        selected = false,
                         onClick = {
                             onMapOptionToZone(step, option.optionId, rightZone.zoneId)
                         }
                     )
-
-                    if (selectedZoneId != null) {
-                        CategoryMoveChip(
-                            text = "Ukloni",
-                            selected = false,
-                            danger = true,
-                            onClick = {
-                                onRemoveOptionZone(step, option.optionId)
-                            }
-                        )
-                    }
                 }
             }
         }
