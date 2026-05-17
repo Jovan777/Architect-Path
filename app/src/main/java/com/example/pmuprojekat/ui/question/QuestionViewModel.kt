@@ -404,7 +404,13 @@ class QuestionViewModel @Inject constructor(
             StepType.MULTI_CHOICE.id,
             StepType.HOTSPOT.id -> evaluateMultiChoice(step, draft)
 
-            StepType.ORDERED_CARDS.id -> evaluateOrderedCards(step, draft)
+            StepType.ORDERED_CARDS.id -> {
+                if (isArchitectExtensionOrderedStep(step)) {
+                    evaluateArchitectOrderedCards(step, draft)
+                } else {
+                    evaluateOrderedCards(step, draft)
+                }
+            }
 
             StepType.CATEGORIZATION.id,
             StepType.ROLE_MAPPING.id -> evaluateMapping(step, draft)
@@ -492,6 +498,65 @@ class QuestionViewModel @Inject constructor(
                 "Proveri redosled kartica i izbaci kartice koje ne pripadaju rešenju."
             }
         )
+    }
+
+    private fun evaluateArchitectOrderedCards(
+        step: QuestionStepUi,
+        draft: StepAnswerDraft
+    ): StepFeedbackUi {
+        val expected = step.options
+            .filter { it.correctOrder != null }
+            .sortedBy { it.correctOrder }
+            .map { it.optionId }
+
+        val actualNonDistractors = draft.orderedOptionIds.filter { optionId ->
+            step.options.firstOrNull { it.optionId == optionId }?.isDistractor != true
+        }
+
+        val includedDistractors = draft.orderedOptionIds.count { optionId ->
+            step.options.firstOrNull { it.optionId == optionId }?.isDistractor == true
+        }
+
+        val correctlyExcludedDistractors = step.options.count { option ->
+            option.isDistractor && draft.excludedOptionIds.contains(option.optionId)
+        }
+
+        val wronglyExcludedRequired = step.options.count { option ->
+            !option.isDistractor && draft.excludedOptionIds.contains(option.optionId)
+        }
+
+        val correctPositions = actualNonDistractors.withIndex().count { (index, optionId) ->
+            expected.getOrNull(index) == optionId
+        }
+
+        val totalDistractors = step.options.count { it.isDistractor }
+        val isCorrect = actualNonDistractors == expected &&
+                includedDistractors == 0 &&
+                correctlyExcludedDistractors == totalDistractors &&
+                wronglyExcludedRequired == 0
+
+        return StepFeedbackUi(
+            isCorrect = isCorrect,
+            title = if (isCorrect) {
+                "Arhitektonski tok je taÄan"
+            } else {
+                "Tok joÅ¡ ima problem"
+            },
+            message = if (isCorrect) {
+                step.explanation ?: "Potrebni koraci su poreÄ‘ani, a zamke su izbaÄene."
+            } else {
+                "TaÄne pozicije: $correctPositions/${expected.size}. IzbaÄene zamke: $correctlyExcludedDistractors/$totalDistractors. Zamke u glavnom toku: $includedDistractors. PogreÅ¡no izbaÄeni potrebni koraci: $wronglyExcludedRequired."
+            }
+        )
+    }
+
+    private fun isArchitectExtensionOrderedStep(step: QuestionStepUi): Boolean {
+        return step.type == StepType.ORDERED_CARDS.id &&
+                (
+                        step.stepId.startsWith("A1.") && step.stepId.endsWith("_s2") ||
+                                step.stepId.startsWith("A4.") && step.stepId.endsWith("_s2") ||
+                                step.stepId.startsWith("A5.") && step.stepId.endsWith("_s1")
+                        )
     }
 
     private fun evaluateMapping(
