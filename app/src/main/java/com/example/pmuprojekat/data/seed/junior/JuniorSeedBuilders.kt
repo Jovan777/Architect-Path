@@ -41,7 +41,7 @@ internal object JuniorSeedBuilders {
             title = title,
             prompt = prompt,
             aiFollowUp = aiFollowUp,
-            wave = 1,
+            wave = juniorWaveFromQuestionId(questionId),
             difficulty = difficulty,
             orderIndex = orderIndex,
             estimatedMinutes = 4,
@@ -85,7 +85,7 @@ internal object JuniorSeedBuilders {
             title = title,
             prompt = prompt,
             aiFollowUp = aiFollowUp,
-            wave = 1,
+            wave = juniorWaveFromQuestionId(questionId),
             difficulty = difficulty,
             orderIndex = orderIndex,
             estimatedMinutes = 4,
@@ -133,7 +133,7 @@ internal object JuniorSeedBuilders {
             title = title,
             prompt = prompt,
             aiFollowUp = aiFollowUp,
-            wave = 1,
+            wave = juniorWaveFromQuestionId(questionId),
             difficulty = difficulty,
             orderIndex = orderIndex,
             estimatedMinutes = 5,
@@ -173,7 +173,7 @@ internal object JuniorSeedBuilders {
             title = title,
             prompt = prompt,
             aiFollowUp = aiFollowUp,
-            wave = 1,
+            wave = juniorWaveFromQuestionId(questionId),
             difficulty = difficulty,
             orderIndex = orderIndex,
             estimatedMinutes = 6,
@@ -206,7 +206,7 @@ internal object JuniorSeedBuilders {
             title = title,
             prompt = prompt,
             aiFollowUp = aiFollowUp,
-            wave = 1,
+            wave = juniorWaveFromQuestionId(questionId),
             difficulty = difficulty,
             orderIndex = orderIndex,
             estimatedMinutes = 4,
@@ -257,5 +257,12 @@ internal object JuniorSeedBuilders {
                 )
             }
         )
+    }
+
+    private fun juniorWaveFromQuestionId(questionId: String): Int {
+        val match = Regex("^J\\d+\\.(\\d+)$").matchEntire(questionId)
+            ?: error("Junior questionId '$questionId' does not match J<typeNumber>.<waveNumber> format.")
+
+        return match.groupValues[1].toInt()
     }
 }
