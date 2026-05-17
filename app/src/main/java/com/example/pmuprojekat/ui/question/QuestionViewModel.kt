@@ -125,8 +125,14 @@ class QuestionViewModel @Inject constructor(
     fun toggleOption(step: QuestionStepUi, optionId: String) {
         if (isStepLocked(step.stepId)) return
 
-
         val draft = getOrCreateDraft(step)
+
+        val isCodeDecisionChoice =
+            step.type == StepType.SINGLE_CHOICE.id && !step.codeBlock.isNullOrBlank()
+
+        if (isCodeDecisionChoice && draft.selectedOptionIds.isNotEmpty()) {
+            return
+        }
 
         val updatedSelected = when (step.type) {
             StepType.SINGLE_CHOICE.id,
@@ -494,19 +500,31 @@ class QuestionViewModel @Inject constructor(
     ): StepFeedbackUi {
         val relevantOptions = step.options.filter { !it.isDistractor }
 
-        val isCorrect = relevantOptions.all { option ->
+        val correctCount = relevantOptions.count { option ->
             val expectedZoneId = option.correctZoneId
             val actualZoneId = draft.mappedZoneByOptionId[option.optionId]
             expectedZoneId != null && expectedZoneId == actualZoneId
         }
 
+        val answeredCount = relevantOptions.count { option ->
+            draft.mappedZoneByOptionId[option.optionId] != null
+        }
+
+        val totalCount = relevantOptions.size
+
+        val isCorrect = totalCount > 0 && correctCount == totalCount
+
         return StepFeedbackUi(
             isCorrect = isCorrect,
-            title = if (isCorrect) "Mapiranje je tačno" else "Mapiranje nije potpuno tačno",
+            title = if (isCorrect) {
+                "Mapiranje je tačno"
+            } else {
+                "Mapiranje nije potpuno tačno"
+            },
             message = if (isCorrect) {
                 step.explanation ?: "Sve kartice su povezane sa odgovarajućim zonama."
             } else {
-                "Proveri uloge/zones. Svaka kartica mora završiti u odgovarajućoj kategoriji."
+                "Tačno raspoređeno: $correctCount/$totalCount. Raspoređeno ukupno: $answeredCount/$totalCount. Zelene kartice su tačne, crvene treba ponoviti."
             }
         )
     }

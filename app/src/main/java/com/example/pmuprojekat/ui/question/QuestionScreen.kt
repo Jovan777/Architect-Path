@@ -54,6 +54,12 @@ import androidx.compose.ui.unit.sp
 import com.example.pmuprojekat.core.model.StepType
 import com.example.pmuprojekat.ui.home.AppPalette
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.zIndex
 
 @Composable
 fun QuestionScreen(
@@ -340,13 +346,12 @@ private fun PromptCard(
         }
     }
 }
-
 @Composable
 private fun StepCard(
     step: QuestionStepUi,
     draft: StepAnswerDraft,
-    isLocked: Boolean,
     feedback: StepFeedbackUi?,
+    isLocked: Boolean,
     onToggleOption: (QuestionStepUi, String) -> Unit,
     onMoveOrderedOption: (QuestionStepUi, String, Int) -> Unit,
     onExcludeOrderedOption: (QuestionStepUi, String) -> Unit,
@@ -414,7 +419,17 @@ private fun StepCard(
                     )
                 }
 
-                StepType.CATEGORIZATION.id,
+                StepType.CATEGORIZATION.id -> {
+                    BinaryCategorizationStepContent(
+                        step = step,
+                        draft = draft,
+                        feedback = feedback,
+                        isLocked = isLocked,
+                        onMapOptionToZone = onMapOptionToZone,
+                        onRemoveOptionZone = onRemoveOptionZone
+                    )
+                }
+
                 StepType.ROLE_MAPPING.id -> {
                     MappingStepContent(
                         step = step,
@@ -459,6 +474,12 @@ private fun ChoiceStepContent(
     isLocked: Boolean,
     onToggleOption: (QuestionStepUi, String) -> Unit
 ) {
+    val isCodeDecisionChoice =
+        step.type == StepType.SINGLE_CHOICE.id && !step.codeBlock.isNullOrBlank()
+
+    val answerAlreadySelected =
+        isCodeDecisionChoice && draft.selectedOptionIds.isNotEmpty()
+
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -466,13 +487,33 @@ private fun ChoiceStepContent(
             val selected = draft.selectedOptionIds.contains(option.optionId)
 
             SelectableOptionCard(
-                label = option.label,
+                label = displayableOptionLabel(option.label),
                 text = option.text,
                 selected = selected,
-                enabled = !isLocked,
+                enabled = !isLocked && !answerAlreadySelected,
                 onClick = { onToggleOption(step, option.optionId) }
             )
         }
+
+        if (answerAlreadySelected && !isLocked) {
+            Text(
+                text = "Odgovor je izabran. Možeš da proveriš korak i nastaviš dalje.",
+                color = AppPalette.TextSecondary,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+private fun displayableOptionLabel(label: String?): String? {
+    val normalized = label?.trim().orEmpty()
+
+    return if (normalized.matches(Regex("^[A-D]$"))) {
+        null
+    } else {
+        label
     }
 }
 
@@ -559,11 +600,13 @@ private fun OrderedCardsStepContent(
     val optionById = remember(step.options) {
         step.options.associateBy { it.optionId }
     }
+
     val orderedOptions by remember(draft.orderedOptionIds, optionById) {
         derivedStateOf {
             draft.orderedOptionIds.mapNotNull { optionById[it] }
         }
     }
+
     val excludedOptions by remember(step.options, draft.excludedOptionIds) {
         derivedStateOf {
             step.options.filter { draft.excludedOptionIds.contains(it.optionId) }
@@ -571,23 +614,27 @@ private fun OrderedCardsStepContent(
     }
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = "Redosled",
-            color = AppPalette.TextPrimary,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.ExtraBold
+            text = if (isLocked) {
+                "Redosled je zaključan nakon provere."
+            } else {
+                "Zadrži karticu i prevuci je gore ili dole."
+            },
+            color = AppPalette.TextSecondary,
+            fontSize = 12.sp,
+            lineHeight = 17.sp,
+            fontWeight = FontWeight.SemiBold
         )
 
         orderedOptions.forEachIndexed { index, option ->
-            OrderedCardRow(
+            DraggableOrderedCardRow(
                 number = index + 1,
                 option = option,
-                enabled = !isLocked,
-                onUp = { onMoveOrderedOption(step, option.optionId, -1) },
-                onDown = { onMoveOrderedOption(step, option.optionId, 1) },
-                onExclude = { onExcludeOrderedOption(step, option.optionId) }
+                isLocked = isLocked,
+                onMoveUp = { onMoveOrderedOption(step, option.optionId, -1) },
+                onMoveDown = { onMoveOrderedOption(step, option.optionId, 1) }
             )
         }
 
@@ -595,33 +642,34 @@ private fun OrderedCardsStepContent(
             Text(
                 text = "Van redosleda",
                 color = AppPalette.TextSecondary,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold
             )
 
             excludedOptions.forEach { option ->
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(16.dp),
                     color = Color(0xFFF8FAFC),
                     border = BorderStroke(1.dp, AppPalette.Border)
                 ) {
                     Row(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             modifier = Modifier.weight(1f),
                             text = option.text,
                             color = AppPalette.TextSecondary,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
                         )
 
                         TextButton(
-                            onClick = { onRestoreOrderedOption(step, option.optionId) }
+                            onClick = { onRestoreOrderedOption(step, option.optionId) },
+                            enabled = !isLocked
                         ) {
-                            Text("Vrati")
+                            Text("Vrati", fontSize = 12.sp)
                         }
                     }
                 }
@@ -629,6 +677,119 @@ private fun OrderedCardsStepContent(
         }
     }
 }
+
+
+@Composable
+private fun DraggableOrderedCardRow(
+    number: Int,
+    option: StepOptionUi,
+    isLocked: Boolean,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit
+) {
+    var dragOffsetY by remember(option.optionId) {
+        mutableStateOf(0f)
+    }
+
+    val dragThresholdPx = 42f
+    val isDragging = dragOffsetY != 0f
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .zIndex(if (isDragging) 2f else 0f)
+            .graphicsLayer {
+                translationY = dragOffsetY * 0.35f
+                scaleX = if (isDragging) 1.02f else 1f
+                scaleY = if (isDragging) 1.02f else 1f
+            }
+            .then(
+                if (!isLocked) {
+                    Modifier.pointerInput(option.optionId) {
+                        detectDragGesturesAfterLongPress(
+                            onDragEnd = {
+                                dragOffsetY = 0f
+                            },
+                            onDragCancel = {
+                                dragOffsetY = 0f
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+
+                                dragOffsetY += dragAmount.y
+
+                                when {
+                                    dragOffsetY > dragThresholdPx -> {
+                                        onMoveDown()
+                                        dragOffsetY = 0f
+                                    }
+
+                                    dragOffsetY < -dragThresholdPx -> {
+                                        onMoveUp()
+                                        dragOffsetY = 0f
+                                    }
+                                }
+                            }
+                        )
+                    }
+                } else {
+                    Modifier
+                }
+            ),
+        shape = RoundedCornerShape(16.dp),
+        color = if (isDragging) Color(0xFFEFF6FF) else Color.White,
+        border = BorderStroke(
+            width = if (isDragging) 1.5.dp else 1.dp,
+            color = if (isDragging) AppPalette.Blue else AppPalette.Border
+        ),
+        shadowElevation = if (isDragging) 8.dp else 2.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(AppPalette.Blue.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = number.toString(),
+                    color = AppPalette.Blue,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+
+            Spacer(modifier = Modifier.width(9.dp))
+
+            Text(
+                modifier = Modifier.weight(1f),
+                text = option.text,
+                color = AppPalette.TextPrimary,
+                fontSize = if (option.text.length > 70) 11.5.sp else 12.5.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            if (!isLocked) {
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = "↕",
+                    color = AppPalette.TextMuted,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+    }
+}
+
 
 @Composable
 private fun OrderedCardRow(
@@ -719,8 +880,8 @@ private fun MappingStepContent(
             MappingOptionCard(
                 step = step,
                 option = option,
-                isLocked = isLocked,
                 selectedZoneId = draft.mappedZoneByOptionId[option.optionId],
+                isLocked = isLocked,
                 onMapOptionToZone = onMapOptionToZone,
                 onRemoveOptionZone = onRemoveOptionZone
             )
@@ -764,13 +925,15 @@ private fun MappingOptionCard(
                     val selected = selectedZoneId == zone.zoneId
 
                     Surface(
-                        modifier = if (!isLocked) {
-                            Modifier.clickable {
-                                onMapOptionToZone(step, option.optionId, zone.zoneId)
+                        modifier = Modifier.then(
+                            if (!isLocked) {
+                                Modifier.clickable {
+                                    onMapOptionToZone(step, option.optionId, zone.zoneId)
+                                }
+                            } else {
+                                Modifier
                             }
-                        } else {
-                            Modifier
-                        },
+                        ),
                         shape = RoundedCornerShape(16.dp),
                         color = if (selected) AppPalette.Blue else Color(0xFFF8FAFC),
                         border = BorderStroke(
@@ -790,13 +953,15 @@ private fun MappingOptionCard(
 
                 if (selectedZoneId != null) {
                     Surface(
-                        modifier = if (!isLocked) {
-                            Modifier.clickable {
-                                onRemoveOptionZone(step, option.optionId)
+                        modifier = Modifier.then(
+                            if (!isLocked) {
+                                Modifier.clickable {
+                                    onRemoveOptionZone(step, option.optionId)
+                                }
+                            } else {
+                                Modifier
                             }
-                        } else {
-                            Modifier
-                        },
+                        ),
                         shape = RoundedCornerShape(16.dp),
                         color = Color(0xFFFFF1F2),
                         border = BorderStroke(1.dp, Color(0xFFFDA4AF))
@@ -815,6 +980,348 @@ private fun MappingOptionCard(
     }
 }
 
+
+@Composable
+private fun BinaryCategorizationStepContent(
+    step: QuestionStepUi,
+    draft: StepAnswerDraft,
+    feedback: StepFeedbackUi?,
+    isLocked: Boolean,
+    onMapOptionToZone: (QuestionStepUi, String, String) -> Unit,
+    onRemoveOptionZone: (QuestionStepUi, String) -> Unit
+) {
+    val zones = remember(step.zones) {
+        step.zones.sortedBy { it.zoneOrder }
+    }
+
+    if (zones.size != 2) {
+        MappingStepContent(
+            step = step,
+            draft = draft,
+            isLocked = isLocked,
+            onMapOptionToZone = onMapOptionToZone,
+            onRemoveOptionZone = onRemoveOptionZone
+        )
+        return
+    }
+
+    val leftZone = zones[0]
+    val rightZone = zones[1]
+    val showResultColors = feedback != null
+
+    val unassignedOptions = step.options.filter { option ->
+        draft.mappedZoneByOptionId[option.optionId] == null
+    }
+
+    val leftOptions = step.options.filter { option ->
+        draft.mappedZoneByOptionId[option.optionId] == leftZone.zoneId
+    }
+
+    val rightOptions = step.options.filter { option ->
+        draft.mappedZoneByOptionId[option.optionId] == rightZone.zoneId
+    }
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        if (!isLocked) {
+            Text(
+                text = "Rasporedi svaku karticu u levu ili desnu kolonu.",
+                color = AppPalette.TextSecondary,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        } else {
+            Text(
+                text = "Raspored je zaključan. Zelene kartice su tačne, crvene treba ponoviti.",
+                color = AppPalette.TextSecondary,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        if (unassignedOptions.isNotEmpty()) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Neraspoređene kartice",
+                    color = AppPalette.TextPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                unassignedOptions.forEach { option ->
+                    BinaryCategoryCard(
+                        step = step,
+                        option = option,
+                        selectedZoneId = null,
+                        leftZone = leftZone,
+                        rightZone = rightZone,
+                        showResultColors = showResultColors,
+                        isLocked = isLocked,
+                        onMapOptionToZone = onMapOptionToZone,
+                        onRemoveOptionZone = onRemoveOptionZone
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            BinaryCategoryColumn(
+                modifier = Modifier.weight(1f),
+                title = "Prednosti",
+                originalTitle = leftZone.title,
+                step = step,
+                zone = leftZone,
+                options = leftOptions,
+                draft = draft,
+                rightZone = rightZone,
+                showResultColors = showResultColors,
+                isLocked = isLocked,
+                onMapOptionToZone = onMapOptionToZone,
+                onRemoveOptionZone = onRemoveOptionZone
+            )
+
+            BinaryCategoryColumn(
+                modifier = Modifier.weight(1f),
+                title = "Rizici",
+                originalTitle = rightZone.title,
+                step = step,
+                zone = rightZone,
+                options = rightOptions,
+                draft = draft,
+                rightZone = leftZone,
+                showResultColors = showResultColors,
+                isLocked = isLocked,
+                onMapOptionToZone = onMapOptionToZone,
+                onRemoveOptionZone = onRemoveOptionZone
+            )
+        }
+    }
+}
+
+@Composable
+private fun BinaryCategoryColumn(
+    modifier: Modifier,
+    title: String,
+    originalTitle: String,
+    step: QuestionStepUi,
+    zone: StepZoneUi,
+    options: List<StepOptionUi>,
+    draft: StepAnswerDraft,
+    rightZone: StepZoneUi,
+    showResultColors: Boolean,
+    isLocked: Boolean,
+    onMapOptionToZone: (QuestionStepUi, String, String) -> Unit,
+    onRemoveOptionZone: (QuestionStepUi, String) -> Unit
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0xFFF8FAFC),
+        border = BorderStroke(1.dp, AppPalette.Border)
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = title,
+                color = AppPalette.TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Text(
+                text = originalTitle,
+                color = AppPalette.TextSecondary,
+                fontSize = 10.5.sp,
+                lineHeight = 14.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            if (options.isEmpty()) {
+                Text(
+                    text = "Još nema kartica.",
+                    color = AppPalette.TextMuted,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp
+                )
+            } else {
+                options.forEach { option ->
+                    BinaryCategoryCard(
+                        step = step,
+                        option = option,
+                        selectedZoneId = draft.mappedZoneByOptionId[option.optionId],
+                        leftZone = zone,
+                        rightZone = rightZone,
+                        showResultColors = showResultColors,
+                        isLocked = isLocked,
+                        onMapOptionToZone = onMapOptionToZone,
+                        onRemoveOptionZone = onRemoveOptionZone
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BinaryCategoryCard(
+    step: QuestionStepUi,
+    option: StepOptionUi,
+    selectedZoneId: String?,
+    leftZone: StepZoneUi,
+    rightZone: StepZoneUi,
+    showResultColors: Boolean,
+    isLocked: Boolean,
+    onMapOptionToZone: (QuestionStepUi, String, String) -> Unit,
+    onRemoveOptionZone: (QuestionStepUi, String) -> Unit
+) {
+    val isAssigned = selectedZoneId != null
+    val isCorrect = selectedZoneId != null && selectedZoneId == option.correctZoneId
+
+    val backgroundColor = when {
+        showResultColors && isCorrect -> Color(0xFFDCFCE7)
+        showResultColors && isAssigned && !isCorrect -> Color(0xFFFEE2E2)
+        isAssigned -> Color(0xFFEFF6FF)
+        else -> Color.White
+    }
+
+    val borderColor = when {
+        showResultColors && isCorrect -> Color(0xFF22C55E)
+        showResultColors && isAssigned && !isCorrect -> Color(0xFFEF4444)
+        isAssigned -> AppPalette.Blue
+        else -> AppPalette.Border
+    }
+
+    val resultSymbol = when {
+        showResultColors && isCorrect -> "✓"
+        showResultColors && isAssigned && !isCorrect -> "✕"
+        else -> null
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = backgroundColor,
+        border = BorderStroke(1.dp, borderColor),
+        shadowElevation = if (isAssigned) 2.dp else 1.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(9.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.Top
+            ) {
+                Text(
+                    modifier = Modifier.weight(1f),
+                    text = option.text,
+                    color = AppPalette.TextPrimary,
+                    fontSize = 11.5.sp,
+                    lineHeight = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 5,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                if (resultSymbol != null) {
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Text(
+                        text = resultSymbol,
+                        color = if (isCorrect) Color(0xFF15803D) else Color(0xFFB91C1C),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+
+            if (!isLocked) {
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    CategoryMoveChip(
+                        text = "Prednosti",
+                        selected = selectedZoneId == leftZone.zoneId,
+                        onClick = {
+                            onMapOptionToZone(step, option.optionId, leftZone.zoneId)
+                        }
+                    )
+
+                    CategoryMoveChip(
+                        text = "Rizici",
+                        selected = selectedZoneId == rightZone.zoneId,
+                        onClick = {
+                            onMapOptionToZone(step, option.optionId, rightZone.zoneId)
+                        }
+                    )
+
+                    if (selectedZoneId != null) {
+                        CategoryMoveChip(
+                            text = "Ukloni",
+                            selected = false,
+                            danger = true,
+                            onClick = {
+                                onRemoveOptionZone(step, option.optionId)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryMoveChip(
+    text: String,
+    selected: Boolean,
+    danger: Boolean = false,
+    onClick: () -> Unit
+) {
+    val background = when {
+        danger -> Color(0xFFFFF1F2)
+        selected -> AppPalette.Blue
+        else -> Color.White
+    }
+
+    val contentColor = when {
+        danger -> Color(0xFFE11D48)
+        selected -> Color.White
+        else -> AppPalette.TextSecondary
+    }
+
+    val borderColor = when {
+        danger -> Color(0xFFFDA4AF)
+        selected -> AppPalette.Blue
+        else -> AppPalette.Border
+    }
+
+    Surface(
+        modifier = Modifier.clickable { onClick() },
+        shape = RoundedCornerShape(14.dp),
+        color = background,
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Text(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+            text = text,
+            color = contentColor,
+            fontSize = 10.5.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
 
 @Composable
 private fun solidInputColors() = OutlinedTextFieldDefaults.colors(
