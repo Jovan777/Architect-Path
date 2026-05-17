@@ -56,10 +56,15 @@ import com.example.pmuprojekat.core.model.StepType
 import com.example.pmuprojekat.ui.home.AppPalette
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.zIndex
 
 @Composable
@@ -475,28 +480,22 @@ private fun StepCard(
                         }
 
                         isArchitectCompromisePriorityStep(step) -> {
-                            ArchitectCompromiseBoardContent(
+                            ArchitectPriorityWorkspaceContent(
                                 step = step,
                                 draft = draft,
                                 feedback = feedback,
                                 isLocked = isLocked,
-                                boardTitle = "Decision board",
-                                unassignedTitle = "Decision cards",
-                                intro = "Place each architectural move on the strategy board: do it now, hold it for later, or reject it as the wrong direction.",
                                 onMapOptionToZone = onMapOptionToZone,
                                 onRemoveOptionZone = onRemoveOptionZone
                             )
                         }
 
                         isArchitectCompromiseSignalStep(step) -> {
-                            ArchitectCompromiseBoardContent(
+                            ArchitectSignalAnalysisWorkspaceContent(
                                 step = step,
                                 draft = draft,
                                 feedback = feedback,
                                 isLocked = isLocked,
-                                boardTitle = "Evidence board",
-                                unassignedTitle = "Signals to judge",
-                                intro = "Classify each signal as real evidence for changing the decision, a false signal, or a dangerous warning that needs caution.",
                                 onMapOptionToZone = onMapOptionToZone,
                                 onRemoveOptionZone = onRemoveOptionZone
                             )
@@ -2078,6 +2077,27 @@ private fun ArchitectLineMappingContent(
 ) {
     val zones = remember(step.zones) { step.zones.sortedBy { it.zoneOrder } }
     val showResultColors = feedback != null
+    val leftConnectorCenters = remember(step.stepId) { mutableStateMapOf<String, Offset>() }
+    val rightConnectorCenters = remember(step.stepId) { mutableStateMapOf<String, Offset>() }
+    var boardOrigin by remember(step.stepId) { mutableStateOf(Offset.Zero) }
+    var activeOptionId by remember(step.stepId) { mutableStateOf<String?>(null) }
+    var dragEnd by remember(step.stepId) { mutableStateOf<Offset?>(null) }
+    var highlightedZoneId by remember(step.stepId) { mutableStateOf<String?>(null) }
+
+    fun local(point: Offset): Offset = point - boardOrigin
+
+    fun nearestZone(point: Offset?): String? {
+        if (point == null) return null
+        return rightConnectorCenters.minByOrNull { (_, center) ->
+            val dx = center.x - point.x
+            val dy = center.y - point.y
+            dx * dx + dy * dy
+        }?.takeIf { (_, center) ->
+            val dx = center.x - point.x
+            val dy = center.y - point.y
+            dx * dx + dy * dy < 12000f
+        }?.key
+    }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -2091,9 +2111,9 @@ private fun ArchitectLineMappingContent(
             Text(
                 modifier = Modifier.padding(12.dp),
                 text = if (isLocked) {
-                    "Connections are locked. Green links connect a decision to the right effect type; red links should be revisited."
+                    "Connections are locked. Green architectural relations are correct; red relations point to the wrong effect."
                 } else {
-                    "Connect each scaling decision to the effect it creates. Tap a decision, then choose its effect type on the right side of the link."
+                    "Grab the blue connector dot on a decision and drag a relation line toward an effect type."
                 },
                 color = AppPalette.TextSecondary,
                 fontSize = 12.sp,
@@ -2102,115 +2122,333 @@ private fun ArchitectLineMappingContent(
             )
         }
 
-        step.options.forEach { option ->
-            val selectedZoneId = draft.mappedZoneByOptionId[option.optionId]
-            val selectedZone = zones.firstOrNull { it.zoneId == selectedZoneId }
-            val isCorrect = selectedZoneId != null && selectedZoneId == option.correctZoneId
-            val isMissing = showResultColors && selectedZoneId == null
-            val linkColor = when {
-                showResultColors && isCorrect -> Color(0xFF22C55E)
-                showResultColors && !isCorrect -> Color(0xFFEF4444)
-                selectedZoneId != null -> AppPalette.Blue
-                else -> AppPalette.Border
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned { coordinates ->
+                    boardOrigin = coordinates.positionInRoot()
+                }
+        ) {
+            Canvas(modifier = Modifier.matchParentSize()) {
+                draft.mappedZoneByOptionId.forEach { (optionId, zoneId) ->
+                    val start = leftConnectorCenters[optionId]?.let(::local)
+                    val end = rightConnectorCenters[zoneId]?.let(::local)
+                    if (start != null && end != null) {
+                        val option = step.options.firstOrNull { it.optionId == optionId }
+                        val correct = option?.correctZoneId == zoneId
+                        val color = when {
+                            showResultColors && correct -> Color(0xFF22C55E)
+                            showResultColors && !correct -> Color(0xFFEF4444)
+                            else -> AppPalette.Blue
+                        }
+                        drawArchitectConnection(start, end, color)
+                    }
+                }
+
+                val active = activeOptionId
+                val start = active?.let { leftConnectorCenters[it] }?.let(::local)
+                val end = dragEnd?.let(::local)
+                if (start != null && end != null) {
+                    drawArchitectConnection(start, end, AppPalette.Indigo.copy(alpha = 0.78f))
+                }
             }
 
-            Surface(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                color = if (isMissing) Color(0xFFFFF7ED) else Color.White,
-                border = BorderStroke(1.dp, linkColor.copy(alpha = if (selectedZoneId == null) 0.7f else 1f)),
-                shadowElevation = if (selectedZoneId != null) 3.dp else 1.dp
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top
             ) {
                 Column(
-                    modifier = Modifier.padding(12.dp),
+                    modifier = Modifier.weight(1.1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFFF8FAFC),
-                            border = BorderStroke(1.dp, AppPalette.Border)
-                        ) {
-                            Text(
-                                modifier = Modifier.padding(10.dp),
-                                text = option.text,
-                                color = AppPalette.TextPrimary,
-                                fontSize = 12.5.sp,
-                                lineHeight = 17.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-
-                        Canvas(
-                            modifier = Modifier
-                                .width(38.dp)
-                                .height(28.dp)
-                        ) {
-                            drawLine(
-                                color = linkColor,
-                                start = androidx.compose.ui.geometry.Offset(0f, size.height / 2f),
-                                end = androidx.compose.ui.geometry.Offset(size.width, size.height / 2f),
-                                strokeWidth = 4f,
-                                cap = StrokeCap.Round
-                            )
-                            drawCircle(
-                                color = linkColor,
-                                radius = 5f,
-                                center = androidx.compose.ui.geometry.Offset(size.width, size.height / 2f)
-                            )
-                        }
-
-                        Surface(
-                            modifier = Modifier.weight(0.88f),
-                            shape = RoundedCornerShape(16.dp),
-                            color = when {
-                                showResultColors && isCorrect -> Color(0xFFDCFCE7)
-                                showResultColors && selectedZoneId != null -> Color(0xFFFEE2E2)
-                                selectedZoneId != null -> Color(0xFFEFF6FF)
-                                else -> Color(0xFFF8FAFC)
+                    step.options.forEach { option ->
+                        val selectedZoneId = draft.mappedZoneByOptionId[option.optionId]
+                        val correct = selectedZoneId != null && selectedZoneId == option.correctZoneId
+                        val missing = showResultColors && selectedZoneId == null
+                        ArchitectDecisionConnectorCard(
+                            option = option,
+                            selectedZoneId = selectedZoneId,
+                            showResultColors = showResultColors,
+                            isCorrect = correct,
+                            isMissing = missing,
+                            isLocked = isLocked,
+                            onConnectorPositioned = { center ->
+                                leftConnectorCenters[option.optionId] = center
                             },
-                            border = BorderStroke(1.dp, linkColor)
-                        ) {
-                            Text(
-                                modifier = Modifier.padding(10.dp),
-                                text = selectedZone?.title ?: "No effect connected",
-                                color = AppPalette.TextPrimary,
-                                fontSize = 11.5.sp,
-                                lineHeight = 16.sp,
-                                fontWeight = FontWeight.ExtraBold
-                            )
-                        }
+                            onDragStart = {
+                                activeOptionId = option.optionId
+                                dragEnd = leftConnectorCenters[option.optionId]
+                            },
+                            onDrag = { point ->
+                                dragEnd = point
+                                highlightedZoneId = nearestZone(point)
+                            },
+                            onDragEnd = {
+                                val target = nearestZone(dragEnd)
+                                if (target != null) {
+                                    onMapOptionToZone(step, option.optionId, target)
+                                }
+                                activeOptionId = null
+                                dragEnd = null
+                                highlightedZoneId = null
+                            }
+                        )
                     }
+                }
 
-                    if (!isLocked) {
-                        Row(
-                            modifier = Modifier.horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            zones.forEach { zone ->
-                                CategoryMoveChip(
-                                    text = zone.title,
-                                    selected = selectedZoneId == zone.zoneId,
-                                    onClick = {
-                                        onMapOptionToZone(step, option.optionId, zone.zoneId)
+                Column(
+                    modifier = Modifier.weight(0.85f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    zones.forEach { zone ->
+                        val connectedCount = draft.mappedZoneByOptionId.count { it.value == zone.zoneId }
+                        ArchitectEffectTargetCard(
+                            zone = zone,
+                            connectedCount = connectedCount,
+                            highlighted = highlightedZoneId == zone.zoneId,
+                            isLocked = isLocked,
+                            onConnectorPositioned = { center ->
+                                rightConnectorCenters[zone.zoneId] = center
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        val connectedOptions = draft.mappedZoneByOptionId.keys
+        if (connectedOptions.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                connectedOptions.forEach { optionId ->
+                    val option = step.options.firstOrNull { it.optionId == optionId }
+                    val zone = zones.firstOrNull { it.zoneId == draft.mappedZoneByOptionId[optionId] }
+                    if (option != null && zone != null) {
+                        ArchitectConnectionChip(
+                            optionText = option.text,
+                            zoneTitle = zone.title,
+                            enabled = !isLocked,
+                            onRemove = { onRemoveOptionZone(step, optionId) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawArchitectConnection(
+    start: Offset,
+    end: Offset,
+    color: Color
+) {
+    val controlX = (start.x + end.x) / 2f
+    val path = androidx.compose.ui.graphics.Path().apply {
+        moveTo(start.x, start.y)
+        cubicTo(controlX, start.y, controlX, end.y, end.x, end.y)
+    }
+    drawPath(
+        path = path,
+        color = color,
+        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 5f, cap = StrokeCap.Round)
+    )
+    drawCircle(color = color, radius = 6f, center = start)
+    drawCircle(color = color, radius = 6f, center = end)
+}
+
+@Composable
+private fun ArchitectDecisionConnectorCard(
+    option: StepOptionUi,
+    selectedZoneId: String?,
+    showResultColors: Boolean,
+    isCorrect: Boolean,
+    isMissing: Boolean,
+    isLocked: Boolean,
+    onConnectorPositioned: (Offset) -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: () -> Unit
+) {
+    var connectorRoot by remember(option.optionId) { mutableStateOf(Offset.Zero) }
+    val borderColor = when {
+        showResultColors && isCorrect -> Color(0xFF22C55E)
+        showResultColors && selectedZoneId != null -> Color(0xFFEF4444)
+        isMissing -> Color(0xFFF59E0B)
+        selectedZoneId != null -> AppPalette.Blue
+        else -> AppPalette.Border
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = if (isMissing) Color(0xFFFFF7ED) else Color.White,
+        border = BorderStroke(1.dp, borderColor),
+        shadowElevation = if (selectedZoneId != null) 4.dp else 1.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                modifier = Modifier.weight(1f),
+                text = option.text,
+                color = AppPalette.TextPrimary,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Surface(
+                modifier = Modifier
+                    .size(30.dp)
+                    .onGloballyPositioned { coordinates ->
+                        val position = coordinates.positionInRoot()
+                        connectorRoot = position
+                        onConnectorPositioned(
+                            Offset(
+                                position.x + coordinates.size.width / 2f,
+                                position.y + coordinates.size.height / 2f
+                            )
+                        )
+                    }
+                    .then(
+                        if (!isLocked) {
+                            Modifier.pointerInput(option.optionId) {
+                                detectDragGestures(
+                                    onDragStart = {
+                                        onDragStart()
+                                    },
+                                    onDragEnd = onDragEnd,
+                                    onDragCancel = onDragEnd,
+                                    onDrag = { change, _ ->
+                                        change.consume()
+                                        onDrag(connectorRoot + change.position)
                                     }
                                 )
                             }
-
-                            if (selectedZoneId != null) {
-                                CategoryMoveChip(
-                                    text = "Remove link",
-                                    selected = false,
-                                    danger = true,
-                                    onClick = {
-                                        onRemoveOptionZone(step, option.optionId)
-                                    }
-                                )
-                            }
+                        } else {
+                            Modifier
                         }
+                    ),
+                shape = CircleShape,
+                color = AppPalette.Blue,
+                shadowElevation = 5.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "•",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArchitectEffectTargetCard(
+    zone: StepZoneUi,
+    connectedCount: Int,
+    highlighted: Boolean,
+    isLocked: Boolean,
+    onConnectorPositioned: (Offset) -> Unit
+) {
+    val accent = if (highlighted) AppPalette.Indigo else AppPalette.Navy
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = if (highlighted) Color(0xFFEFF6FF) else Color(0xFFF8FAFC),
+        border = BorderStroke(1.3.dp, if (highlighted) AppPalette.Indigo else AppPalette.Border),
+        shadowElevation = if (highlighted) 6.dp else 1.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier
+                    .size(26.dp)
+                    .onGloballyPositioned { coordinates ->
+                        val position = coordinates.positionInRoot()
+                        onConnectorPositioned(
+                            Offset(
+                                position.x + coordinates.size.width / 2f,
+                                position.y + coordinates.size.height / 2f
+                            )
+                        )
+                    },
+                shape = CircleShape,
+                color = accent
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = connectedCount.toString(),
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+                modifier = Modifier.weight(1f),
+                text = zone.title,
+                color = AppPalette.TextPrimary,
+                fontSize = 11.5.sp,
+                lineHeight = 15.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+    }
+}
+
+@Composable
+private fun ArchitectConnectionChip(
+    optionText: String,
+    zoneTitle: String,
+    enabled: Boolean,
+    onRemove: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFFF8FAFC),
+        border = BorderStroke(1.dp, AppPalette.Border)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                modifier = Modifier.weight(1f),
+                text = "${optionText.take(46)} -> ${zoneTitle.take(34)}",
+                color = AppPalette.TextSecondary,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            if (enabled) {
+                Surface(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable { onRemove() },
+                    shape = CircleShape,
+                    color = Color(0xFFFFE4E6)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "X",
+                            color = Color(0xFFE11D48),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
                     }
                 }
             }
@@ -2228,6 +2466,489 @@ private fun isArchitectCompromiseSignalStep(step: QuestionStepUi): Boolean {
     return step.type == StepType.CATEGORIZATION.id &&
             step.stepId.startsWith("A6.") &&
             step.stepId.endsWith("_s6")
+}
+
+@Composable
+private fun ArchitectPriorityWorkspaceContent(
+    step: QuestionStepUi,
+    draft: StepAnswerDraft,
+    feedback: StepFeedbackUi?,
+    isLocked: Boolean,
+    onMapOptionToZone: (QuestionStepUi, String, String) -> Unit,
+    onRemoveOptionZone: (QuestionStepUi, String) -> Unit
+) {
+    val zones = remember(step.zones) { step.zones.sortedBy { it.zoneOrder } }
+    val showResultColors = feedback != null
+    val accents = listOf(AppPalette.Green, AppPalette.Indigo, Color(0xFFE11D48))
+    val unassigned = step.options.filter { draft.mappedZoneByOptionId[it.optionId] == null }
+
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        ArchitectWorkspaceHeader(
+            title = "Strategy priority board",
+            subtitle = if (isLocked) {
+                "The prioritization board is locked. Green decisions are placed well; red decisions are in the wrong strategic lane."
+            } else {
+                "Select a decision and place it on the architecture timeline: now, later, or never."
+            },
+            accent = AppPalette.Indigo
+        )
+
+        ArchitectCardTray(
+            title = "Decision cards",
+            emptyText = "All decisions are on the board.",
+            options = unassigned,
+            zones = zones,
+            accents = accents,
+            step = step,
+            draft = draft,
+            showResultColors = showResultColors,
+            isLocked = isLocked,
+            onMapOptionToZone = onMapOptionToZone,
+            onRemoveOptionZone = onRemoveOptionZone
+        )
+
+        zones.forEachIndexed { index, zone ->
+            val zoneOptions = step.options.filter { draft.mappedZoneByOptionId[it.optionId] == zone.zoneId }
+            val title = when (index) {
+                0 -> "NOW / critical path"
+                1 -> "LATER / architecture backlog"
+                else -> "NEVER / wrong direction"
+            }
+            ArchitectPriorityLane(
+                title = title,
+                zone = zone,
+                options = zoneOptions,
+                zones = zones,
+                accents = accents,
+                accent = accents[index % accents.size],
+                step = step,
+                draft = draft,
+                showResultColors = showResultColors,
+                isLocked = isLocked,
+                onMapOptionToZone = onMapOptionToZone,
+                onRemoveOptionZone = onRemoveOptionZone
+            )
+        }
+    }
+}
+
+@Composable
+private fun ArchitectSignalAnalysisWorkspaceContent(
+    step: QuestionStepUi,
+    draft: StepAnswerDraft,
+    feedback: StepFeedbackUi?,
+    isLocked: Boolean,
+    onMapOptionToZone: (QuestionStepUi, String, String) -> Unit,
+    onRemoveOptionZone: (QuestionStepUi, String) -> Unit
+) {
+    val zones = remember(step.zones) { step.zones.sortedBy { it.zoneOrder } }
+    val showResultColors = feedback != null
+    val accents = listOf(Color(0xFF10B981), Color(0xFF64748B), Color(0xFFF59E0B))
+    val unassigned = step.options.filter { draft.mappedZoneByOptionId[it.optionId] == null }
+
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        ArchitectWorkspaceHeader(
+            title = "Signal analysis board",
+            subtitle = if (isLocked) {
+                "Evidence is locked. Green signal classifications are sound; red ones should be challenged."
+            } else {
+                "Classify architecture evidence as verified signal, noise, or caution before changing the decision."
+            },
+            accent = Color(0xFFF59E0B)
+        )
+
+        ArchitectCardTray(
+            title = "Unclassified signals",
+            emptyText = "All signals have been classified.",
+            options = unassigned,
+            zones = zones,
+            accents = accents,
+            step = step,
+            draft = draft,
+            showResultColors = showResultColors,
+            isLocked = isLocked,
+            onMapOptionToZone = onMapOptionToZone,
+            onRemoveOptionZone = onRemoveOptionZone
+        )
+
+        zones.forEachIndexed { index, zone ->
+            val zoneOptions = step.options.filter { draft.mappedZoneByOptionId[it.optionId] == zone.zoneId }
+            val label = when (index) {
+                0 -> "VERIFIED SIGNAL"
+                1 -> "NOISE / FALSE SIGNAL"
+                else -> "CAUTION SIGNAL"
+            }
+            ArchitectEvidencePanel(
+                label = label,
+                zone = zone,
+                options = zoneOptions,
+                zones = zones,
+                accents = accents,
+                accent = accents[index % accents.size],
+                step = step,
+                draft = draft,
+                showResultColors = showResultColors,
+                isLocked = isLocked,
+                onMapOptionToZone = onMapOptionToZone,
+                onRemoveOptionZone = onRemoveOptionZone
+            )
+        }
+    }
+}
+
+@Composable
+private fun ArchitectWorkspaceHeader(
+    title: String,
+    subtitle: String,
+    accent: Color
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = AppPalette.Navy,
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(accent),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "A",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    lineHeight = 19.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    text = subtitle,
+                    color = Color(0xFFE2E8F0),
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArchitectCardTray(
+    title: String,
+    emptyText: String,
+    options: List<StepOptionUi>,
+    zones: List<StepZoneUi>,
+    accents: List<Color>,
+    step: QuestionStepUi,
+    draft: StepAnswerDraft,
+    showResultColors: Boolean,
+    isLocked: Boolean,
+    onMapOptionToZone: (QuestionStepUi, String, String) -> Unit,
+    onRemoveOptionZone: (QuestionStepUi, String) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, AppPalette.Border),
+        shadowElevation = 3.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = title,
+                color = AppPalette.TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            if (options.isEmpty()) {
+                Text(
+                    text = emptyText,
+                    color = AppPalette.TextMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp
+                )
+            } else {
+                options.forEach { option ->
+                    ArchitectBoardDecisionCard(
+                        option = option,
+                        zones = zones,
+                        accents = accents,
+                        selectedZoneId = null,
+                        step = step,
+                        showResultColors = showResultColors,
+                        isLocked = isLocked,
+                        onMapOptionToZone = onMapOptionToZone,
+                        onRemoveOptionZone = onRemoveOptionZone
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArchitectPriorityLane(
+    title: String,
+    zone: StepZoneUi,
+    options: List<StepOptionUi>,
+    zones: List<StepZoneUi>,
+    accents: List<Color>,
+    accent: Color,
+    step: QuestionStepUi,
+    draft: StepAnswerDraft,
+    showResultColors: Boolean,
+    isLocked: Boolean,
+    onMapOptionToZone: (QuestionStepUi, String, String) -> Unit,
+    onRemoveOptionZone: (QuestionStepUi, String) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = accent.copy(alpha = 0.08f),
+        border = BorderStroke(1.4.dp, accent.copy(alpha = 0.42f))
+    ) {
+        Column(
+            modifier = Modifier.padding(13.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = title,
+                color = accent,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                text = zone.title,
+                color = AppPalette.TextPrimary,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            if (options.isEmpty()) {
+                Text(
+                    text = "No decisions placed here.",
+                    color = AppPalette.TextMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp
+                )
+            } else {
+                options.forEach { option ->
+                    ArchitectBoardDecisionCard(
+                        option = option,
+                        zones = zones,
+                        accents = accents,
+                        selectedZoneId = draft.mappedZoneByOptionId[option.optionId],
+                        step = step,
+                        showResultColors = showResultColors,
+                        isLocked = isLocked,
+                        onMapOptionToZone = onMapOptionToZone,
+                        onRemoveOptionZone = onRemoveOptionZone
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArchitectEvidencePanel(
+    label: String,
+    zone: StepZoneUi,
+    options: List<StepOptionUi>,
+    zones: List<StepZoneUi>,
+    accents: List<Color>,
+    accent: Color,
+    step: QuestionStepUi,
+    draft: StepAnswerDraft,
+    showResultColors: Boolean,
+    isLocked: Boolean,
+    onMapOptionToZone: (QuestionStepUi, String, String) -> Unit,
+    onRemoveOptionZone: (QuestionStepUi, String) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = Color.White,
+        border = BorderStroke(1.4.dp, accent.copy(alpha = 0.5f)),
+        shadowElevation = 3.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(13.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(accent.copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = options.size.toString(),
+                        color = accent,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = label,
+                        color = accent,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        text = zone.title,
+                        color = AppPalette.TextPrimary,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            if (options.isEmpty()) {
+                Text(
+                    text = "No signals in this analysis band.",
+                    color = AppPalette.TextMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp
+                )
+            } else {
+                options.forEach { option ->
+                    ArchitectBoardDecisionCard(
+                        option = option,
+                        zones = zones,
+                        accents = accents,
+                        selectedZoneId = draft.mappedZoneByOptionId[option.optionId],
+                        step = step,
+                        showResultColors = showResultColors,
+                        isLocked = isLocked,
+                        onMapOptionToZone = onMapOptionToZone,
+                        onRemoveOptionZone = onRemoveOptionZone
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArchitectBoardDecisionCard(
+    option: StepOptionUi,
+    zones: List<StepZoneUi>,
+    accents: List<Color>,
+    selectedZoneId: String?,
+    step: QuestionStepUi,
+    showResultColors: Boolean,
+    isLocked: Boolean,
+    onMapOptionToZone: (QuestionStepUi, String, String) -> Unit,
+    onRemoveOptionZone: (QuestionStepUi, String) -> Unit
+) {
+    val isCorrect = selectedZoneId != null && selectedZoneId == option.correctZoneId
+    val background = when {
+        showResultColors && isCorrect -> Color(0xFFDCFCE7)
+        showResultColors && selectedZoneId != null -> Color(0xFFFEE2E2)
+        showResultColors && selectedZoneId == null -> Color(0xFFFFF7ED)
+        selectedZoneId != null -> Color(0xFFF8FAFC)
+        else -> Color.White
+    }
+    val border = when {
+        showResultColors && isCorrect -> Color(0xFF22C55E)
+        showResultColors && selectedZoneId != null -> Color(0xFFEF4444)
+        showResultColors && selectedZoneId == null -> Color(0xFFF59E0B)
+        else -> AppPalette.Border
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(17.dp),
+        color = background,
+        border = BorderStroke(1.dp, border),
+        shadowElevation = 1.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Text(
+                text = option.text,
+                color = AppPalette.TextPrimary,
+                fontSize = 12.5.sp,
+                lineHeight = 17.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            if (!isLocked) {
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    zones.forEachIndexed { index, zone ->
+                        Surface(
+                            modifier = Modifier.clickable {
+                                onMapOptionToZone(step, option.optionId, zone.zoneId)
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (selectedZoneId == zone.zoneId) accents[index % accents.size] else Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, accents[index % accents.size].copy(alpha = 0.45f))
+                        ) {
+                            Text(
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                text = zone.title,
+                                color = if (selectedZoneId == zone.zoneId) Color.White else AppPalette.TextSecondary,
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+
+                    if (selectedZoneId != null) {
+                        Surface(
+                            modifier = Modifier.clickable {
+                                onRemoveOptionZone(step, option.optionId)
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFFFFE4E6),
+                            border = BorderStroke(1.dp, Color(0xFFFDA4AF))
+                        ) {
+                            Text(
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                text = "Remove",
+                                color = Color(0xFFE11D48),
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
