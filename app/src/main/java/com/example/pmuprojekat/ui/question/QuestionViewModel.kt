@@ -184,6 +184,26 @@ class QuestionViewModel @Inject constructor(
         )
     }
 
+    fun updateOrderedOptions(step: QuestionStepUi, orderedOptionIds: List<String>) {
+        if (isStepLocked(step.stepId)) return
+
+        val draft = getOrCreateDraft(step)
+        val currentIds = draft.orderedOptionIds
+        val currentIdSet = currentIds.toSet()
+        val reorderedIds = orderedOptionIds
+            .filter { it in currentIdSet }
+            .distinct()
+        val missingIds = currentIds.filterNot { it in reorderedIds }
+        val updatedIds = reorderedIds + missingIds
+
+        if (updatedIds == currentIds) return
+
+        updateDraft(
+            stepId = step.stepId,
+            draft = draft.copy(orderedOptionIds = updatedIds)
+        )
+    }
+
     fun excludeOrderedOption(step: QuestionStepUi, optionId: String) {
 
         if (isStepLocked(step.stepId)) return

@@ -153,6 +153,7 @@ class MainActivity : ComponentActivity() {
                             },
                             onToggleOption = questionViewModel::toggleOption,
                             onMoveOrderedOption = questionViewModel::moveOrderedOption,
+                            onUpdateOrderedOptions = questionViewModel::updateOrderedOptions,
                             onExcludeOrderedOption = questionViewModel::excludeOrderedOption,
                             onRestoreOrderedOption = questionViewModel::restoreOrderedOption,
                             onMapOptionToZone = questionViewModel::mapOptionToZone,
