@@ -63,6 +63,7 @@ import com.example.pmuprojekat.ui.home.AppPalette
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -4425,13 +4426,24 @@ private fun isSeniorDiagnosisCategorizationStep(step: QuestionStepUi): Boolean {
 
 private fun isSeniorBalanceCategorizationStep(step: QuestionStepUi): Boolean {
     return step.type == StepType.CATEGORIZATION.id &&
-            (step.stepId.startsWith("S2.") || step.stepId.startsWith("S4.")) &&
+            (step.stepId.startsWith("S2.") || step.stepId.startsWith("S4.") || step.stepId.startsWith("S5.")) &&
             step.zones.any { it.title.contains("Šta se dobija", ignoreCase = true) } &&
             step.zones.any {
                 it.title.contains("gubi", ignoreCase = true) ||
                         it.title.contains("rizici", ignoreCase = true) ||
                         it.title.contains("cena", ignoreCase = true)
             }
+}
+
+private fun seniorPrioritySwipeLabel(leftZone: StepZoneUi): String {
+    val title = leftZone.title.lowercase()
+    return when {
+        title.contains("prioritet") -> "← PRIORITET"
+        title.contains("prednost") -> "← PREDNOST"
+        title.contains("ispravno") || title.contains("tač") || title.contains("tac") -> "← ISPRAVNO"
+        title.contains("dobija") || title.contains("dobit") || title.contains("korist") -> "← KORIST"
+        else -> "← PRIORITET"
+    }
 }
 
 @Composable
@@ -4474,15 +4486,16 @@ private fun SeniorDiagnosisCategorizationStepContent(
         isLocked = isLocked,
         leftZone = symptomZone,
         rightZone = causeZone,
-        leftTitle = "Simptomi",
-        rightTitle = "Mogući uzroci",
-        leftHint = "Prevuci levo za simptom",
-        rightHint = "Prevuci desno za uzrok",
+        leftTitle = "← SIMPTOMI",
+        rightTitle = "UZROCI →",
+        leftHint = "← SIMPTOMI",
+        rightHint = "UZROCI →",
         introText = if (isLocked) {
             "Raspored je zaključan. Zelene kartice su tačne, crvene nisu."
         } else {
-            "Zadrži karticu i prevuci je levo ili desno. Kartica ostaje vidljiva, a nakon puštanja prelazi u izabranu grupu."
+            "Prevuci karticu ka simptomima ili uzrocima."
         },
+        quickSwipe = true,
         leftAccent = AppPalette.Blue,
         rightAccent = AppPalette.Purple,
         onMapOptionToZone = onMapOptionToZone
@@ -4524,10 +4537,22 @@ private fun SeniorBalanceCategorizationStepContent(
         return
     }
 
-    val rightTitle = if (costZone.title.contains("cena", ignoreCase = true)) {
+    val oldRightTitle = if (costZone.title.contains("cena", ignoreCase = true)) {
         "Prihvaćena cena"
     } else {
         "Rizici / gubici"
+    }
+    val quickSwipe = step.stepId.startsWith("S2.") || step.stepId.startsWith("S5.")
+    val isPrioritySwipe = step.stepId.startsWith("S5.")
+    val leftSwipeLabel = when {
+        isPrioritySwipe -> seniorPrioritySwipeLabel(gainZone)
+        quickSwipe -> "← DOBITAK"
+        else -> "Šta se dobija"
+    }
+    val rightSwipeLabel = if (quickSwipe) {
+        "RIZICI/GUBICI →"
+    } else {
+        oldRightTitle
     }
 
     SeniorSwipeCategorizationContent(
@@ -4537,15 +4562,20 @@ private fun SeniorBalanceCategorizationStepContent(
         isLocked = isLocked,
         leftZone = gainZone,
         rightZone = costZone,
-        leftTitle = "Šta se dobija",
-        rightTitle = rightTitle,
-        leftHint = "Prevuci levo za dobitak",
-        rightHint = "Prevuci desno za cenu / rizik",
+        leftTitle = leftSwipeLabel,
+        rightTitle = rightSwipeLabel,
+        leftHint = leftSwipeLabel,
+        rightHint = rightSwipeLabel,
         introText = if (isLocked) {
             "Balans odluke je zaključan. Zelene kartice su tačne, crvene nisu."
+        } else if (isPrioritySwipe) {
+            "Prevuci karticu ka prioritetu ili riziku."
+        } else if (quickSwipe) {
+            "Prevuci karticu ka dobitku ili riziku."
         } else {
             "Zadrži karticu i prevuci je levo ako predstavlja dobitak, odnosno desno ako predstavlja cenu, gubitak ili rizik."
         },
+        quickSwipe = quickSwipe,
         leftAccent = AppPalette.Green,
         rightAccent = AppPalette.Orange,
         onMapOptionToZone = onMapOptionToZone
@@ -4565,6 +4595,7 @@ private fun SeniorSwipeCategorizationContent(
     leftHint: String,
     rightHint: String,
     introText: String,
+    quickSwipe: Boolean,
     leftAccent: Color,
     rightAccent: Color,
     onMapOptionToZone: (QuestionStepUi, String, String) -> Unit
@@ -4599,7 +4630,7 @@ private fun SeniorSwipeCategorizationContent(
         if (unassignedOptions.isNotEmpty()) {
             SeniorSwipeSection(
                 title = "Kartice za raspoređivanje",
-                subtitle = "Prevuci svaku karticu levo ili desno.",
+                subtitle = if (quickSwipe) "Brzo prevuci kartice levo ili desno." else "Prevuci svaku karticu levo ili desno.",
                 accentColor = AppPalette.Navy,
                 options = unassignedOptions,
                 step = step,
@@ -4612,6 +4643,7 @@ private fun SeniorSwipeCategorizationContent(
                 rightAccent = rightAccent,
                 showResultColors = showResultColors,
                 isLocked = isLocked,
+                quickSwipe = quickSwipe,
                 onMapOptionToZone = onMapOptionToZone
             )
         }
@@ -4631,6 +4663,7 @@ private fun SeniorSwipeCategorizationContent(
             rightAccent = rightAccent,
             showResultColors = showResultColors,
             isLocked = isLocked,
+            quickSwipe = quickSwipe,
             onMapOptionToZone = onMapOptionToZone
         )
 
@@ -4649,6 +4682,7 @@ private fun SeniorSwipeCategorizationContent(
             rightAccent = rightAccent,
             showResultColors = showResultColors,
             isLocked = isLocked,
+            quickSwipe = quickSwipe,
             onMapOptionToZone = onMapOptionToZone
         )
     }
@@ -4757,6 +4791,7 @@ private fun SeniorSwipeSection(
     rightAccent: Color,
     showResultColors: Boolean,
     isLocked: Boolean,
+    quickSwipe: Boolean,
     onMapOptionToZone: (QuestionStepUi, String, String) -> Unit
 ) {
     Surface(
@@ -4808,6 +4843,7 @@ private fun SeniorSwipeSection(
                         rightAccent = rightAccent,
                         showResultColors = showResultColors,
                         isLocked = isLocked,
+                        quickSwipe = quickSwipe,
                         onMapOptionToZone = onMapOptionToZone
                     )
                 }
@@ -4829,14 +4865,25 @@ private fun SeniorStableSwipeCard(
     rightAccent: Color,
     showResultColors: Boolean,
     isLocked: Boolean,
+    quickSwipe: Boolean,
     onMapOptionToZone: (QuestionStepUi, String, String) -> Unit
 ) {
     var dragX by remember(option.optionId, selectedZoneId) {
         mutableStateOf(0f)
     }
 
-    val threshold = 80f
-    val limitedVisualOffset = dragX.coerceIn(-28f, 28f)
+    val density = LocalDensity.current
+    val threshold = with(density) { 72.dp.toPx() }
+    val maxVisualOffset = with(density) { 92.dp.toPx() }
+    val limitedVisualOffset = dragX.coerceIn(-maxVisualOffset, maxVisualOffset)
+    val animatedVisualOffset by animateFloatAsState(
+        targetValue = limitedVisualOffset,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "seniorSwipeOffset"
+    )
 
     val targetZoneId = when {
         dragX <= -threshold -> leftZone.zoneId
@@ -4876,44 +4923,77 @@ private fun SeniorStableSwipeCard(
             .fillMaxWidth()
             .zIndex(if (dragX != 0f) 5f else 0f)
             .graphicsLayer {
-                translationX = limitedVisualOffset
-                rotationZ = (dragX / 60f).coerceIn(-2.5f, 2.5f)
+                translationX = animatedVisualOffset
+                rotationZ = (animatedVisualOffset / maxVisualOffset * 3f).coerceIn(-3f, 3f)
                 scaleX = if (dragX != 0f) 1.01f else 1f
                 scaleY = if (dragX != 0f) 1.01f else 1f
             }
             .then(
                 if (!isLocked) {
-                    Modifier.pointerInput(option.optionId, selectedZoneId) {
-                        detectDragGesturesAfterLongPress(
-                            onDragEnd = {
-                                when {
-                                    dragX <= -threshold -> {
-                                        onMapOptionToZone(
-                                            step,
-                                            option.optionId,
-                                            leftZone.zoneId
-                                        )
+                    Modifier.pointerInput(option.optionId, selectedZoneId, quickSwipe) {
+                        if (quickSwipe) {
+                            detectHorizontalDragGestures(
+                                onDragEnd = {
+                                    when {
+                                        dragX <= -threshold -> {
+                                            onMapOptionToZone(
+                                                step,
+                                                option.optionId,
+                                                leftZone.zoneId
+                                            )
+                                        }
+
+                                        dragX >= threshold -> {
+                                            onMapOptionToZone(
+                                                step,
+                                                option.optionId,
+                                                rightZone.zoneId
+                                            )
+                                        }
                                     }
 
-                                    dragX >= threshold -> {
-                                        onMapOptionToZone(
-                                            step,
-                                            option.optionId,
-                                            rightZone.zoneId
-                                        )
-                                    }
+                                    dragX = 0f
+                                },
+                                onDragCancel = {
+                                    dragX = 0f
+                                },
+                                onHorizontalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragX += dragAmount
                                 }
+                            )
+                        } else {
+                            detectDragGesturesAfterLongPress(
+                                onDragEnd = {
+                                    when {
+                                        dragX <= -threshold -> {
+                                            onMapOptionToZone(
+                                                step,
+                                                option.optionId,
+                                                leftZone.zoneId
+                                            )
+                                        }
 
-                                dragX = 0f
-                            },
-                            onDragCancel = {
-                                dragX = 0f
-                            },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                dragX += dragAmount.x
-                            }
-                        )
+                                        dragX >= threshold -> {
+                                            onMapOptionToZone(
+                                                step,
+                                                option.optionId,
+                                                rightZone.zoneId
+                                            )
+                                        }
+                                    }
+
+                                    dragX = 0f
+                                },
+                                onDragCancel = {
+                                    dragX = 0f
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragX += dragAmount.x
+                                }
+                            )
+                        }
                     }
                 } else {
                     Modifier
@@ -4985,14 +5065,14 @@ private fun SeniorSwipeHintRow(
         SeniorSwipeHintPill(
             modifier = Modifier.weight(1f),
             text = leftHint,
-            active = dragX <= -threshold,
+            active = dragX < -threshold * 0.25f,
             accentColor = leftAccent
         )
 
         SeniorSwipeHintPill(
             modifier = Modifier.weight(1f),
             text = rightHint,
-            active = dragX >= threshold,
+            active = dragX > threshold * 0.25f,
             accentColor = rightAccent
         )
     }
@@ -5018,7 +5098,7 @@ private fun SeniorSwipeHintPill(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
             text = text,
             color = if (active) Color.White else AppPalette.TextSecondary,
-            fontSize = 10.5.sp,
+            fontSize = 11.5.sp,
             fontWeight = FontWeight.ExtraBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
