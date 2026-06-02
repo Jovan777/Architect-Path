@@ -55,6 +55,7 @@ class LearningRepository @Inject constructor(
 
     suspend fun updateProfileSettings(
         displayName: String,
+        currentLevel: String,
         learningGoal: String,
         preferredTaskFormat: String,
         learningFocus: String,
@@ -63,11 +64,42 @@ class LearningRepository @Inject constructor(
         userDao.updateProfileSettings(
             userId = LOCAL_USER_ID,
             displayName = displayName,
+            currentLevel = currentLevel,
             learningGoal = learningGoal,
             preferredTaskFormat = preferredTaskFormat,
             learningFocus = learningFocus,
             aiFollowUpEnabled = aiFollowUpEnabled
         )
+    }
+
+    suspend fun completeOnboarding(
+        displayName: String,
+        currentLevel: String,
+        preferredTaskFormat: String,
+        learningFocus: String
+    ) {
+        val existingUser = userDao.getUserById(LOCAL_USER_ID)
+
+        if (existingUser == null) {
+            userDao.upsertUser(
+                UserEntity(
+                    userId = LOCAL_USER_ID,
+                    displayName = displayName,
+                    currentLevel = currentLevel,
+                    preferredTaskFormat = preferredTaskFormat,
+                    learningFocus = learningFocus,
+                    hasCompletedOnboarding = true
+                )
+            )
+        } else {
+            userDao.completeOnboarding(
+                userId = LOCAL_USER_ID,
+                displayName = displayName,
+                currentLevel = currentLevel,
+                preferredTaskFormat = preferredTaskFormat,
+                learningFocus = learningFocus
+            )
+        }
     }
 
     suspend fun resetProgress() {

@@ -48,20 +48,42 @@ interface UserDao {
     @Query("""
         UPDATE users
         SET displayName = :displayName,
+            currentLevel = :currentLevel,
             learningGoal = :learningGoal,
             preferredTaskFormat = :preferredTaskFormat,
             learningFocus = :learningFocus,
             aiFollowUpEnabled = :aiFollowUpEnabled,
+            hasCompletedOnboarding = 1,
             lastActiveAt = :updatedAt
         WHERE userId = :userId
     """)
     suspend fun updateProfileSettings(
         userId: String,
         displayName: String,
+        currentLevel: String,
         learningGoal: String,
         preferredTaskFormat: String,
         learningFocus: String,
         aiFollowUpEnabled: Boolean,
+        updatedAt: Long = System.currentTimeMillis()
+    )
+
+    @Query("""
+        UPDATE users
+        SET displayName = :displayName,
+            currentLevel = :currentLevel,
+            preferredTaskFormat = :preferredTaskFormat,
+            learningFocus = :learningFocus,
+            hasCompletedOnboarding = 1,
+            lastActiveAt = :updatedAt
+        WHERE userId = :userId
+    """)
+    suspend fun completeOnboarding(
+        userId: String,
+        displayName: String,
+        currentLevel: String,
+        preferredTaskFormat: String,
+        learningFocus: String,
         updatedAt: Long = System.currentTimeMillis()
     )
 

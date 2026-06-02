@@ -20,6 +20,7 @@ import com.example.pmuprojekat.ui.main.ProfileScreen
 import com.example.pmuprojekat.ui.main.ProgressScreen
 import com.example.pmuprojekat.ui.main.TasksScreen
 import com.example.pmuprojekat.ui.main.WavesScreen
+import com.example.pmuprojekat.ui.onboarding.OnboardingScreen
 import com.example.pmuprojekat.ui.question.QuestionScreen
 import com.example.pmuprojekat.ui.question.QuestionViewModel
 import com.example.pmuprojekat.ui.theme.PMUProjekatTheme
@@ -126,6 +127,13 @@ class MainActivity : ComponentActivity() {
                 }
 
                 when {
+                    !homeUiState.isLoading && !homeUiState.hasCompletedOnboarding -> {
+                        OnboardingScreen(
+                            uiState = homeUiState,
+                            onComplete = homeViewModel::completeOnboarding
+                        )
+                    }
+
                     openedQuestionId != null -> {
                         val nextQuestionId = nextQuestionIdAfter(
                             currentQuestionId = openedQuestionId,

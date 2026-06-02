@@ -3,6 +3,8 @@ package com.example.pmuprojekat.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.pmuprojekat.data.local.PMUDatabase
 import com.example.pmuprojekat.data.local.dao.QuestionDao
 import com.example.pmuprojekat.data.local.dao.SeedMetaDao
@@ -19,6 +21,14 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                "ALTER TABLE users ADD COLUMN hasCompletedOnboarding INTEGER NOT NULL DEFAULT 0"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -33,6 +43,7 @@ object DatabaseModule {
              * Dok si u razvoju, ovo je praktično.
              * Kasnije, kada se model stabilizuje, zameni pravim migracijama.
              */
+            .addMigrations(MIGRATION_2_3)
             .fallbackToDestructiveMigration()
             .build()
     }

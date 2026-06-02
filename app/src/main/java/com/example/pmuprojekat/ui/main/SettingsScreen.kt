@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.pmuprojekat.core.model.LearningLevel
 import com.example.pmuprojekat.core.model.TaskFocusPreference
 import com.example.pmuprojekat.core.model.TaskFormatPreference
 import com.example.pmuprojekat.core.model.TaskPersonalizer
@@ -60,6 +61,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onSaveProfile: (
         displayName: String,
+        currentLevel: String,
         learningGoal: String,
         preferredTaskFormat: String,
         learningFocus: String,
@@ -73,6 +75,10 @@ fun SettingsScreen(
 
     var learningGoal by remember(uiState.learningGoal) {
         mutableStateOf(uiState.learningGoal)
+    }
+
+    var selectedLevelId by remember(uiState.selectedLevel) {
+        mutableStateOf(uiState.selectedLevel)
     }
 
     var preferredTaskFormats by remember(uiState.preferredTaskFormat) {
@@ -135,6 +141,11 @@ fun SettingsScreen(
             )
 
             SettingsLearningCard(
+                selectedLevelId = selectedLevelId,
+                onSelectedLevelChange = {
+                    selectedLevelId = it
+                    savedMessageVisible = false
+                },
                 learningGoal = learningGoal,
                 onLearningGoalChange = {
                     learningGoal = it
@@ -163,6 +174,7 @@ fun SettingsScreen(
 
                     onSaveProfile(
                         safeName,
+                        selectedLevelId,
                         learningGoal,
                         encodePreferredTaskFormats(preferredTaskFormats),
                         learningFocus,
@@ -374,6 +386,8 @@ private fun SettingsProfileCard(
 
 @Composable
 private fun SettingsLearningCard(
+    selectedLevelId: String,
+    onSelectedLevelChange: (String) -> Unit,
     learningGoal: String,
     onLearningGoalChange: (String) -> Unit,
     preferredTaskFormat: Set<String>,
@@ -399,6 +413,17 @@ private fun SettingsLearningCard(
                 color = AppPalette.TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold
+            )
+
+            SettingsDropdown(
+                title = "Moj nivo",
+                value = LearningLevel.fromId(selectedLevelId).displayName,
+                options = LearningLevel.entries.map { it.displayName },
+                onValueSelected = { selectedName ->
+                    LearningLevel.entries
+                        .firstOrNull { it.displayName == selectedName }
+                        ?.let { onSelectedLevelChange(it.id) }
+                }
             )
 
             SettingsDropdown(

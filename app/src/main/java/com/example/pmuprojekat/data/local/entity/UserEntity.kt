@@ -19,6 +19,7 @@ data class UserEntity(
     val preferredTaskFormat: String = "Interaktivni koraci",
     val learningFocus: String = "Balansirano učenje",
     val aiFollowUpEnabled: Boolean = true,
+    val hasCompletedOnboarding: Boolean = false,
 
     val createdAt: Long = System.currentTimeMillis(),
     val lastActiveAt: Long = System.currentTimeMillis(),

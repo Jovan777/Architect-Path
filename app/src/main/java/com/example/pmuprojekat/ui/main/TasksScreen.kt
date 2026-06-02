@@ -46,6 +46,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.pmuprojekat.core.model.TaskFormatPreference
+import com.example.pmuprojekat.core.model.TaskPersonalizer
 import com.example.pmuprojekat.ui.home.AppPalette
 import com.example.pmuprojekat.ui.home.HomeUiState
 import com.example.pmuprojekat.ui.home.QuestionPreviewUi
@@ -73,6 +75,24 @@ fun TasksScreen(
         mutableStateOf(TaskStatusFilter.ALL)
     }
 
+    val preferredFormatLabels = remember(uiState.preferredTaskFormat) {
+        TaskPersonalizer.parsePreferredFormats(uiState.preferredTaskFormat)
+            .map { it.displayName }
+            .toSet()
+    }
+
+    var selectedFormatLabels by remember(uiState.preferredTaskFormat) {
+        mutableStateOf(preferredFormatLabels)
+    }
+
+    val formatOptions = remember(uiState.allQuestions) {
+        TaskFormatPreference.entries
+            .map { it.displayName }
+            .filter { formatLabel ->
+                uiState.allQuestions.any { it.format == formatLabel }
+            }
+    }
+
     var search by remember {
         mutableStateOf("")
     }
@@ -81,10 +101,11 @@ fun TasksScreen(
         uiState.personalizedQuestions,
         selectedLevelId,
         statusFilter,
+        selectedFormatLabels,
         search
     ) {
         derivedStateOf {
-            uiState.personalizedQuestions
+            val baseQuestions = uiState.personalizedQuestions
                 .filter { it.levelId == selectedLevelId }
                 .filter { question ->
                     when (statusFilter) {
@@ -99,8 +120,58 @@ fun TasksScreen(
                             question.questionId.contains(search, ignoreCase = true) ||
                             question.typeLabel.contains(search, ignoreCase = true)
                 }
+
+            val formatFilteredQuestions = if (selectedFormatLabels.isEmpty()) {
+                baseQuestions
+            } else {
+                baseQuestions.filter { question ->
+                    selectedFormatLabels.contains(question.format)
+                }
+            }
+
+            formatFilteredQuestions.ifEmpty {
+                if (selectedFormatLabels.isEmpty()) {
+                    emptyList()
+                } else {
+                    baseQuestions
+                }
+            }
             }
         }
+
+    val isUsingFavoriteFallback by remember(
+        uiState.personalizedQuestions,
+        selectedLevelId,
+        statusFilter,
+        selectedFormatLabels,
+        search
+    ) {
+        derivedStateOf {
+            if (selectedFormatLabels.isEmpty()) {
+                false
+            } else {
+                val baseQuestions = uiState.personalizedQuestions
+                    .filter { it.levelId == selectedLevelId }
+                    .filter { question ->
+                        when (statusFilter) {
+                            TaskStatusFilter.ALL -> true
+                            TaskStatusFilter.OPEN -> !question.isCompleted
+                            TaskStatusFilter.DONE -> question.isCompleted
+                        }
+                    }
+                    .filter { question ->
+                        search.isBlank() ||
+                                question.title.contains(search, ignoreCase = true) ||
+                                question.questionId.contains(search, ignoreCase = true) ||
+                                question.typeLabel.contains(search, ignoreCase = true)
+                    }
+
+                baseQuestions.isNotEmpty() && baseQuestions.none { question ->
+                    selectedFormatLabels.contains(question.format)
+                }
+            }
+        }
+    }
 
     Scaffold(
         containerColor = AppPalette.Background,
@@ -165,6 +236,13 @@ fun TasksScreen(
                 )
             }
 
+            item(key = "personalized-header") {
+                PersonalizedTasksHeader(
+                    levelName = uiState.selectedLevelName,
+                    preferredFormats = preferredFormatLabels
+                )
+            }
+
             item(key = "level-filter") {
                 LevelFilterRow(
                 levels = uiState.levels,
@@ -173,11 +251,25 @@ fun TasksScreen(
                 )
             }
 
+            item(key = "format-filter") {
+                TaskFormatFilterRow(
+                    options = formatOptions,
+                    selected = selectedFormatLabels,
+                    onSelectedChange = { selectedFormatLabels = it }
+                )
+            }
+
             item(key = "status-filter") {
                 StatusFilterRow(
                 selected = statusFilter,
                 onSelected = { statusFilter = it }
                 )
+            }
+
+            if (isUsingFavoriteFallback) {
+                item(key = "favorite-fallback") {
+                    FavoriteFallbackNotice()
+                }
             }
 
             item(key = "count") {
@@ -203,6 +295,49 @@ fun TasksScreen(
 }
 
 @Composable
+private fun PersonalizedTasksHeader(
+    levelName: String,
+    preferredFormats: Set<String>
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = AppPalette.Blue.copy(alpha = 0.08f),
+        border = BorderStroke(1.dp, AppPalette.Blue.copy(alpha = 0.18f))
+    ) {
+        Column(
+            modifier = Modifier.padding(15.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Text(
+                text = "Zadaci za tebe",
+                color = AppPalette.TextPrimary,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Text(
+                text = "Prikaz je prilagođen tvom nivou ($levelName) i omiljenim tipovima zadataka.",
+                color = AppPalette.TextSecondary,
+                fontSize = 12.5.sp,
+                lineHeight = 18.sp
+            )
+
+            if (preferredFormats.isNotEmpty()) {
+                Text(
+                    text = preferredFormats.joinToString(" • "),
+                    color = AppPalette.Blue,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun LevelFilterRow(
     levels: List<com.example.pmuprojekat.ui.home.LevelSummaryUi>,
     selectedLevelId: String,
@@ -221,6 +356,74 @@ private fun LevelFilterRow(
                 onClick = { onSelected(level.levelId) }
             )
         }
+    }
+}
+
+@Composable
+private fun TaskFormatFilterRow(
+    options: List<String>,
+    selected: Set<String>,
+    onSelectedChange: (Set<String>) -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "Tipovi zadataka",
+            color = AppPalette.TextPrimary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                text = "Svi tipovi",
+                selected = selected.isEmpty(),
+                onClick = { onSelectedChange(emptySet()) }
+            )
+
+            options.forEach { option ->
+                val isSelected = selected.contains(option)
+
+                FilterChip(
+                    text = option,
+                    selected = isSelected,
+                    onClick = {
+                        val updatedSelection = if (isSelected) {
+                            selected - option
+                        } else {
+                            selected + option
+                        }
+
+                        onSelectedChange(updatedSelection)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FavoriteFallbackNotice() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFFFFFBEB),
+        border = BorderStroke(1.dp, Color(0xFFFDE68A))
+    ) {
+        Text(
+            modifier = Modifier.padding(13.dp),
+            text = "Nema zadataka za izabrane omiljene tipove u ovom prikazu, pa prikazujem sve zadatke za izabrani nivo.",
+            color = Color(0xFF92400E),
+            fontSize = 12.5.sp,
+            lineHeight = 18.sp,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 

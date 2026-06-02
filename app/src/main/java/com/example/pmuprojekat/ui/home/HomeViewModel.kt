@@ -198,6 +198,7 @@ class HomeViewModel @Inject constructor(
             preferredTaskFormat = user?.preferredTaskFormat ?: "Interaktivni koraci",
             learningFocus = user?.learningFocus ?: "Balansirano učenje",
             aiFollowUpEnabled = user?.aiFollowUpEnabled ?: true,
+            hasCompletedOnboarding = user?.hasCompletedOnboarding ?: false,
         )
     }
         .flowOn(Dispatchers.Default)
@@ -221,6 +222,7 @@ class HomeViewModel @Inject constructor(
 
     fun updateProfileSettings(
         displayName: String,
+        currentLevel: String,
         learningGoal: String,
         preferredTaskFormat: String,
         learningFocus: String,
@@ -229,10 +231,27 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             repository.updateProfileSettings(
                 displayName = displayName,
+                currentLevel = currentLevel,
                 learningGoal = learningGoal,
                 preferredTaskFormat = preferredTaskFormat,
                 learningFocus = learningFocus,
                 aiFollowUpEnabled = aiFollowUpEnabled
+            )
+        }
+    }
+
+    fun completeOnboarding(
+        displayName: String,
+        currentLevel: String,
+        preferredTaskFormat: String,
+        learningFocus: String
+    ) {
+        viewModelScope.launch {
+            repository.completeOnboarding(
+                displayName = displayName,
+                currentLevel = currentLevel,
+                preferredTaskFormat = preferredTaskFormat,
+                learningFocus = learningFocus
             )
         }
     }
