@@ -22,6 +22,7 @@ data class QuestionEntity(
 
     val title: String,
     val prompt: String,
+    val diagramImageName: String? = null,
 
     val aiFollowUp: String? = null,
 

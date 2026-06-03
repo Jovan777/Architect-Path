@@ -8,6 +8,7 @@ data class QuestionUiState(
     val questionId: String? = null,
     val title: String = "",
     val prompt: String = "",
+    val diagramImageName: String? = null,
     val level: String = "",
     val type: String = "",
     val difficulty: String = "",

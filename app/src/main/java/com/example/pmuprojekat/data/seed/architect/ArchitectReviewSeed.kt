@@ -12,17 +12,7 @@ object ArchitectReviewSeed {
                     type = QuestionType.ARCHITECTURE_REVIEW.id,
                     title = "Revizija arhitekture platforme za video kurseve",
                     prompt = """
-                    Platforma za video kurseve ima sledeći pojednostavljeni dijagram:
-                    [Mobile/Web App]
-                           |
-                           v
-                    [Backend API]
-                       |       |        |
-                       v       v        v
-                    [SQL DB] [Local File Storage] [Payment Provider]
-                                  |
-                                  v
-                           [Video Streaming]
+                    Platforma za video kurseve ima sledeći pojednostavljeni dijagram. Pogledaj sliku ispod.
                     Opis sistema:
                     •	Backend API obrađuje login, kurseve, testove, plaćanja i video lekcije; 
                     •	video fajlovi se čuvaju na lokalnom storage-u istog servera; 
@@ -31,6 +21,7 @@ object ArchitectReviewSeed {
                     •	kada mnogo korisnika gleda video, usporavaju se login, testovi i plaćanja; 
                     •	očekuje se rast broja korisnika iz više regiona.
                     """.trimIndent(),
+                    diagramImageName = "a3_1_slika",
                     aiFollowUp = """
                     Ako korisnik plati kurs, dobije signed URL za video, a zatim mu se uplata poništi, kako bi arhitektonski kontrolisao da pristup video sadržaju ne ostane otvoren duže nego što treba?
                     """.trimIndent(),
@@ -166,17 +157,7 @@ object ArchitectReviewSeed {
                     title = "Revizija arhitekture sistema za distribuciju humanitarne pomoći",
                     prompt = """
                     Organizacija koristi sistem za distribuciju humanitarne pomoći u kriznim situacijama.
-                    Pojednostavljen dijagram:
-                    [Field Mobile App]
-                            |
-                            v
-                    [Central Backend API]
-                       |          |           |
-                       v          v           v
-                    [Beneficiary SQL DB] [Inventory DB] [SMS Provider]
-                            |
-                            v
-                    [Reporting Dashboard]
+                    Pojednostavljen dijagram je prikazan na slici ispod.
                     Opis sistema:
                     •	terenski radnici preko mobilne aplikacije registruju korisnike pomoći; 
                     •	sistem proverava da li je korisnik već dobio paket pomoći; 
@@ -191,6 +172,7 @@ object ArchitectReviewSeed {
                     Problem:
                     Sistem treba unaprediti tako da terenski rad može da se nastavi i kada konekcija nije stabilna, ali bez nekontrolisanog dupliranja korisnika i paketa pomoći.
                     """.trimIndent(),
+                    diagramImageName = "a3_2_slika",
                     aiFollowUp = """
                     Ako dva terenska tima offline registruju istog korisnika na različitim lokacijama, kako bi arhitektonski razlikovao “stvarni duplikat” od legitimne potrebe za dodatnom pomoći?
                     """.trimIndent(),
@@ -320,17 +302,7 @@ object ArchitectReviewSeed {
                     title = "Revizija arhitekture sistema za online aukcije",
                     prompt = """
                     Platforma za online aukcije omogućava korisnicima da licitiraju za proizvode u realnom vremenu.
-                    Pojednostavljen dijagram:
-                    [Web/Mobile Client]
-                            |
-                            v
-                    [Auction Backend API]
-                       |          |           |
-                       v          v           v
-                    [User DB] [Auction SQL DB] [Email/SMS Service]
-                            |
-                            v
-                    [Admin Reporting]
+                    Pojednostavljen dijagram je prikazan na slici ispod.
                     Opis sistema:
                     •	korisnici šalju ponude preko Web/Mobile aplikacije; 
                     •	Auction Backend API proverava korisnika, učitava aukciju, poredi ponudu i upisuje novu najveću ponudu; 
@@ -344,6 +316,7 @@ object ArchitectReviewSeed {
                     Problem:
                     Sistem treba unaprediti tako da bolje podrži aukcije sa velikim brojem učesnika, real-time prikaz i proverljiv tok ponuda.
                     """.trimIndent(),
+                    diagramImageName = "a3_3_slika",
                     aiFollowUp = """
                     Ako dve ponude stignu skoro istovremeno iz različitih regiona, kako bi arhitektura trebalo da odluči koja je prihvaćena, a da sistem ostane proverljiv i razumljiv korisnicima?
                     """.trimIndent(),
@@ -470,17 +443,7 @@ object ArchitectReviewSeed {
                     title = "Revizija arhitekture platforme za upravljanje bezbednosnim incidentima",
                     prompt = """
                     Organizacija koristi internu platformu za upravljanje bezbednosnim incidentima.
-                    Pojednostavljen dijagram:
-                    [Analyst Web Console]
-                            |
-                            v
-                    [Incident Backend API]
-                       |            |              |
-                       v            v              v
-                    [Case SQL DB] [Shared File Storage] [Email/Chat Alerts]
-                            |
-                            v
-                    [Dashboard & Reports]
+                    Pojednostavljen dijagram je prikazan na slici ispod.
                     Opis sistema:
                     •	alerti iz više bezbednosnih alata ulaze kroz isti Incident Backend API; 
                     •	analitičari kroz web konzolu otvaraju, povezuju i zatvaraju incidente; 
@@ -494,6 +457,7 @@ object ArchitectReviewSeed {
                     Problem:
                     Sistem treba unaprediti tako da podrži veći obim bezbednosnih događaja, jasniji tok incidenta i bolju odvojenost između prijema alerta i rada nad slučajem.
                     """.trimIndent(),
+                    diagramImageName = "a3_4_slika",
                     aiFollowUp = """
                     Ako tri različita alata pošalju alerte koji liče na isti napad, ali se kasnije ispostavi da jedan od njih predstavlja zaseban incident, kako bi arhitektura trebalo da podrži i korelaciju i naknadno razdvajanje bez gubitka istorije odluke?
                     """.trimIndent(),
@@ -620,26 +584,7 @@ object ArchitectReviewSeed {
                     title = "Revizija arhitekture operativnog sistema za obradu velikog broja pozadinskih zadataka",
                     prompt = """
                     Kompanija koristi interni serverski operativni sistem za izvršavanje velikog broja pozadinskih zadataka. Sistem se koristi za obradu fajlova, slanje obaveštenja, generisanje izveštaja, indeksiranje dokumenata i periodične sistemske provere.
-                    Pojednostavljen dijagram:
-                    [User/Admin Console]
-                              |
-                              v
-                    [System API]
-                              |
-                              v
-                    [Single Global Task Queue]
-                              |
-                              v
-                    [Kernel Scheduler]
-                       |           |            |
-                       v           v            v
-                    [Worker Process] [Worker Process] [Worker Process]
-                              |
-                              v
-                    [Shared Disk Storage]
-                              |
-                              v
-                    [System Logs]
+                    Pojednostavljen dijagram je prikazan na slici ispod.
                     Opis sistema:
                     • svi korisnički i sistemski zadaci ulaze u jedan globalni red čekanja;
                     • isti red koriste kratki interaktivni zadaci i dugi batch poslovi;
@@ -654,6 +599,7 @@ object ArchitectReviewSeed {
                     Problem:
                     Sistem treba revidirati tako da bolje podrži različite klase zadataka, prioritete, izolaciju resursa i stabilan rad pod opterećenjem, bez toga da jedan veliki batch posao ugrozi ceo operativni sistem.
                     """.trimIndent(),
+                    diagramImageName = "a3_5_slika",
                     aiFollowUp = """
                     Ako batch posao niskog prioriteta već dugo čeka, ali stalno pristižu kratki interaktivni zadaci višeg prioriteta, kako bi arhitektura scheduler-a trebalo da spreči gladovanje batch posla, a da pritom ne ugrozi odziv kritičnih i interaktivnih zadataka?
                     """.trimIndent(),

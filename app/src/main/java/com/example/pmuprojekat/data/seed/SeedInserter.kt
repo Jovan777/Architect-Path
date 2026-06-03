@@ -25,7 +25,7 @@ class SeedInserter @Inject constructor(
 ) {
 
     private companion object {
-        const val CURRENT_SEED_VERSION = 5
+        const val CURRENT_SEED_VERSION = 6
     }
 
     suspend fun seedIfNeeded() {
@@ -85,6 +85,7 @@ class SeedInserter @Inject constructor(
                     type = question.type,
                     title = question.title,
                     prompt = question.prompt,
+                    diagramImageName = question.diagramImageName,
                     aiFollowUp = question.aiFollowUp,
                     wave = question.wave,
                     difficulty = question.difficulty,

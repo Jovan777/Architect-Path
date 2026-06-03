@@ -29,6 +29,14 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                "ALTER TABLE questions ADD COLUMN diagramImageName TEXT"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -43,7 +51,7 @@ object DatabaseModule {
              * Dok si u razvoju, ovo je praktično.
              * Kasnije, kada se model stabilizuje, zameni pravim migracijama.
              */
-            .addMigrations(MIGRATION_2_3)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
             .fallbackToDestructiveMigration()
             .build()
     }

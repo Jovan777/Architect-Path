@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -53,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,6 +67,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -73,8 +78,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 
@@ -149,7 +158,8 @@ fun QuestionScreen(
 
                     PromptCard(
                         title = uiState.title,
-                        prompt = uiState.prompt
+                        prompt = uiState.prompt,
+                        diagramImageName = uiState.diagramImageName
                     )
 
                     val step = uiState.currentStep
@@ -336,8 +346,23 @@ private fun QuestionProgress(uiState: QuestionUiState) {
 @Composable
 private fun PromptCard(
     title: String,
-    prompt: String
+    prompt: String,
+    diagramImageName: String?
 ) {
+    val context = LocalContext.current
+    val diagramImageResId = remember(diagramImageName, context) {
+        diagramImageName
+            ?.takeIf { it.isNotBlank() }
+            ?.let { imageName ->
+                context.resources.getIdentifier(
+                    imageName,
+                    "drawable",
+                    context.packageName
+                )
+            }
+            ?: 0
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(26.dp),
@@ -362,7 +387,173 @@ private fun PromptCard(
                 fontSize = 14.sp,
                 lineHeight = 21.sp
             )
+
+            if (diagramImageResId != 0) {
+                DiagramImagePreview(imageResId = diagramImageResId)
+            }
         }
+    }
+}
+
+@Composable
+private fun DiagramImagePreview(
+    imageResId: Int
+) {
+    var showFullScreenViewer by remember(imageResId) {
+        mutableStateOf(false)
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { showFullScreenViewer = true },
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xFFF8FAFC),
+        border = BorderStroke(1.dp, AppPalette.Border)
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Image(
+                painter = painterResource(id = imageResId),
+                contentDescription = "Dijagram sistema",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 160.dp, max = 360.dp),
+                contentScale = ContentScale.Fit
+            )
+
+            Text(
+                text = "Dodirni za uvećanje",
+                color = AppPalette.Blue,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+    }
+
+    if (showFullScreenViewer) {
+        FullScreenZoomableImageDialog(
+            imageResId = imageResId,
+            onDismiss = { showFullScreenViewer = false }
+        )
+    }
+}
+
+@Composable
+private fun FullScreenZoomableImageDialog(
+    imageResId: Int,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xF20F172A))
+                .padding(
+                    top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
+                    bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                )
+        ) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 18.dp, top = 16.dp, end = 72.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = "Dijagram sistema",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Text(
+                    text = "Uvećaj prstima i pomeraj dok je slika uvećana.",
+                    color = Color(0xFFCBD5E1),
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp
+                )
+            }
+
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 14.dp, end = 14.dp)
+                    .size(44.dp)
+                    .clickable { onDismiss() },
+                shape = CircleShape,
+                color = Color.White.copy(alpha = 0.14f),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.24f))
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "X",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+
+            ZoomableDiagramImage(
+                imageResId = imageResId,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp, vertical = 86.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ZoomableDiagramImage(
+    imageResId: Int,
+    modifier: Modifier = Modifier
+) {
+    var scale by remember(imageResId) {
+        mutableStateOf(1f)
+    }
+    var offset by remember(imageResId) {
+        mutableStateOf(Offset.Zero)
+    }
+
+    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
+        val nextScale = (scale * zoomChange).coerceIn(1f, 4.5f)
+        scale = nextScale
+
+        offset = if (nextScale == 1f) {
+            Offset.Zero
+        } else {
+            offset + panChange
+        }
+    }
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(id = imageResId),
+            contentDescription = "Dijagram sistema",
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    translationX = offset.x
+                    translationY = offset.y
+                }
+                .transformable(transformState),
+            contentScale = ContentScale.Fit
+        )
     }
 }
 

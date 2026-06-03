@@ -6,6 +6,7 @@ data class SeedQuestion(
     val type: String,
     val title: String,
     val prompt: String,
+    val diagramImageName: String? = null,
     val aiFollowUp: String? = null,
     val wave: Int,
     val difficulty: String = "easy",

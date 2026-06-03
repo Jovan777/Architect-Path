@@ -616,7 +616,7 @@ class QuestionViewModel @Inject constructor(
             message = if (isCorrect) {
                 step.explanation ?: "Sve kartice su povezane sa odgovarajućim zonama."
             } else {
-                "Tačno raspoređeno: $correctCount/$totalCount. Raspoređeno ukupno: $answeredCount/$totalCount. Zelene kartice su tačne, crvene treba ponoviti."
+                "Tačno raspoređeno: $correctCount/$totalCount. Raspoređeno ukupno: $answeredCount/$totalCount."
             }
         )
     }
@@ -780,6 +780,7 @@ class QuestionViewModel @Inject constructor(
             questionId = questionId,
             title = question.title,
             prompt = question.prompt,
+            diagramImageName = question.diagramImageName,
             level = question.level,
             type = question.type,
             difficulty = question.difficulty,
