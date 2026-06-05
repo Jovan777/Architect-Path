@@ -1917,7 +1917,7 @@ private fun ArchitectExcludedOrderedCard(
 
             if (showResultColors) {
                 Text(
-                    text = if (isCorrectExclusion) "taÄno izbaÄeno" else "pogreÅ¡no izbaÄeno",
+                    text = if (isCorrectExclusion) "tačno izbačeno" else "pogrešno izbačeno",
                     color = if (isCorrectExclusion) Color(0xFF15803D) else Color(0xFFB91C1C),
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.ExtraBold
@@ -1998,7 +1998,7 @@ private fun ArchitectMultiZoneCompositionContent(
         } else {
             "Spakuj komponente u zone arhitekture. Svaka kartica ostaje osetljiva i mozes je prebaciti pre provere."
         },
-        unassignedTitle = "Komponente za rasporeÄ‘ivanje",
+        unassignedTitle = "Komponente za rasporedjivanje",
         emptyUnassignedText = "Sve komponente su trenutno u zonama.",
         zoneAccent = { index ->
             listOf(AppPalette.Blue, AppPalette.Green, AppPalette.Orange, AppPalette.Purple, AppPalette.Indigo)[index % 5]
@@ -2023,12 +2023,12 @@ private fun ArchitectCauseSymptomContent(
         feedback = feedback,
         isLocked = isLocked,
         intro = if (isLocked) {
-            "DijagnostiÄka mapa je zakljuÄana. Proveri razliku izmeÄ‘u vidljivog simptoma i uzroka u arhitekturi."
+            "Dijagnostičarska mapa je zaključana. Proveri razliku izmeđ‘u vidljivog simptoma i uzroka u arhitekturi."
         } else {
-            "PoveÅ¾i signale: ono Å¡to korisnik vidi ide u simptome, a strukturni razlog u arhitektonske uzroke."
+            "Poveži signale: ono što korisnik vidi ide u simptome, a strukturni razlog u arhitektonske uzroke."
         },
         unassignedTitle = "Signali iz sistema",
-        emptyUnassignedText = "Svi signali su rasporeÄ‘eni.",
+        emptyUnassignedText = "Svi signali su rasporedjeni.",
         zoneAccent = { index ->
             if (index == 0) AppPalette.Blue else AppPalette.Purple
         },
@@ -2052,12 +2052,12 @@ private fun ArchitectThreeWayCategorizationContent(
         feedback = feedback,
         isLocked = isLocked,
         intro = if (isLocked) {
-            "Trodela odluke je zakljuÄana: dobitak, novi rizik i stvar koju treba posebno projektovati."
+            "Trodela odluke je zaključana: dobitak, novi rizik i stvar koju treba posebno projektovati."
         } else {
             "Razdvoji efekat revizije na dobitke, nove rizike i stvari koje arhitektura mora posebno da projektuje."
         },
         unassignedTitle = "Posledice revizije",
-        emptyUnassignedText = "Sve posledice su smeÅ¡tene u neku od tri zone.",
+        emptyUnassignedText = "Sve posledice su smeštene u neku od tri zone.",
         zoneAccent = { index ->
             listOf(AppPalette.Green, AppPalette.Orange, AppPalette.Indigo)[index % 3]
         },

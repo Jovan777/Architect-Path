@@ -4,6 +4,7 @@ package com.example.pmuprojekat.ui.home
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,6 +45,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,6 +54,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.pmuprojekat.R
 import com.example.pmuprojekat.core.model.LearningLevel
 import com.example.pmuprojekat.ui.theme.PMUProjekatTheme
 import com.example.pmuprojekat.ui.main.MainBottomBar
@@ -658,18 +662,26 @@ private fun DashboardPreviewSection(
         ) {
             MiniPreviewCard(
                 modifier = Modifier.weight(1f),
-                title = "UML primer",
-                accentColor = AppPalette.Orange
+                title = "Enciklopedija pojmova",
+                subtitle = "Kratka objašnjenja ključnih pojmova.",
+                accentColor = AppPalette.Indigo
             ) {
-                UmlPreview()
+                FeatureCardImage(
+                    imageResId = R.drawable.pmu_definitions,
+                    contentDescription = "Enciklopedija pojmova"
+                )
             }
 
             MiniPreviewCard(
                 modifier = Modifier.weight(1f),
-                title = "Kod primer",
-                accentColor = AppPalette.Navy
+                title = "Pričaj sa AI",
+                subtitle = "Postavi pitanje kada ti nešto nije jasno.",
+                accentColor = AppPalette.Blue
             ) {
-                CodePreview()
+                FeatureCardImage(
+                    imageResId = R.drawable.pmu_chat_with_ai,
+                    contentDescription = "Pričaj sa AI"
+                )
             }
         }
     }
@@ -883,11 +895,12 @@ private fun QuestionPreviewCard(
 private fun MiniPreviewCard(
     modifier: Modifier = Modifier,
     title: String,
+    subtitle: String? = null,
     accentColor: Color,
     content: @Composable () -> Unit
 ) {
     Card(
-        modifier = modifier.height(176.dp),
+        modifier = modifier.height(210.dp),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 5.dp),
@@ -902,10 +915,26 @@ private fun MiniPreviewCard(
                 text = title,
                 color = AppPalette.TextPrimary,
                 fontSize = 13.sp,
-                fontWeight = FontWeight.ExtraBold
+                lineHeight = 17.sp,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            if (subtitle != null) {
+                Spacer(modifier = Modifier.height(5.dp))
+
+                Text(
+                    text = subtitle,
+                    color = AppPalette.TextSecondary,
+                    fontSize = 10.5.sp,
+                    lineHeight = 14.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             Box(
                 modifier = Modifier
@@ -918,6 +947,21 @@ private fun MiniPreviewCard(
             }
         }
     }
+}
+
+@Composable
+private fun FeatureCardImage(
+    imageResId: Int,
+    contentDescription: String
+) {
+    Image(
+        painter = painterResource(id = imageResId),
+        contentDescription = contentDescription,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(8.dp),
+        contentScale = ContentScale.Fit
+    )
 }
 
 @Composable
