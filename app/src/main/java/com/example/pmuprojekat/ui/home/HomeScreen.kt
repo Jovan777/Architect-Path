@@ -550,7 +550,7 @@ private fun TaskFormatsSection() {
     ) {
         SectionHeader(
             title = "Stilovi zadataka",
-            actionText = "Fleksibilni engine"
+            actionText = ""
         )
 
         Row(
@@ -753,7 +753,7 @@ private fun RecommendedQuestionsSection(
     ) {
         SectionHeader(
             title = "Preporučeni zadaci",
-            actionText = if (questions.isEmpty()) null else "Iz Room baze"
+            actionText = if (questions.isEmpty()) null else ""
         )
 
         if (questions.isEmpty()) {
@@ -1083,7 +1083,7 @@ private fun MotivationalCard(
                 )
 
                 Text(
-                    text = "Izabrani nivo: $selectedLevelName. Dizajniraj za promenu i isporuči vrednost.",
+                    text = "Izabrani nivo: $selectedLevelName.",
                     color = Color(0xFFCBD5E1),
                     fontSize = 13.sp,
                     lineHeight = 19.sp

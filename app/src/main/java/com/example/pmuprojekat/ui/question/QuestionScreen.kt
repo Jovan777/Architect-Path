@@ -196,6 +196,90 @@ fun QuestionScreen(
 }
 
 @Composable
+private fun CorrectnessBadge(
+    isCorrect: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val iconColor = if (isCorrect) Color(0xFF15803D) else Color(0xFFB91C1C)
+    val backgroundColor = if (isCorrect) Color(0xFFDCFCE7) else Color(0xFFFEE2E2)
+    val borderColor = if (isCorrect) Color(0xFF22C55E) else Color(0xFFEF4444)
+
+    Surface(
+        modifier = modifier,
+        shape = CircleShape,
+        color = backgroundColor,
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isCorrect) {
+                DrawnCheckMark(
+                    color = iconColor,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                DrawnXMark(
+                    color = iconColor,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DrawnCheckMark(
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        val strokeWidth = 2.4.dp.toPx()
+        drawLine(
+            color = color,
+            start = Offset(size.width * 0.18f, size.height * 0.55f),
+            end = Offset(size.width * 0.42f, size.height * 0.78f),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = color,
+            start = Offset(size.width * 0.42f, size.height * 0.78f),
+            end = Offset(size.width * 0.84f, size.height * 0.22f),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+    }
+}
+
+@Composable
+private fun DrawnXMark(
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        val strokeWidth = 2.4.dp.toPx()
+        drawLine(
+            color = color,
+            start = Offset(size.width * 0.2f, size.height * 0.2f),
+            end = Offset(size.width * 0.8f, size.height * 0.8f),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = color,
+            start = Offset(size.width * 0.8f, size.height * 0.2f),
+            end = Offset(size.width * 0.2f, size.height * 0.8f),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+    }
+}
+
+@Composable
 private fun LoadingQuestionState() {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -899,12 +983,12 @@ private fun SelectableOptionCard(
                     .background(if (selected) AppPalette.Blue else Color(0xFFE2E8F0)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = if (selected) "✓" else "",
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (selected) {
+                    DrawnCheckMark(
+                        color = Color.White,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -1057,18 +1141,24 @@ private fun ArchitectComponentSelectionContent(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = when {
-                                correctSelected -> "✓"
-                                wrongSelected -> "×"
-                                missedRequired -> "!"
-                                selected -> "✓"
-                                else -> ""
-                            },
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
+                        when {
+                            correctSelected || selected -> DrawnCheckMark(
+                                color = Color.White,
+                                modifier = Modifier.size(13.dp)
+                            )
+
+                            wrongSelected -> DrawnXMark(
+                                color = Color.White,
+                                modifier = Modifier.size(12.dp)
+                            )
+
+                            missedRequired -> Text(
+                                text = "!",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))
@@ -1190,12 +1280,12 @@ private fun ArchitectPressureDefenseContent(
                             .background(if (selected) AppPalette.Indigo else Color(0xFFE2E8F0)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = if (selected) "✓" else "",
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        if (selected) {
+                            DrawnCheckMark(
+                                color = Color.White,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))
@@ -1844,11 +1934,9 @@ private fun ArchitectOrderedCardRow(
             Spacer(modifier = Modifier.width(7.dp))
 
             if (showResultColors) {
-                Text(
-                    text = if (isCorrectPosition) "âœ“" else "âœ•",
-                    color = if (isCorrectPosition) Color(0xFF15803D) else Color(0xFFB91C1C),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.ExtraBold
+                CorrectnessBadge(
+                    isCorrect = isCorrectPosition,
+                    modifier = Modifier.size(26.dp)
                 )
             } else if (!isLocked) {
                 Surface(
@@ -2317,11 +2405,9 @@ private fun ArchitectZoneOptionCard(
                 if (showResultColors) {
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    Text(
-                        text = if (isCorrect) "âœ“" else "âœ•",
-                        color = if (isCorrect) Color(0xFF15803D) else Color(0xFFB91C1C),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.ExtraBold
+                    CorrectnessBadge(
+                        isCorrect = isCorrect,
+                        modifier = Modifier.size(26.dp)
                     )
                 }
             }
@@ -5103,11 +5189,7 @@ private fun SeniorStableSwipeCard(
         else -> Color(0xFFCBD5E1)
     }
 
-    val resultSymbol = when {
-        showResultColors && isCorrect -> "✓"
-        showResultColors && !isCorrect -> "✕"
-        else -> null
-    }
+    val showResultBadge = showResultColors
 
     Surface(
         modifier = Modifier
@@ -5214,14 +5296,12 @@ private fun SeniorStableSwipeCard(
                     fontWeight = FontWeight.SemiBold
                 )
 
-                if (resultSymbol != null) {
+                if (showResultBadge) {
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    Text(
-                        text = resultSymbol,
-                        color = if (isCorrect) Color(0xFF15803D) else Color(0xFFB91C1C),
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.ExtraBold
+                    CorrectnessBadge(
+                        isCorrect = isCorrect,
+                        modifier = Modifier.size(27.dp)
                     )
                 }
             }
@@ -5611,11 +5691,7 @@ private fun BinaryCategoryCard(
         else -> AppPalette.Border
     }
 
-    val resultSymbol = when {
-        showResultColors && isCorrect -> "✓"
-        showResultColors && isAssigned && !isCorrect -> "✕"
-        else -> null
-    }
+    val showResultBadge = showResultColors && isAssigned
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -5642,14 +5718,12 @@ private fun BinaryCategoryCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                if (resultSymbol != null) {
+                if (showResultBadge) {
                     Spacer(modifier = Modifier.width(6.dp))
 
-                    Text(
-                        text = resultSymbol,
-                        color = if (isCorrect) Color(0xFF15803D) else Color(0xFFB91C1C),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.ExtraBold
+                    CorrectnessBadge(
+                        isCorrect = isCorrect,
+                        modifier = Modifier.size(24.dp)
                     )
                 } else if (!isLocked && isAssigned) {
                     Spacer(modifier = Modifier.width(6.dp))
@@ -5667,11 +5741,9 @@ private fun BinaryCategoryCard(
                         Box(
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "×",
+                            DrawnXMark(
                                 color = Color(0xFFE11D48),
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.ExtraBold
+                                modifier = Modifier.size(10.dp)
                             )
                         }
                     }

@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.PMUProjekat" parent="android:Theme.Material.Light.NoActionBar" />
-
     <style name="Theme.PMUProjekat.Splash" parent="Theme.PMUProjekat">
-        <item name="android:windowBackground">@drawable/splash_window_background</item>
-        <item name="android:windowNoTitle">true</item>
-        <item name="android:windowActionBar">false</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_screen_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/splash_screen_icon_background</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">@color/splash_screen_background</item>
         <item name="android:navigationBarColor">@color/splash_screen_background</item>

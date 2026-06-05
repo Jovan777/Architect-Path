@@ -35,6 +35,7 @@ class MainActivity : ComponentActivity() {
     private val questionViewModel: QuestionViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        setTheme(R.style.Theme_PMUProjekat)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
