@@ -88,8 +88,8 @@ internal object BeginnerSeedBuilders {
                     options = options.mapIndexed { index, option ->
                         SeedOption(
                             optionId = "${questionId}_s1_o${index + 1}",
-                            label = option.label,
-                            text = option.text,
+                            label = neutralVisualOptionLabel(index),
+                            text = neutralVisualOptionText(option.text),
                             optionOrder = index + 1,
                             isCorrect = option.isCorrect,
                             isDistractor = !option.isCorrect
@@ -168,6 +168,61 @@ internal object BeginnerSeedBuilders {
                 )
             }
         )
+    }
+
+    private fun neutralVisualOptionLabel(index: Int): String {
+        val suffix = ('A'.code + index).toChar()
+        return suffix.toString()
+    }
+
+    private fun neutralVisualOptionText(text: String): String {
+        return text
+            .replace("PaymentAdapter", "PaymentCompatibilityLayer")
+            .replace("adapter interno koristi", "sloj za usklađivanje interno koristi")
+            .replace("Adapter", "sloj za usklađivanje")
+            .replace("adapter", "sloj za usklađivanje")
+            .replace("Subject čuva listu Observer", "Centralni subjekat čuva listu zavisnih objekata")
+            .replace("Observer", "zavisni objekat")
+            .replace("observer", "zavisni objekat")
+            .replace("EncryptedMessageDecorator", "EncryptedMessageWrapper")
+            .replace("CompressedMessageDecorator", "CompressedMessageWrapper")
+            .replace("MessageDecorator", "MessageWrapper")
+            .replace("dekoratori", "omotači")
+            .replace("Decorator", "omotač")
+            .replace("DiscountStrategy", "DiscountRule")
+            .replace("StudentDiscount", "StudentDiscountRule")
+            .replace("PremiumDiscount", "PremiumDiscountRule")
+            .replace("NoDiscount", "NoDiscountRule")
+            .replace("strategiji", "pravilu obračuna")
+            .replace("VideoFacade", "VideoEntryPoint")
+            .replace("GUIFactory", "UiKitCreator")
+            .replace("DarkThemeFactory", "DarkThemeCreator")
+            .replace("LightThemeFactory", "LightThemeCreator")
+            .replace("Prototype", "kopirajući šablon")
+            .replace("MessageSender", "DeliveryChannel")
+            .replace("FileSystemItem", "FileSystemNode")
+            .replace("Iterator", "interfejs za obilazak")
+            .replace("iterator", "obilazač")
+            .replace("CopyCommand", "CopyAction")
+            .replace("PasteCommand", "PasteAction")
+            .replace("Command", "akcija")
+            .replace("DocumentProcessor", "DocumentWorkflow")
+            .replace("processDocument()", "runWorkflow()")
+            .replace("Flyweight", "deljeni model")
+            .replace("Mediator objektom", "centralnim koordinatorom")
+            .replace("Mediator objekt", "centralni koordinator")
+            .replace("Mediator", "centralni koordinator")
+            .replace("Memento čuva", "Objekat za snimak stanja čuva")
+            .replace("Memento", "objekat za snimak stanja")
+            .replace("mementa", "snimke stanja")
+            .replace("AreaVisitor", "AreaOperation")
+            .replace("ExportVisitor", "ExportOperation")
+            .replace("Visitor", "spoljni obrađivač")
+            .replace("visitor", "spoljni obrađivač")
+            .replace("Interpreter", "tumač pravila")
+            .replace("NumberExpression", "NumberRule")
+            .replace("AddExpression", "AddRule")
+            .replace("Expression", "izraz")
     }
 
     private fun choiceStep(
