@@ -37,6 +37,25 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                "ALTER TABLE user_question_progress ADD COLUMN bestEarnedXp INTEGER NOT NULL DEFAULT 0"
+            )
+            database.execSQL(
+                """
+                UPDATE user_question_progress
+                SET bestEarnedXp =
+                    CASE
+                        WHEN bestScorePercent <= 0 THEN 0
+                        WHEN bestScorePercent >= 100 THEN 5
+                        ELSE CAST((bestScorePercent * 5.0 / 100.0) + 0.5 AS INTEGER)
+                    END
+                """.trimIndent()
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -51,7 +70,7 @@ object DatabaseModule {
              * Dok si u razvoju, ovo je praktično.
              * Kasnije, kada se model stabilizuje, zameni pravim migracijama.
              */
-            .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .fallbackToDestructiveMigration()
             .build()
     }

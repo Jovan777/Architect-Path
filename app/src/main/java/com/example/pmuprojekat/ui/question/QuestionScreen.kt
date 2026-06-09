@@ -6195,7 +6195,7 @@ private fun QuestionResultScreen(
                     ResultStatCard(
                         modifier = Modifier.weight(1f),
                         title = "+${uiState.xpReward}",
-                        subtitle = "XP"
+                        subtitle = "novih XP"
                     )
                 }
             }

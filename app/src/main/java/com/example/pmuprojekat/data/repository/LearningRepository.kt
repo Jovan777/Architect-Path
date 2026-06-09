@@ -9,6 +9,7 @@ import com.example.pmuprojekat.data.local.entity.UserQuestionProgressEntity
 import com.example.pmuprojekat.data.local.entity.UserStepAnswerEntity
 import com.example.pmuprojekat.data.local.relation.QuestionWithSteps
 import com.example.pmuprojekat.data.seed.SeedInserter
+import com.example.pmuprojekat.core.model.XpCalculator
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -113,15 +114,18 @@ class LearningRepository @Inject constructor(
 
     suspend fun completeQuestion(
         questionId: String,
-        scorePercent: Int,
-        xpReward: Int
-    ) {
+        scorePercent: Int
+    ): QuestionCompletionReward {
         val existingProgress = userAnswerDao.getQuestionProgress(
             userId = LOCAL_USER_ID,
             questionId = questionId
         )
 
         val alreadyCompleted = existingProgress?.status == "completed"
+        val earnedXpForAttempt = XpCalculator.xpForScore(scorePercent)
+        val previousBestXp = existingProgress?.bestEarnedXp ?: 0
+        val bestEarnedXp = maxOf(previousBestXp, earnedXpForAttempt)
+        val newlyAwardedXp = bestEarnedXp - previousBestXp
 
         val updatedProgress = UserQuestionProgressEntity(
             userId = LOCAL_USER_ID,
@@ -129,6 +133,7 @@ class LearningRepository @Inject constructor(
             status = "completed",
             attempts = (existingProgress?.attempts ?: 0) + 1,
             bestScorePercent = maxOf(existingProgress?.bestScorePercent ?: 0, scorePercent),
+            bestEarnedXp = bestEarnedXp,
             startedAt = existingProgress?.startedAt ?: System.currentTimeMillis(),
             completedAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis()
@@ -136,16 +141,28 @@ class LearningRepository @Inject constructor(
 
         userAnswerDao.upsertQuestionProgress(updatedProgress)
 
-        if (!alreadyCompleted) {
+        if (!alreadyCompleted || newlyAwardedXp > 0) {
             userDao.increaseLearningStats(
                 userId = LOCAL_USER_ID,
-                completedDelta = 1,
-                xpDelta = xpReward
+                completedDelta = if (alreadyCompleted) 0 else 1,
+                xpDelta = newlyAwardedXp
             )
         }
+
+        return QuestionCompletionReward(
+            earnedXpForAttempt = earnedXpForAttempt,
+            newlyAwardedXp = newlyAwardedXp,
+            bestEarnedXp = bestEarnedXp
+        )
     }
 
     companion object {
         const val LOCAL_USER_ID = "local_user"
     }
 }
+
+data class QuestionCompletionReward(
+    val earnedXpForAttempt: Int,
+    val newlyAwardedXp: Int,
+    val bestEarnedXp: Int
+)

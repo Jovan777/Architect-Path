@@ -30,7 +30,7 @@ import com.example.pmuprojekat.data.local.entity.UserStepAnswerEntity
         UserStepAnswerEntity::class,
         SeedMetaEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(RoomConverters::class)

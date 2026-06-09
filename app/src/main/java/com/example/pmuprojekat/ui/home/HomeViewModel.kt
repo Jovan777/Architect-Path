@@ -3,8 +3,10 @@ package com.example.pmuprojekat.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pmuprojekat.core.model.LearningLevel
+import com.example.pmuprojekat.core.model.LevelXpProgress
 import com.example.pmuprojekat.core.model.QuestionType
 import com.example.pmuprojekat.core.model.TaskPersonalizer
+import com.example.pmuprojekat.core.model.XpCalculator
 import com.example.pmuprojekat.data.local.entity.QuestionEntity
 import com.example.pmuprojekat.data.repository.LearningRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,6 +48,14 @@ class HomeViewModel @Inject constructor(
             it.questionId to it.bestScorePercent
         }
 
+        val bestXpByQuestionId = progress.associate {
+            it.questionId to it.bestEarnedXp
+        }
+
+        val totalXp = questions.sumOf { question ->
+            bestXpByQuestionId[question.questionId] ?: 0
+        }
+
         val selectedLevelQuestions = questions
             .filter { it.level == selectedLevelId }
             .sortedBy { it.orderIndex }
@@ -66,9 +76,30 @@ class HomeViewModel @Inject constructor(
             total = selectedLevelQuestions.size
         )
 
+        val levelXpProgress = LearningLevel.entries.map { level ->
+            val levelQuestions = questions.filter { it.level == level.id }
+            val earnedXp = levelQuestions.sumOf { question ->
+                bestXpByQuestionId[question.questionId] ?: 0
+            }
+            val maxXp = XpCalculator.maxXpForLevel(levelQuestions.size)
+
+            LevelXpProgress(
+                levelId = level.id,
+                earnedXp = earnedXp,
+                maxXp = maxXp,
+                progressPercent = XpCalculator.progressPercent(
+                    earnedXp = earnedXp,
+                    maxXp = maxXp
+                )
+            )
+        }
+
+        val xpProgressByLevelId = levelXpProgress.associateBy { it.levelId }
+
         val levels = LearningLevel.entries.mapIndexed { index, level ->
             val levelQuestions = questions.filter { it.level == level.id }
             val completedInLevel = levelQuestions.count { completedIds.contains(it.questionId) }
+            val xpProgress = xpProgressByLevelId.getValue(level.id)
 
             LevelSummaryUi(
                 levelId = level.id,
@@ -81,7 +112,10 @@ class HomeViewModel @Inject constructor(
                 progressPercent = calculatePercent(
                     completed = completedInLevel,
                     total = levelQuestions.size
-                )
+                ),
+                earnedXp = xpProgress.earnedXp,
+                maxXp = xpProgress.maxXp,
+                xpProgressPercent = xpProgress.progressPercent
             )
         }
 
@@ -175,7 +209,8 @@ class HomeViewModel @Inject constructor(
             selectedLevelQuestions = selectedLevelQuestions.size,
             completedQuestions = completedQuestionsCount,
             streakDays = user?.streakDays ?: 0,
-            xp = user?.xp ?: 0,
+            xp = totalXp,
+            levelXpProgress = levelXpProgress,
             overallProgressPercent = overallProgress,
             selectedLevelProgressPercent = selectedProgress,
             activeCardTitle = activeCardTitle(

@@ -35,6 +35,7 @@ data class UserQuestionProgressEntity(
 
     val attempts: Int = 0,
     val bestScorePercent: Int = 0,
+    val bestEarnedXp: Int = 0,
 
     val startedAt: Long? = null,
     val completedAt: Long? = null,

@@ -4,6 +4,7 @@ package com.example.pmuprojekat.ui.question
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pmuprojekat.core.model.StepType
+import com.example.pmuprojekat.core.model.XpCalculator
 import com.example.pmuprojekat.data.local.entity.UserStepAnswerEntity
 import com.example.pmuprojekat.data.local.relation.QuestionWithSteps
 import com.example.pmuprojekat.data.repository.LearningRepository
@@ -32,6 +33,7 @@ class QuestionViewModel @Inject constructor(
     private val correctStepIds = MutableStateFlow<Set<String>>(emptySet())
     private val completedQuestionIds = MutableStateFlow<Set<String>>(emptySet())
     private val shuffledOptionIdsByStepId = MutableStateFlow<Map<String, List<String>>>(emptyMap())
+    private val newlyAwardedXpByQuestionId = MutableStateFlow<Map<String, Int>>(emptyMap())
 
     private data class QuestionRuntimeState(
         val questionWithSteps: QuestionWithSteps?,
@@ -73,10 +75,12 @@ class QuestionViewModel @Inject constructor(
     val uiState = combine(
         runtimeState,
         correctStepIds,
-        completedQuestionIds
+        completedQuestionIds,
+        newlyAwardedXpByQuestionId
     ) { runtime,
         correct,
-        completed ->
+        completed,
+        newlyAwardedXp ->
 
         val questionWithSteps = runtime.questionWithSteps
 
@@ -89,7 +93,8 @@ class QuestionViewModel @Inject constructor(
                 feedbacks = runtime.feedbacks,
                 answeredStepIds = runtime.answered,
                 correctStepIds = correct,
-                completedQuestionIds = completed
+                completedQuestionIds = completed,
+                newlyAwardedXpByQuestionId = newlyAwardedXp
             )
         }
     }.stateIn(
@@ -355,21 +360,15 @@ class QuestionViewModel @Inject constructor(
                 .coerceIn(0, 100)
         }
 
-        val xpReward = when {
-            scorePercent >= 90 -> 40
-            scorePercent >= 70 -> 25
-            scorePercent >= 50 -> 15
-            else -> 5
-        }
-
-        completedQuestionIds.value = completedQuestionIds.value + questionId
-
         viewModelScope.launch {
-            repository.completeQuestion(
+            val reward = repository.completeQuestion(
                 questionId = questionId,
-                scorePercent = scorePercent,
-                xpReward = xpReward
+                scorePercent = scorePercent
             )
+
+            newlyAwardedXpByQuestionId.value =
+                newlyAwardedXpByQuestionId.value + (questionId to reward.newlyAwardedXp)
+            completedQuestionIds.value = completedQuestionIds.value + questionId
         }
     }
 
@@ -696,7 +695,8 @@ class QuestionViewModel @Inject constructor(
         feedbacks: Map<String, StepFeedbackUi>,
         answeredStepIds: Set<String>,
         correctStepIds: Set<String>,
-        completedQuestionIds: Set<String>
+        completedQuestionIds: Set<String>,
+        newlyAwardedXpByQuestionId: Map<String, Int>
     ): QuestionUiState {
         val sortedSteps = steps
             .sortedBy { it.step.stepOrder }
@@ -768,11 +768,10 @@ class QuestionViewModel @Inject constructor(
                 .coerceIn(0, 100)
         }
 
-        val xpReward = when {
-            score >= 90 -> 40
-            score >= 70 -> 25
-            score >= 50 -> 15
-            else -> 5
+        val xpReward = if (completedQuestionIds.contains(questionId)) {
+            newlyAwardedXpByQuestionId[questionId] ?: XpCalculator.xpForScore(score)
+        } else {
+            XpCalculator.xpForScore(score)
         }
 
         return QuestionUiState(

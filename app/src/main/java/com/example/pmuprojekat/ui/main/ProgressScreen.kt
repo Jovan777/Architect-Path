@@ -191,7 +191,7 @@ private fun ProgressHeroCard(uiState: HomeUiState) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        MiniDarkStat("+${uiState.xp}", "XP")
+                        MiniDarkStat(uiState.xp.toString(), "XP")
                         MiniDarkStat(uiState.streakDays.toString(), "streak")
                     }
                 }
@@ -371,7 +371,7 @@ private fun LevelProgressCard(level: LevelSummaryUi) {
             }
 
             Text(
-                text = "${level.completedCount}/${level.questionCount} zadataka",
+                text = "${level.completedCount}/${level.questionCount} zadataka • ${level.earnedXp}/${level.maxXp} XP",
                 color = AppPalette.TextSecondary,
                 fontSize = 12.sp
             )

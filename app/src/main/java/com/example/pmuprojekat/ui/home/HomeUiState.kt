@@ -1,6 +1,7 @@
 package com.example.pmuprojekat.ui.home
 
 import androidx.compose.runtime.Immutable
+import com.example.pmuprojekat.core.model.LevelXpProgress
 
 @Immutable
 data class HomeUiState(
@@ -16,6 +17,7 @@ data class HomeUiState(
 
     val streakDays: Int = 0,
     val xp: Int = 0,
+    val levelXpProgress: List<LevelXpProgress> = emptyList(),
     val overallProgressPercent: Int = 0,
     val selectedLevelProgressPercent: Int = 0,
 
@@ -49,7 +51,10 @@ data class LevelSummaryUi(
     val topicCount: Int,
     val questionCount: Int,
     val completedCount: Int = 0,
-    val progressPercent: Int = 0
+    val progressPercent: Int = 0,
+    val earnedXp: Int = 0,
+    val maxXp: Int = 0,
+    val xpProgressPercent: Int = 0
 )
 
 @Immutable
