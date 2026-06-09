@@ -24,6 +24,8 @@ import com.example.pmuprojekat.ui.onboarding.OnboardingScreen
 import com.example.pmuprojekat.ui.question.QuestionScreen
 import com.example.pmuprojekat.ui.question.QuestionViewModel
 import com.example.pmuprojekat.ui.theme.PMUProjekatTheme
+import com.example.pmuprojekat.ui.vsai.VsAiLevelSelectionScreen
+import com.example.pmuprojekat.ui.vsai.VsAiPlaceholderScreen
 import dagger.hilt.android.AndroidEntryPoint
 import com.example.pmuprojekat.ui.main.SettingsScreen
 import com.example.pmuprojekat.ui.home.QuestionPreviewUi
@@ -53,6 +55,8 @@ class MainActivity : ComponentActivity() {
                 val openedLevelId = levelIdFromRoute(currentRoute)
                 val openedQuestionId = questionIdFromRoute(currentRoute)
                 val openedSettings = currentRoute == settingsRoute()
+                val openedVsAi = currentRoute == vsAiRoute()
+                val openedVsAiLevelId = vsAiLevelIdFromRoute(currentRoute)
 
                 fun popBackStack() {
                     if (routeBackStack.size > 1) {
@@ -187,6 +191,27 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    openedVsAi -> {
+                        VsAiLevelSelectionScreen(
+                            uiState = homeUiState,
+                            onBack = {
+                                popBackStack()
+                            },
+                            onLevelSelected = { levelId ->
+                                navigateTo(vsAiLevelRoute(levelId))
+                            }
+                        )
+                    }
+
+                    openedVsAiLevelId != null -> {
+                        VsAiPlaceholderScreen(
+                            levelId = openedVsAiLevelId,
+                            onBack = {
+                                popBackStack()
+                            }
+                        )
+                    }
+
                     openedLevelId != null -> {
                         LevelQuestionsScreen(
                             uiState = homeUiState,
@@ -202,8 +227,8 @@ class MainActivity : ComponentActivity() {
                         SoftwareDesignHomeScreen(
                             uiState = homeUiState,
                             onLevelSelected = ::openLevel,
-                            onStartLearning = {
-                                openLevel(homeUiState.selectedLevel)
+                            onOpenVsAi = {
+                                navigateTo(vsAiRoute())
                             },
                             onQuestionClick = ::openQuestion,
                             selectedTab = MainTab.HOME,
@@ -273,6 +298,14 @@ private fun settingsRoute(): String {
     return "settings"
 }
 
+private fun vsAiRoute(): String {
+    return "vs-ai"
+}
+
+private fun vsAiLevelRoute(levelId: String): String {
+    return "vs-ai-level:$levelId"
+}
+
 private fun tabFromRoute(route: String): MainTab? {
     if (!route.startsWith("tab:")) return null
 
@@ -291,6 +324,12 @@ private fun questionIdFromRoute(route: String): String? {
     return route
         .takeIf { it.startsWith("question:") }
         ?.substringAfter("question:")
+}
+
+private fun vsAiLevelIdFromRoute(route: String): String? {
+    return route
+        .takeIf { it.startsWith("vs-ai-level:") }
+        ?.substringAfter("vs-ai-level:")
 }
 
 private fun nextQuestionIdAfter(

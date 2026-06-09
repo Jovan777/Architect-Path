@@ -298,13 +298,13 @@ private fun LevelOverviewCard(
 
                 LevelStatChip(
                     modifier = Modifier.weight(1f),
-                    title = "${level?.progressPercent ?: 0}%",
-                    subtitle = "napredak"
+                    title = "${level?.earnedXp ?: 0}/${level?.maxXp ?: 0}",
+                    subtitle = "XP"
                 )
             }
 
             LinearProgressIndicator(
-                progress = { (level?.progressPercent ?: 0) / 100f },
+                progress = { (level?.xpProgressPercent ?: 0) / 100f },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)

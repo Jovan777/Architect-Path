@@ -102,7 +102,7 @@ private val taskFormats = listOf(
 fun SoftwareDesignHomeScreen(
     uiState: HomeUiState,
     onLevelSelected: (String) -> Unit,
-    onStartLearning: () -> Unit,
+    onOpenVsAi: () -> Unit,
     onQuestionClick: (String) -> Unit,
     selectedTab: MainTab = MainTab.HOME,
     onBottomTabSelected: (MainTab) -> Unit = {}
@@ -180,9 +180,7 @@ fun SoftwareDesignHomeScreen(
                 )
 
                 MotivationalCard(
-                    selectedLevelName = uiState.selectedLevelName,
-                    hasQuestions = uiState.questionPreviews.isNotEmpty(),
-                    onStartLearning = onStartLearning
+                    onOpenVsAi = onOpenVsAi
                 )
             }
         }
@@ -1041,15 +1039,15 @@ private fun CodeLine(
 
 @Composable
 private fun MotivationalCard(
-    selectedLevelName: String,
-    hasQuestions: Boolean,
-    onStartLearning: () -> Unit
+    onOpenVsAi: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpenVsAi() },
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = AppPalette.Navy),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
     ) {
         Box(
             modifier = Modifier
@@ -1076,14 +1074,14 @@ private fun MotivationalCard(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Misli dugoročno.",
+                    text = "VS AI IZAZOV",
                     color = Color.White,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold
                 )
 
                 Text(
-                    text = "Izabrani nivo: $selectedLevelName.",
+                    text = "Izaberi svog AI protivnika i testiraj svoje znanje.",
                     color = Color(0xFFCBD5E1),
                     fontSize = 13.sp,
                     lineHeight = 19.sp
@@ -1092,8 +1090,7 @@ private fun MotivationalCard(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
-                    onClick = onStartLearning,
-                    enabled = hasQuestions,
+                    onClick = onOpenVsAi,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -1104,7 +1101,7 @@ private fun MotivationalCard(
                     )
                 ) {
                     Text(
-                        text = if (hasQuestions) "Započni" else "Nema dostupnih pitanja",
+                        text = "Izaberi nivo",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -1353,7 +1350,7 @@ fun SoftwareDesignHomeScreenPreview() {
                 )
             ),
             onLevelSelected = {},
-            onStartLearning = {},
+            onOpenVsAi = {},
             onQuestionClick = {}
         )
     }
