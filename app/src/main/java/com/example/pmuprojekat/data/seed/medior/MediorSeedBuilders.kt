@@ -100,6 +100,13 @@ internal object MediorSeedBuilders {
         wave: Int,
         orderIndex: Int
     ): SeedQuestion {
+        val correctOptionText = solutionCards
+            .firstOrNull { (letter, _) -> letter == correctLetter }
+            ?.second
+            .orEmpty()
+            .replace(Regex("\\s+"), " ")
+            .trim()
+
         return SeedQuestion(
             questionId = questionId,
             level = LearningLevel.MEDIOR.id,
@@ -119,7 +126,11 @@ internal object MediorSeedBuilders {
                     instruction = "Izaberi karticu rešenja koja najbolje dopunjava postojeći pseudo-kod u kontekstu zahteva sistema.",
                     requiredCount = 1,
                     codeBlock = codeBlock.ifBlank { null },
-                    explanation = "Tačan odgovor: $correctLetter.",
+                    explanation = if (correctOptionText.isBlank()) {
+                        "Tačan odgovor: $correctLetter."
+                    } else {
+                        "Tačan odgovor: $correctLetter - $correctOptionText"
+                    },
                     options = solutionCards.mapIndexed { index, pair ->
                         SeedOption(
                             optionId = "${questionId}_s1_o${index + 1}",

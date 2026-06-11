@@ -513,6 +513,10 @@ class QuestionViewModel @Inject constructor(
             step.options.firstOrNull { it.optionId == optionId }?.isDistractor == true
         }
 
+        val correctPositions = actual.withIndex().count { (index, optionId) ->
+            expected.getOrNull(index) == optionId
+        }
+
         val isCorrect = actual == expected && !includedDistractors
 
         return StepFeedbackUi(
@@ -521,7 +525,7 @@ class QuestionViewModel @Inject constructor(
             message = if (isCorrect) {
                 step.explanation ?: "Kartice su poređane pravilnim redosledom."
             } else {
-                "Proveri redosled kartica i izbaci kartice koje ne pripadaju rešenju."
+                "Tačno poređano: $correctPositions/${expected.size}. Proveri redosled kartica."
             }
         )
     }
@@ -564,14 +568,14 @@ class QuestionViewModel @Inject constructor(
         return StepFeedbackUi(
             isCorrect = isCorrect,
             title = if (isCorrect) {
-                "Arhitektonski tok je taÄan"
+                "Arhitektonski tok je tačan"
             } else {
-                "Tok joÅ¡ ima problem"
+                "Tok još ima problem"
             },
             message = if (isCorrect) {
-                step.explanation ?: "Potrebni koraci su poreÄ‘ani, a zamke su izbaÄene."
+                step.explanation ?: "Potrebni koraci su poređani, a zamke su izbačene."
             } else {
-                "TaÄne pozicije: $correctPositions/${expected.size}. IzbaÄene zamke: $correctlyExcludedDistractors/$totalDistractors. Zamke u glavnom toku: $includedDistractors. PogreÅ¡no izbaÄeni potrebni koraci: $wronglyExcludedRequired."
+                "Tačne pozicije: $correctPositions/${expected.size}. Izbačene zamke: $correctlyExcludedDistractors/$totalDistractors. Zamke u glavnom toku: $includedDistractors. Pogrešno izbačeni potrebni koraci: $wronglyExcludedRequired."
             }
         )
     }
@@ -644,12 +648,12 @@ class QuestionViewModel @Inject constructor(
             title = if (isCorrect) {
                 "Odluka je odbranjena"
             } else {
-                "Odbrana joÅ¡ nije stabilna"
+                "Odbrana još nije stabilna"
             },
             message = if (isCorrect) {
-                step.explanation ?: "Svaki pritisak ima odgovarajuÄ‡u odbranu, bez pogreÅ¡nih argumenata."
+                step.explanation ?: "Svaki pritisak ima odgovarajuću odbranu, bez pogrešnih argumenata."
             } else {
-                "TaÄno povezane odbrane: $correctCount/${requiredDefenses.size}. Nedostaje: $missingRequired. PogreÅ¡ne odbrane koje su prikaÄene: $assignedDistractors."
+                "Tačno povezane odbrane: $correctCount/${requiredDefenses.size}. Nedostaje: $missingRequired. Pogrešne odbrane koje su prikačene: $assignedDistractors."
             }
         )
     }

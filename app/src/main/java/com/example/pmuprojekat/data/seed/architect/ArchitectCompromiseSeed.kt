@@ -94,7 +94,7 @@ object ArchitectCompromiseSeed {
                         questionId = "A6.1",
                         stepNumber = 3,
                         title = """
-                    Pritisak 2 — Tehnika se plaši haotičnog koda
+                    Pritisak 2 — Tim se plaši haotičnog koda
                     """.trimIndent(),
                         instruction = "Izaberi najbolji odgovor arhitekte na ovaj pritisak.",
                         options = listOf(

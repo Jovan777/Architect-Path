@@ -737,9 +737,9 @@ private fun StepCard(
                         OrderedCardsStepContent(
                             step = step,
                             draft = draft,
+                            feedback = feedback,
                             isLocked = isLocked,
-                            onMoveOrderedOption = onMoveOrderedOption,
-                            onExcludeOrderedOption = onExcludeOrderedOption,
+                            onUpdateOrderedOptions = onUpdateOrderedOptions,
                             onRestoreOrderedOption = onRestoreOrderedOption
                         )
                     }
@@ -914,9 +914,14 @@ private fun ChoiceStepContent(
     ) {
         step.options.forEach { option ->
             val selected = draft.selectedOptionIds.contains(option.optionId)
+            val optionLabel = if (isCodeDecisionChoice) {
+                option.label?.trim()?.takeIf { it.isNotBlank() }
+            } else {
+                displayableOptionLabel(option.label)
+            }
 
             SelectableOptionCard(
-                label = displayableOptionLabel(option.label),
+                label = optionLabel,
                 text = option.text,
                 selected = selected,
                 enabled = !isLocked && !answerAlreadySelected,
@@ -1308,18 +1313,80 @@ private fun ArchitectPressureDefenseContent(
 private fun OrderedCardsStepContent(
     step: QuestionStepUi,
     draft: StepAnswerDraft,
+    feedback: StepFeedbackUi?,
     isLocked: Boolean,
-    onMoveOrderedOption: (QuestionStepUi, String, Int) -> Unit,
-    onExcludeOrderedOption: (QuestionStepUi, String) -> Unit,
+    onUpdateOrderedOptions: (QuestionStepUi, List<String>) -> Unit,
     onRestoreOrderedOption: (QuestionStepUi, String) -> Unit
 ) {
     val optionById = remember(step.options) {
         step.options.associateBy { it.optionId }
     }
 
-    val orderedOptions by remember(draft.orderedOptionIds, optionById) {
-        derivedStateOf {
-            draft.orderedOptionIds.mapNotNull { optionById[it] }
+    var localOrderedOptionIds by remember(step.stepId) {
+        mutableStateOf(draft.orderedOptionIds)
+    }
+    var draggedOptionId by remember(step.stepId) {
+        mutableStateOf<String?>(null)
+    }
+    var dragOffsetY by remember(step.stepId) {
+        mutableStateOf(0f)
+    }
+    var dragStartTopY by remember(step.stepId) {
+        mutableStateOf(0f)
+    }
+    val itemHeightsPx = remember(step.stepId) {
+        mutableStateMapOf<String, Int>()
+    }
+    val density = LocalDensity.current
+    val itemSpacingPx = with(density) { 8.dp.toPx() }
+    val fallbackItemHeightPx = with(density) { 58.dp.toPx() }
+
+    LaunchedEffect(draft.orderedOptionIds) {
+        if (draggedOptionId == null) {
+            localOrderedOptionIds = draft.orderedOptionIds
+        }
+    }
+
+    fun itemHeight(optionId: String): Float {
+        return itemHeightsPx[optionId]?.toFloat()?.takeIf { it > 0f } ?: fallbackItemHeightPx
+    }
+
+    fun topForIndex(ids: List<String>, index: Int): Float {
+        var top = 0f
+        ids.take(index).forEach { optionId ->
+            top += itemHeight(optionId) + itemSpacingPx
+        }
+        return top
+    }
+
+    fun listHeight(ids: List<String>): Float {
+        if (ids.isEmpty()) return 0f
+        return ids.sumOf { itemHeight(it).toDouble() }.toFloat() +
+                itemSpacingPx * (ids.size - 1)
+    }
+
+    fun moveDraggedItem(optionId: String, offsetY: Float) {
+        val draggedHeight = itemHeight(optionId)
+        val draggedCenter = dragStartTopY + offsetY + draggedHeight / 2f
+        val compactIds = localOrderedOptionIds.filterNot { it == optionId }
+        var targetIndex = 0
+        var runningTop = 0f
+
+        compactIds.forEachIndexed { index, otherId ->
+            val otherCenter = runningTop + itemHeight(otherId) / 2f
+            if (draggedCenter > otherCenter) {
+                targetIndex = index + 1
+            }
+            runningTop += itemHeight(otherId) + itemSpacingPx
+        }
+
+        if (localOrderedOptionIds.indexOf(optionId) != targetIndex) {
+            localOrderedOptionIds = localOrderedOptionIds
+                .filterNot { it == optionId }
+                .toMutableList()
+                .apply {
+                    add(targetIndex.coerceIn(0, size), optionId)
+                }
         }
     }
 
@@ -1329,8 +1396,21 @@ private fun OrderedCardsStepContent(
         }
     }
 
+    val showResultColors = feedback != null
+    val expectedCount = remember(step.options) {
+        step.options.count { it.correctOrder != null }
+    }
+    val correctPositions = if (showResultColors) {
+        localOrderedOptionIds.withIndex().count { (index, optionId) ->
+            val option = optionById[optionId]
+            option != null && !option.isDistractor && option.correctOrder == index + 1
+        }
+    } else {
+        0
+    }
+
     Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(
             text = if (isLocked) {
@@ -1344,14 +1424,81 @@ private fun OrderedCardsStepContent(
             fontWeight = FontWeight.SemiBold
         )
 
-        orderedOptions.forEachIndexed { index, option ->
-            DraggableOrderedCardRow(
-                number = index + 1,
-                option = option,
-                isLocked = isLocked,
-                onMoveUp = { onMoveOrderedOption(step, option.optionId, -1) },
-                onMoveDown = { onMoveOrderedOption(step, option.optionId, 1) }
-            )
+        if (showResultColors) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFFF8FAFC),
+                border = BorderStroke(1.dp, AppPalette.Border)
+            ) {
+                Text(
+                    modifier = Modifier.padding(10.dp),
+                    text = "Tačno poređano: $correctPositions/$expectedCount",
+                    color = AppPalette.TextSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(with(density) { listHeight(localOrderedOptionIds).toDp() })
+        ) {
+            localOrderedOptionIds.forEachIndexed { index, optionId ->
+                val option = optionById[optionId] ?: return@forEachIndexed
+                key(optionId) {
+                    val slotTop = topForIndex(localOrderedOptionIds, index)
+                    val animatedTop by animateFloatAsState(
+                        targetValue = slotTop,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
+                        label = "orderedCardTop"
+                    )
+                    val isDragging = draggedOptionId == optionId
+                    val cardTop = if (isDragging) {
+                        dragStartTopY + dragOffsetY
+                    } else {
+                        animatedTop
+                    }
+
+                    SmoothOrderedCardRow(
+                        modifier = Modifier
+                            .offset { IntOffset(0, cardTop.roundToInt()) }
+                            .zIndex(if (isDragging) 4f else 0f)
+                            .onGloballyPositioned { coordinates ->
+                                itemHeightsPx[optionId] = coordinates.size.height
+                            },
+                        number = index + 1,
+                        option = option,
+                        isLocked = isLocked,
+                        showResultColors = showResultColors,
+                        isCorrectPosition = option.correctOrder == index + 1 && !option.isDistractor,
+                        isDragging = isDragging,
+                        onDragStart = {
+                            draggedOptionId = optionId
+                            dragStartTopY = topForIndex(localOrderedOptionIds, index)
+                            dragOffsetY = 0f
+                        },
+                        onDrag = { deltaY ->
+                            val updatedOffset = dragOffsetY + deltaY
+                            dragOffsetY = updatedOffset
+                            moveDraggedItem(optionId, updatedOffset)
+                        },
+                        onDragEnd = {
+                            val finalOrder = localOrderedOptionIds
+                            draggedOptionId = null
+                            dragOffsetY = 0f
+                            dragStartTopY = 0f
+                            onUpdateOrderedOptions(step, finalOrder)
+                        }
+                    )
+                }
+            }
         }
 
         if (excludedOptions.isNotEmpty()) {
@@ -1394,6 +1541,143 @@ private fun OrderedCardsStepContent(
     }
 }
 
+
+@Composable
+private fun SmoothOrderedCardRow(
+    modifier: Modifier = Modifier,
+    number: Int,
+    option: StepOptionUi,
+    isLocked: Boolean,
+    showResultColors: Boolean,
+    isCorrectPosition: Boolean,
+    isDragging: Boolean,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit
+) {
+    val isWrongAfterCheck = showResultColors && !isCorrectPosition
+
+    val backgroundColor = when {
+        showResultColors && isCorrectPosition -> Color(0xFFDCFCE7)
+        isWrongAfterCheck -> Color(0xFFFEE2E2)
+        isDragging -> Color(0xFFEFF6FF)
+        else -> Color.White
+    }
+
+    val borderColor = when {
+        showResultColors && isCorrectPosition -> Color(0xFF22C55E)
+        isWrongAfterCheck -> Color(0xFFEF4444)
+        isDragging -> AppPalette.Blue
+        else -> AppPalette.Border
+    }
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                rotationZ = if (isDragging) 0.45f else 0f
+                scaleX = if (isDragging) 1.025f else 1f
+                scaleY = if (isDragging) 1.025f else 1f
+                alpha = if (isDragging) 0.98f else 1f
+            },
+        shape = RoundedCornerShape(16.dp),
+        color = backgroundColor,
+        border = BorderStroke(if (isDragging) 1.6.dp else 1.dp, borderColor),
+        shadowElevation = if (isDragging) 10.dp else 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .then(
+                    if (!isLocked) {
+                        Modifier.pointerInput(option.optionId) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    onDragStart()
+                                },
+                                onDragEnd = onDragEnd,
+                                onDragCancel = onDragEnd,
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    onDrag(dragAmount.y)
+                                }
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
+                )
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(AppPalette.Blue.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = number.toString(),
+                    color = AppPalette.Blue,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Text(
+                modifier = Modifier.weight(1f),
+                text = option.text,
+                color = AppPalette.TextPrimary,
+                fontSize = if (option.text.length > 78) 11.5.sp else 12.5.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            when {
+                showResultColors -> CorrectnessBadge(
+                    isCorrect = isCorrectPosition,
+                    modifier = Modifier.size(26.dp)
+                )
+
+                !isLocked -> DragHandle(
+                    modifier = Modifier.size(width = 18.dp, height = 24.dp),
+                    color = AppPalette.TextMuted
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DragHandle(
+    modifier: Modifier = Modifier,
+    color: Color
+) {
+    Canvas(modifier = modifier) {
+        val strokeWidth = 1.5.dp.toPx()
+        val left = size.width * 0.25f
+        val right = size.width * 0.75f
+        val y1 = size.height * 0.32f
+        val y2 = size.height * 0.5f
+        val y3 = size.height * 0.68f
+
+        listOf(y1, y2, y3).forEach { y ->
+            drawLine(
+                color = color,
+                start = Offset(left, y),
+                end = Offset(right, y),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
+            )
+        }
+    }
+}
 
 @Composable
 private fun DraggableOrderedCardRow(
