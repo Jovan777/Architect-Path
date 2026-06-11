@@ -239,22 +239,48 @@ internal object SeniorSeedBuilders {
         options: List<String>,
         correctAnswer: String
     ): SeedStep {
+        val correctOptionText = options.firstOrNull { option ->
+            isCorrectSingleChoiceOption(questionId, option, correctAnswer)
+        } ?: correctAnswer
+
         return SeedStep(
             stepId = "${questionId}_s$stepNumber",
             type = StepType.SINGLE_CHOICE.id,
             title = title,
             instruction = instruction,
             requiredCount = 1,
-            explanation = "Tačan odgovor: $correctAnswer.",
+            explanation = "Tačan odgovor: $correctOptionText.",
             options = options.mapIndexed { index, option ->
                 SeedOption(
                     optionId = "${questionId}_s${stepNumber}_o${index + 1}",
                     text = option,
                     optionOrder = index + 1,
-                    isCorrect = option == correctAnswer
+                    isCorrect = isCorrectSingleChoiceOption(questionId, option, correctAnswer)
                 )
             }
         )
+    }
+
+    private fun isCorrectSingleChoiceOption(
+        questionId: String,
+        option: String,
+        correctAnswer: String
+    ): Boolean {
+        val normalizedOption = normalizeChoiceText(option)
+        val normalizedCorrectAnswer = normalizeChoiceText(correctAnswer)
+        if (normalizedOption == normalizedCorrectAnswer) {
+            return true
+        }
+
+        val shouldAllowTitleMatch = questionId.startsWith("S2.") || questionId.startsWith("S4.")
+        return shouldAllowTitleMatch &&
+                normalizedOption.startsWith("$normalizedCorrectAnswer ")
+    }
+
+    private fun normalizeChoiceText(value: String): String {
+        return value
+            .trim()
+            .replace(Regex("\\s+"), " ")
     }
 
     private fun multiChoiceStep(

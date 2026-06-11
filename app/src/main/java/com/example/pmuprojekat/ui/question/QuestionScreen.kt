@@ -747,6 +747,17 @@ private fun StepCard(
 
                 StepType.CATEGORIZATION.id -> {
                     when {
+                        isArchitectStyleZoneMappingStep(step) -> {
+                            MappingStepContent(
+                                step = step,
+                                draft = draft,
+                                feedback = feedback,
+                                isLocked = isLocked,
+                                onMapOptionToZone = onMapOptionToZone,
+                                onRemoveOptionZone = onRemoveOptionZone
+                            )
+                        }
+
                         isArchitectType6DefenseStep(step) -> {
                             ArchitectDefenseBoardContent(
                                 step = step,
@@ -1028,6 +1039,12 @@ private fun isArchitectCompositionComponentStep(step: QuestionStepUi): Boolean {
             step.stepId.endsWith("_s1")
 }
 
+private fun isArchitectStyleZoneMappingStep(step: QuestionStepUi): Boolean {
+    return step.type == StepType.CATEGORIZATION.id &&
+            step.stepId.startsWith("A2.") &&
+            step.stepId.endsWith("_s2")
+}
+
 @Composable
 private fun ArchitectComponentSelectionContent(
     step: QuestionStepUi,
@@ -1055,16 +1072,16 @@ private fun ArchitectComponentSelectionContent(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Architecture blocks",
+                        text = "Arhitektonski blokovi",
                         color = AppPalette.TextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
                     Text(
                         text = if (isLocked) {
-                            "Selection locked. Green blocks belong to the base architecture; red blocks are distractors."
+                            "Izbor je zakljucan. Zeleni blokovi pripadaju osnovnoj arhitekturi; crveni su zamke."
                         } else {
-                            "Choose the blocks needed for the first stable architecture. Leave shiny but harmful extras out."
+                            "Izaberi blokove potrebne za prvu stabilnu arhitekturu. Primamljive, ali stetne dodatke ostavi van izbora."
                         },
                         color = AppPalette.TextSecondary,
                         fontSize = 12.sp,
@@ -1179,7 +1196,7 @@ private fun ArchitectComponentSelectionContent(
 
                         if (showResultColors && (missedRequired || wrongSelected)) {
                             Text(
-                                text = if (missedRequired) "Missing required component" else "Distractor selected",
+                                text = if (missedRequired) "Nedostaje obavezna komponenta" else "Izabrana je pogresna komponenta",
                                 color = if (missedRequired) Color(0xFFB45309) else Color(0xFFB91C1C),
                                 fontSize = 11.sp,
                                 lineHeight = 15.sp,
@@ -1222,7 +1239,7 @@ private fun ArchitectPressureDefenseContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Defend the decision",
+                    text = "Odbrani odluku",
                     color = Color.White,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold
@@ -2310,10 +2327,13 @@ private fun ArchitectExcludedOrderedCard(
 private fun MappingStepContent(
     step: QuestionStepUi,
     draft: StepAnswerDraft,
+    feedback: StepFeedbackUi? = null,
     isLocked: Boolean,
     onMapOptionToZone: (QuestionStepUi, String, String) -> Unit,
     onRemoveOptionZone: (QuestionStepUi, String) -> Unit
 ) {
+    val showResultColors = feedback != null
+
     Column(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -2322,6 +2342,7 @@ private fun MappingStepContent(
                 step = step,
                 option = option,
                 selectedZoneId = draft.mappedZoneByOptionId[option.optionId],
+                showResultColors = showResultColors,
                 isLocked = isLocked,
                 onMapOptionToZone = onMapOptionToZone,
                 onRemoveOptionZone = onRemoveOptionZone
@@ -3546,11 +3567,11 @@ private fun ArchitectDefenseBoardContent(
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         ArchitectType6CommandHeader(
-            title = "Architectural decision under pressure",
+            title = "Arhitektonska odluka pod pritiskom",
             subtitle = if (isLocked) {
-                "Defense board locked. Green shields answer the pressure; red shields weaken the decision."
+                "Tabla odbrane je zakljucana. Zelene odbrane odgovaraju na pritisak; crvene slabe odluku."
             } else {
-                "Pick one defense shield, then attach it to the pressure vector it neutralizes."
+                "Izaberi jednu odbranu, zatim je povezi sa pritiskom koji neutralise."
             },
             accent = AppPalette.Indigo,
             marker = "ADR"
@@ -3566,7 +3587,7 @@ private fun ArchitectDefenseBoardContent(
         ArchitectSelectedCardNotice(
             selectedOption = selectedOption,
             accent = AppPalette.Indigo,
-            emptyText = "No defense selected. Choose a shield card from the deck."
+            emptyText = "Nema izabrane odbrane. Izaberi karticu iz spila."
         )
 
         zones.forEachIndexed { index, zone ->
@@ -3596,8 +3617,8 @@ private fun ArchitectDefenseBoardContent(
         }
 
         ArchitectType6CardDeck(
-            title = "Defense shield deck",
-            emptyText = "All defenses are attached to pressure panels.",
+            title = "Spil odbrana",
+            emptyText = "Sve odbrane su povezane sa pritiscima.",
             options = unassigned,
             selectedOptionId = selectedOptionId,
             showResultColors = showResultColors,
@@ -3690,7 +3711,7 @@ private fun ArchitectSelectedCardNotice(
             verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             Text(
-                text = if (selectedOption == null) "Placement console" else "Selected card",
+                text = if (selectedOption == null) "Konzola za postavljanje" else "Izabrana kartica",
                 color = if (selectedOption == null) AppPalette.TextSecondary else accent,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.ExtraBold
@@ -3728,7 +3749,7 @@ private fun ArchitectDefensePulseStrip(
             verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Text(
-                text = "Pressure map",
+                text = "Mapa pritisaka",
                 color = AppPalette.TextPrimary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.ExtraBold
@@ -3822,7 +3843,7 @@ private fun ArchitectPressurePanel(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "PRESSURE VECTOR",
+                            text = "VEKTOR PRITISKA",
                             color = accent,
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.ExtraBold
@@ -3849,7 +3870,7 @@ private fun ArchitectPressurePanel(
                         verticalArrangement = Arrangement.spacedBy(9.dp)
                     ) {
                         Text(
-                            text = if (assigned.isEmpty()) "Shield slot is open" else "Shield attached",
+                            text = if (assigned.isEmpty()) "Mesto za odbranu je slobodno" else "Odbrana je povezana",
                             color = if (assigned.isEmpty()) AppPalette.TextSecondary else AppPalette.Indigo,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold
@@ -3857,7 +3878,7 @@ private fun ArchitectPressurePanel(
 
                         if (assigned.isEmpty()) {
                             Text(
-                                text = if (canAccept) "Tap this pressure to attach the selected defense." else "Select a shield card from the deck.",
+                                text = if (canAccept) "Dodirni ovaj pritisak da povezes izabranu odbranu." else "Izaberi karticu odbrane iz spila.",
                                 color = AppPalette.TextMuted,
                                 fontSize = 12.5.sp,
                                 lineHeight = 18.sp,
@@ -3969,25 +3990,25 @@ private fun ArchitectPriorityBoardContent(
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         ArchitectType6CommandHeader(
-            title = "Architectural Priority Board",
+            title = "Tabla arhitektonskih prioriteta",
             subtitle = if (isLocked) {
-                "Strategy board locked. Review the lane color on each decision card."
+                "Tabla strategije je zakljucana. Pregledaj boju trake na svakoj kartici odluke."
             } else {
-                "Select a decision card, then place it on the timeline: now, later, or reject."
+                "Izaberi karticu odluke, zatim je postavi na vremensku traku: sada, kasnije ili odbaci."
             },
             accent = AppPalette.Green,
-            marker = "NOW"
+            marker = "SAD"
         )
 
         ArchitectSelectedCardNotice(
             selectedOption = selectedOption,
             accent = AppPalette.Green,
-            emptyText = "No decision selected. Choose one card, then tap a strategy lane."
+            emptyText = "Nema izabrane odluke. Izaberi karticu, zatim dodirni stratesku traku."
         )
 
         ArchitectType6CardDeck(
-            title = "Decision card deck",
-            emptyText = "Every decision is on the strategy board.",
+            title = "Spil odluka",
+            emptyText = "Sve odluke su na tabli strategije.",
             options = unassigned,
             selectedOptionId = selectedOptionId,
             showResultColors = showResultColors,
@@ -4003,14 +4024,14 @@ private fun ArchitectPriorityBoardContent(
             ArchitectPriorityPanel(
                 zone = zone,
                 label = when (index) {
-                    0 -> "NOW"
-                    1 -> "LATER"
-                    else -> "NEVER"
+                    0 -> "SADA"
+                    1 -> "KASNIJE"
+                    else -> "NE"
                 },
                 subtitle = when (index) {
-                    0 -> "current architecture path"
-                    1 -> "future backlog"
-                    else -> "blocked direction"
+                    0 -> "trenutni pravac arhitekture"
+                    1 -> "buduci backlog"
+                    else -> "blokiran pravac"
                 },
                 accent = accents[index % accents.size],
                 assigned = assigned,
@@ -4125,7 +4146,7 @@ private fun ArchitectPriorityPanel(
 
             if (assigned.isEmpty()) {
                 Text(
-                    text = if (canAccept) "Tap this lane to place the selected decision." else "No decisions placed on this lane.",
+                    text = if (canAccept) "Dodirni traku da postavis izabranu odluku." else "Nema odluka na ovoj traci.",
                     color = AppPalette.TextMuted,
                     fontSize = 12.5.sp,
                     lineHeight = 18.sp
@@ -4166,11 +4187,11 @@ private fun ArchitectSignalBoardContent(
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         ArchitectType6CommandHeader(
-            title = "Signal Analysis Console",
+            title = "Konzola za analizu signala",
             subtitle = if (isLocked) {
-                "Evidence board locked. Green classifications are valid; red ones need architectural review."
+                "Tabla dokaza je zakljucana. Zelene klasifikacije su ispravne; crvene traze arhitektonsku proveru."
             } else {
-                "Select a signal and route it as verified evidence, noise, or caution."
+                "Izaberi signal i razvrstaj ga kao proveren dokaz, sum ili oprez."
             },
             accent = Color(0xFFF59E0B),
             marker = "SIG"
@@ -4186,12 +4207,12 @@ private fun ArchitectSignalBoardContent(
         ArchitectSelectedCardNotice(
             selectedOption = selectedOption,
             accent = Color(0xFFF59E0B),
-            emptyText = "No signal selected. Choose an evidence card, then tap an analysis band."
+            emptyText = "Nema izabranog signala. Izaberi dokaz, zatim dodirni zonu analize."
         )
 
         ArchitectType6CardDeck(
-            title = "Unclassified signal deck",
-            emptyText = "All signals have been routed through the analysis console.",
+            title = "Spil nerazvrstanih signala",
+            emptyText = "Svi signali su prosli kroz konzolu za analizu.",
             options = unassigned,
             selectedOptionId = selectedOptionId,
             showResultColors = showResultColors,
@@ -4207,14 +4228,14 @@ private fun ArchitectSignalBoardContent(
             ArchitectSignalPanel(
                 zone = zone,
                 label = when (index) {
-                    0 -> "VERIFIED SIGNAL"
-                    1 -> "NOISE"
-                    else -> "CAUTION"
+                    0 -> "PRAVI SIGNAL"
+                    1 -> "LAZNI SIGNAL"
+                    else -> "OPREZ"
                 },
                 hint = when (index) {
-                    0 -> "strong evidence"
-                    1 -> "misleading or weak"
-                    else -> "dangerous but not automatic"
+                    0 -> "jak dokaz"
+                    1 -> "slabo ili varljivo"
+                    else -> "opasno, ali ne automatski"
                 },
                 accent = accents[index % accents.size],
                 assigned = assigned,
@@ -4256,7 +4277,7 @@ private fun ArchitectSignalStatusPanel(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "Evidence telemetry",
+                text = "Telemetrija dokaza",
                 color = Color.White,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.ExtraBold
@@ -4362,7 +4383,7 @@ private fun ArchitectSignalPanel(
             }
             if (assigned.isEmpty()) {
                 Text(
-                    text = if (canAccept) "Tap this band to classify the selected signal." else "No signal evidence in this band.",
+                    text = if (canAccept) "Dodirni zonu da klasifikujes izabrani signal." else "Nema dokaza u ovoj zoni.",
                     color = AppPalette.TextMuted,
                     fontSize = 12.5.sp,
                     lineHeight = 18.sp
@@ -4483,18 +4504,18 @@ private fun ArchitectPriorityWorkspaceContent(
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         ArchitectWorkspaceHeader(
-            title = "Strategy priority board",
+            title = "Tabla prioriteta strategije",
             subtitle = if (isLocked) {
-                "The prioritization board is locked. Green decisions are placed well; red decisions are in the wrong strategic lane."
+                "Tabla prioriteta je zakljucana. Zelene odluke su dobro postavljene; crvene su u pogresnoj traci."
             } else {
-                "Select a decision and place it on the architecture timeline: now, later, or never."
+                "Izaberi odluku i postavi je na arhitektonsku vremensku liniju: sada, kasnije ili nikako."
             },
             accent = AppPalette.Indigo
         )
 
         ArchitectCardTray(
-            title = "Decision cards",
-            emptyText = "All decisions are on the board.",
+            title = "Kartice odluka",
+            emptyText = "Sve odluke su na tabli.",
             options = unassigned,
             zones = zones,
             accents = accents,
@@ -4509,9 +4530,9 @@ private fun ArchitectPriorityWorkspaceContent(
         zones.forEachIndexed { index, zone ->
             val zoneOptions = step.options.filter { draft.mappedZoneByOptionId[it.optionId] == zone.zoneId }
             val title = when (index) {
-                0 -> "NOW / critical path"
-                1 -> "LATER / architecture backlog"
-                else -> "NEVER / wrong direction"
+                0 -> "SADA / kritican put"
+                1 -> "KASNIJE / arhitektonski backlog"
+                else -> "NE RADITI / pogresan pravac"
             }
             ArchitectPriorityLane(
                 title = title,
@@ -4547,18 +4568,18 @@ private fun ArchitectSignalAnalysisWorkspaceContent(
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         ArchitectWorkspaceHeader(
-            title = "Signal analysis board",
+            title = "Tabla analize signala",
             subtitle = if (isLocked) {
-                "Evidence is locked. Green signal classifications are sound; red ones should be challenged."
+                "Dokazi su zakljucani. Zelene klasifikacije signala su dobre; crvene treba preispitati."
             } else {
-                "Classify architecture evidence as verified signal, noise, or caution before changing the decision."
+                "Klasifikuj arhitektonske dokaze kao pravi signal, sum ili oprez pre promene odluke."
             },
             accent = Color(0xFFF59E0B)
         )
 
         ArchitectCardTray(
-            title = "Unclassified signals",
-            emptyText = "All signals have been classified.",
+            title = "Nerazvrstani signali",
+            emptyText = "Svi signali su klasifikovani.",
             options = unassigned,
             zones = zones,
             accents = accents,
@@ -4573,9 +4594,9 @@ private fun ArchitectSignalAnalysisWorkspaceContent(
         zones.forEachIndexed { index, zone ->
             val zoneOptions = step.options.filter { draft.mappedZoneByOptionId[it.optionId] == zone.zoneId }
             val label = when (index) {
-                0 -> "VERIFIED SIGNAL"
-                1 -> "NOISE / FALSE SIGNAL"
-                else -> "CAUTION SIGNAL"
+                0 -> "PRAVI SIGNAL"
+                1 -> "SUM / LAZNI SIGNAL"
+                else -> "SIGNAL ZA OPREZ"
             }
             ArchitectEvidencePanel(
                 label = label,
@@ -4747,7 +4768,7 @@ private fun ArchitectPriorityLane(
 
             if (options.isEmpty()) {
                 Text(
-                    text = "No decisions placed here.",
+                    text = "Nema odluka ovde.",
                     color = AppPalette.TextMuted,
                     fontSize = 12.sp,
                     lineHeight = 17.sp
@@ -4832,7 +4853,7 @@ private fun ArchitectEvidencePanel(
 
             if (options.isEmpty()) {
                 Text(
-                    text = "No signals in this analysis band.",
+                    text = "Nema signala u ovoj zoni analize.",
                     color = AppPalette.TextMuted,
                     fontSize = 12.sp,
                     lineHeight = 17.sp
@@ -4937,7 +4958,7 @@ private fun ArchitectBoardDecisionCard(
                         ) {
                             Text(
                                 modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
-                                text = "Remove",
+                                text = "Ukloni",
                                 color = Color(0xFFE11D48),
                                 fontSize = 10.5.sp,
                                 fontWeight = FontWeight.ExtraBold
@@ -4967,9 +4988,9 @@ private fun ArchitectCompromiseBoardContent(
         draft = draft,
         feedback = feedback,
         isLocked = isLocked,
-        intro = if (isLocked) "$boardTitle is locked. Green cards are sound judgement; red cards need review." else intro,
+        intro = if (isLocked) "$boardTitle je zakljucana. Zelene kartice su dobra procena; crvene treba preispitati." else intro,
         unassignedTitle = unassignedTitle,
-        emptyUnassignedText = "All cards are placed on the board.",
+        emptyUnassignedText = "Sve kartice su na tabli.",
         zoneAccent = { index ->
             listOf(AppPalette.Green, AppPalette.Orange, Color(0xFFE11D48))[index % 3]
         },
@@ -5103,14 +5124,17 @@ private fun SeniorBalanceCategorizationStepContent(
     } else {
         "Rizici / gubici"
     }
-    val quickSwipe = step.stepId.startsWith("S2.") || step.stepId.startsWith("S5.")
+    val isTradeOffSwipe = step.stepId.startsWith("S4.")
+    val quickSwipe = step.stepId.startsWith("S2.") || isTradeOffSwipe || step.stepId.startsWith("S5.")
     val isPrioritySwipe = step.stepId.startsWith("S5.")
     val leftSwipeLabel = when {
         isPrioritySwipe -> seniorPrioritySwipeLabel(gainZone)
         quickSwipe -> "← DOBITAK"
         else -> "Šta se dobija"
     }
-    val rightSwipeLabel = if (quickSwipe) {
+    val rightSwipeLabel = if (isTradeOffSwipe) {
+        "CENA/RIZIK →"
+    } else if (quickSwipe) {
         "RIZICI/GUBICI →"
     } else {
         oldRightTitle
@@ -5131,6 +5155,8 @@ private fun SeniorBalanceCategorizationStepContent(
             "Balans odluke je zaključan. Zelene kartice su tačne, crvene nisu."
         } else if (isPrioritySwipe) {
             "Prevuci karticu ka prioritetu ili riziku."
+        } else if (isTradeOffSwipe) {
+            "Prevuci karticu ka dobitku ili prihvacenoj ceni."
         } else if (quickSwipe) {
             "Prevuci karticu ka dobitku ili riziku."
         } else {
@@ -5668,28 +5694,58 @@ private fun MappingOptionCard(
     step: QuestionStepUi,
     option: StepOptionUi,
     selectedZoneId: String?,
+    showResultColors: Boolean,
     isLocked: Boolean,
     onMapOptionToZone: (QuestionStepUi, String, String) -> Unit,
     onRemoveOptionZone: (QuestionStepUi, String) -> Unit
 ) {
+    val expectedZone = step.zones.firstOrNull { it.zoneId == option.correctZoneId }
+    val hasExpectedZone = expectedZone != null
+    val isCorrect = hasExpectedZone && selectedZoneId == option.correctZoneId
+    val isWrong = showResultColors && hasExpectedZone && selectedZoneId != option.correctZoneId
+    val cardColor = when {
+        showResultColors && isCorrect -> Color(0xFFDCFCE7)
+        isWrong -> Color(0xFFFEE2E2)
+        else -> Color.White
+    }
+    val cardBorder = when {
+        showResultColors && isCorrect -> Color(0xFF22C55E)
+        isWrong -> Color(0xFFEF4444)
+        else -> AppPalette.Border
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, AppPalette.Border),
+        color = cardColor,
+        border = BorderStroke(1.dp, cardBorder),
         shadowElevation = 2.dp
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(
-                text = option.text,
-                color = AppPalette.TextPrimary,
-                fontSize = 13.5.sp,
-                lineHeight = 19.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            Row(
+                verticalAlignment = Alignment.Top
+            ) {
+                Text(
+                    modifier = Modifier.weight(1f),
+                    text = option.text,
+                    color = AppPalette.TextPrimary,
+                    fontSize = 13.5.sp,
+                    lineHeight = 19.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                if (showResultColors && hasExpectedZone) {
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    CorrectnessBadge(
+                        isCorrect = isCorrect,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+            }
 
             Row(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -5697,6 +5753,28 @@ private fun MappingOptionCard(
             ) {
                 step.zones.forEach { zone ->
                     val selected = selectedZoneId == zone.zoneId
+                    val selectedCorrect = showResultColors && selected && zone.zoneId == option.correctZoneId
+                    val selectedWrong = showResultColors && selected && zone.zoneId != option.correctZoneId
+                    val expectedWhenWrong = isWrong && zone.zoneId == option.correctZoneId
+                    val chipColor = when {
+                        selectedCorrect -> Color(0xFF22C55E)
+                        selectedWrong -> Color(0xFFEF4444)
+                        selected -> AppPalette.Blue
+                        expectedWhenWrong -> Color(0xFFECFDF5)
+                        else -> Color(0xFFF8FAFC)
+                    }
+                    val chipBorder = when {
+                        selectedCorrect -> Color(0xFF16A34A)
+                        selectedWrong -> Color(0xFFDC2626)
+                        selected -> AppPalette.Blue
+                        expectedWhenWrong -> Color(0xFF22C55E)
+                        else -> AppPalette.Border
+                    }
+                    val chipTextColor = when {
+                        selectedCorrect || selectedWrong || selected -> Color.White
+                        expectedWhenWrong -> Color(0xFF15803D)
+                        else -> AppPalette.TextSecondary
+                    }
 
                     Surface(
                         modifier = Modifier.then(
@@ -5709,33 +5787,24 @@ private fun MappingOptionCard(
                             }
                         ),
                         shape = RoundedCornerShape(16.dp),
-                        color = if (selected) AppPalette.Blue else Color(0xFFF8FAFC),
-                        border = BorderStroke(
-                            1.dp,
-                            if (selected) AppPalette.Blue else AppPalette.Border
-                        )
+                        color = chipColor,
+                        border = BorderStroke(1.dp, chipBorder)
                     ) {
                         Text(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                             text = zone.title,
-                            color = if (selected) Color.White else AppPalette.TextSecondary,
+                            color = chipTextColor,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
 
-                if (selectedZoneId != null) {
+                if (selectedZoneId != null && !isLocked) {
                     Surface(
-                        modifier = Modifier.then(
-                            if (!isLocked) {
-                                Modifier.clickable {
-                                    onRemoveOptionZone(step, option.optionId)
-                                }
-                            } else {
-                                Modifier
-                            }
-                        ),
+                        modifier = Modifier.clickable {
+                            onRemoveOptionZone(step, option.optionId)
+                        },
                         shape = RoundedCornerShape(16.dp),
                         color = Color(0xFFFFF1F2),
                         border = BorderStroke(1.dp, Color(0xFFFDA4AF))
@@ -5749,6 +5818,20 @@ private fun MappingOptionCard(
                         )
                     }
                 }
+            }
+
+            if (showResultColors && isWrong) {
+                Text(
+                    text = if (selectedZoneId == null) {
+                        "Nije rasporedjeno. Trebalo je: ${expectedZone?.title.orEmpty()}"
+                    } else {
+                        "Trebalo je: ${expectedZone?.title.orEmpty()}"
+                    },
+                    color = Color(0xFFB91C1C),
+                    fontSize = 11.5.sp,
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -6239,13 +6322,13 @@ private fun ArchitectMiniAdrTemplate() {
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Mini ADR template",
+                        text = "Mini ADR obrazac",
                         color = AppPalette.TextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
                     Text(
-                        text = "Use this structure for the note below.",
+                        text = "Koristi ovu strukturu za zapis ispod.",
                         color = AppPalette.TextSecondary,
                         fontSize = 12.sp,
                         lineHeight = 16.sp,
@@ -6256,17 +6339,17 @@ private fun ArchitectMiniAdrTemplate() {
 
             Text(
                 text = """
-Decision:
-We choose __.
+Odluka:
+Biramo __.
 
-Because:
-The most important constraints are __.
+Razlog:
+Najvaznija ogranicenja su __.
 
-Accepted cost:
-We accept __.
+Prihvacena cena:
+Prihvatamo __.
 
-Signal for revisiting the decision:
-We will revisit the decision if __.
+Signal za preispitivanje odluke:
+Preispitacemo odluku ako __.
                 """.trimIndent(),
                 color = AppPalette.TextSecondary,
                 fontSize = 12.5.sp,
