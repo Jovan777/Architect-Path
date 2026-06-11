@@ -93,15 +93,15 @@ object InitialSeedData {
     }
 
     private val priorityZoneTitles = listOf(
-        "Do now",
-        "Leave for later",
-        "Do not do / wrong direction"
+        "Uraditi sada",
+        "Ostaviti za kasnije",
+        "Ne raditi / pogrešan pravac"
     )
 
     private val signalZoneTitles = listOf(
-        "Real signal for changing the architectural decision",
-        "False signal",
-        "Dangerous signal that requires caution, but not necessarily an architecture change"
+        "Pravi signal za promenu arhitektonske odluke",
+        "Lažna detekcija",
+        "Opasan signal koji traži oprez, ali ne nužno promenu arhitekture"
     )
 
     private fun buildDefenseBoardStep(
@@ -133,10 +133,10 @@ object InitialSeedData {
         return SeedStep(
             stepId = "${questionId}_s2",
             type = StepType.CATEGORIZATION.id,
-            title = "Architectural Defense Board",
-            instruction = "Assign the strongest defense to each pressure challenging the architectural decision.",
+            title = "Tabla odbrane odluke",
+            instruction = "Poveži najjaču odbranu sa svakim pritiskom koji osporava arhitektonsku odluku.",
             requiredCount = pressureSteps.size,
-            explanation = "A strong defense answers each pressure without abandoning the core architectural decision.",
+            explanation = "Jaka odbrana odgovara na svaki pritisak bez napuštanja osnovne arhitektonske odluke.",
             zones = zones,
             options = options
         )
@@ -164,13 +164,13 @@ object InitialSeedData {
         return step.copy(
             stepId = "${questionId}_s$newStepNumber",
             title = when (newStepNumber) {
-                3 -> "Architectural Priority Board"
-                4 -> "Signal Analysis Board"
+                3 -> "Tabla arhitektonskih prioriteta"
+                4 -> "Tabla analize signala"
                 else -> step.title
             },
             instruction = when (newStepNumber) {
-                3 -> "Place each decision on the architectural priority board."
-                4 -> "Classify each signal as evidence, noise, or caution."
+                3 -> "Postavi svaku odluku na tablu arhitektonskih prioriteta."
+                4 -> "Razvrstaj svaki signal kao dokaz, šum ili oprez."
                 else -> step.instruction
             },
             zones = newZones,

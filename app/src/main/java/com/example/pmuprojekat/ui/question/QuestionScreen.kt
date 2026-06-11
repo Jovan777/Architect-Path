@@ -4229,12 +4229,12 @@ private fun ArchitectSignalBoardContent(
                 zone = zone,
                 label = when (index) {
                     0 -> "PRAVI SIGNAL"
-                    1 -> "LAZNI SIGNAL"
+                    1 -> "LAŽNI SIGNAL"
                     else -> "OPREZ"
                 },
                 hint = when (index) {
                     0 -> "jak dokaz"
-                    1 -> "slabo ili varljivo"
+                    1 -> "nepouzdano"
                     else -> "opasno, ali ne automatski"
                 },
                 accent = accents[index % accents.size],
