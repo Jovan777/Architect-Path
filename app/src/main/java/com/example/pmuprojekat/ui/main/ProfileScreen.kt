@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -565,12 +567,73 @@ private fun ProfileSettingsPreview(
             }
 
             SettingPreviewRow("Cilj učenja", uiState.learningGoal)
-            SettingPreviewRow("Preferirani format", uiState.preferredTaskFormat)
+            FavoriteTaskTypesPreview(uiState.preferredTaskFormat)
             SettingPreviewRow("Fokus učenja", uiState.learningFocus)
             SettingPreviewRow(
                 label = "AI follow-up",
                 value = if (uiState.aiFollowUpEnabled) "Uključen" else "Isključen"
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FavoriteTaskTypesPreview(
+    preferredTaskFormat: String
+) {
+    val taskTypes = preferredTaskFormat
+        .split(",")
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xFFF8FAFC),
+        border = BorderStroke(1.dp, AppPalette.Border)
+    ) {
+        Column(
+            modifier = Modifier.padding(13.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Omiljeni tipovi zadataka",
+                color = AppPalette.TextPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            if (taskTypes.isEmpty()) {
+                Text(
+                    text = "Nisu izabrani omiljeni tipovi zadataka.",
+                    color = AppPalette.TextSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            } else {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    taskTypes.forEach { taskType ->
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = Color(0xFFEFF6FF),
+                            border = BorderStroke(1.dp, AppPalette.Blue.copy(alpha = 0.16f))
+                        ) {
+                            Text(
+                                modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                                text = taskType,
+                                color = AppPalette.Blue,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

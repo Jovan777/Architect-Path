@@ -6,7 +6,6 @@ import com.example.pmuprojekat.data.seed.beginner.BeginnerWave2Seed
 import com.example.pmuprojekat.data.seed.beginner.BeginnerWave3Seed
 import com.example.pmuprojekat.data.seed.junior.JuniorCodeCompletionSeed
 import com.example.pmuprojekat.data.seed.junior.JuniorErrorDetectionSeed
-import com.example.pmuprojekat.data.seed.junior.JuniorReasoningSeed
 import com.example.pmuprojekat.data.seed.junior.JuniorRefactoringSeed
 import com.example.pmuprojekat.data.seed.junior.JuniorRoleMappingSeed
 import com.example.pmuprojekat.data.seed.medior.MediorConsequenceAnalysisSeed
@@ -36,7 +35,6 @@ object InitialSeedData {
 
             addAll(JuniorCodeCompletionSeed.questions)
             addAll(JuniorRoleMappingSeed.questions)
-            addAll(JuniorReasoningSeed.questions)
             addAll(JuniorRefactoringSeed.questions)
             addAll(JuniorErrorDetectionSeed.questions)
 

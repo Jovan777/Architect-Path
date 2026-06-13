@@ -1,11 +1,11 @@
-package com.example.pmuprojekat.data.seed.junior
+﻿package com.example.pmuprojekat.data.seed.junior
 
 internal object JuniorErrorDetectionSeed {
     val questions = listOf(
         JuniorSeedBuilders.errorDetectionQuestion(
-            questionId = "J5.1",
-            title = "Pogrešna primena Singleton obrasca",
-            prompt = "Analiziraj pseudo-kod i označi problematičan deo.",
+            questionId = "J4.1",
+            title = "PogreÅ¡na primena Singleton obrasca",
+            prompt = "Analiziraj pseudo-kod i oznaÄi problematiÄan deo.",
             codeBlock = """
                 class Logger {
                     public constructor() {}
@@ -20,14 +20,14 @@ internal object JuniorErrorDetectionSeed {
             """,
             options = listOf("public constructor() {}", "static getInstance()", "if (instance == null)", "return instance"),
             correctAnswers = listOf("public constructor() {}"),
-            explanation = "Ako je konstruktor javan, bilo ko može praviti nove instance i time se ruši suština Singleton obrasca.",
+            explanation = "Ako je konstruktor javan, bilo ko moÅ¾e praviti nove instance i time se ruÅ¡i suÅ¡tina Singleton obrasca.",
             aiFollowUp = "Kako bi ispravio ovu klasu da zaista garantuje jednu instancu?",
             orderIndex = 501
         ),
         JuniorSeedBuilders.errorDetectionQuestion(
-            questionId = "J5.2",
-            title = "Pogrešna primena Observer obrasca",
-            prompt = "Uoči problem u sledećem rešenju.",
+            questionId = "J4.2",
+            title = "PogreÅ¡na primena Observer obrasca",
+            prompt = "UoÄi problem u sledeÄ‡em reÅ¡enju.",
             codeBlock = """
                 class Product {
                     private emailNotifier = new EmailNotifier()
@@ -42,14 +42,14 @@ internal object JuniorErrorDetectionSeed {
             """,
             options = listOf("Direktno vezivanje Product klase za konkretne notifikatore", "Postojanje setPrice metode", "Promena vrednosti price", "Pozivanje update metode na observer-u"),
             correctAnswers = listOf("Direktno vezivanje Product klase za konkretne notifikatore"),
-            explanation = "Klasa Product ne radi preko apstrakcije i nema listu observer-a, pa je čvrsto vezana za konkretne implementacije.",
-            aiFollowUp = "Kako bi ovo rešenje izmenio da novi observer može da se doda bez menjanja Product klase?",
+            explanation = "Klasa Product ne radi preko apstrakcije i nema listu observer-a, pa je Ävrsto vezana za konkretne implementacije.",
+            aiFollowUp = "Kako bi ovo reÅ¡enje izmenio da novi observer moÅ¾e da se doda bez menjanja Product klase?",
             orderIndex = 502
         ),
         JuniorSeedBuilders.errorDetectionQuestion(
-            questionId = "J5.3",
-            title = "Pogrešna primena Strategy obrasca",
-            prompt = "Pronađi grešku u sledećem pokušaju primene Strategy obrasca.",
+            questionId = "J4.3",
+            title = "PogreÅ¡na primena Strategy obrasca",
+            prompt = "PronaÄ‘i greÅ¡ku u sledeÄ‡em pokuÅ¡aju primene Strategy obrasca.",
             codeBlock = """
                 class PaymentContext {
                     pay(type, amount) {
@@ -63,16 +63,16 @@ internal object JuniorErrorDetectionSeed {
                     }
                 }
             """,
-            options = listOf("Sve strategije su i dalje ugrađene u jednu klasu kroz if-else", "Klasa se zove PaymentContext", "Metoda prima amount", "Postoji više načina plaćanja"),
-            correctAnswers = listOf("Sve strategije su i dalje ugrađene u jednu klasu kroz if-else"),
-            explanation = "Iako naziv sugeriše Strategy, algoritmi nisu izdvojeni u posebne klase sa zajedničkim interfejsom.",
-            aiFollowUp = "Kako bi izgledalo pravilnije rešenje sa Strategy obrascem u ovom slučaju?",
+            options = listOf("Sve strategije su i dalje ugraÄ‘ene u jednu klasu kroz if-else", "Klasa se zove PaymentContext", "Metoda prima amount", "Postoji viÅ¡e naÄina plaÄ‡anja"),
+            correctAnswers = listOf("Sve strategije su i dalje ugraÄ‘ene u jednu klasu kroz if-else"),
+            explanation = "Iako naziv sugeriÅ¡e Strategy, algoritmi nisu izdvojeni u posebne klase sa zajedniÄkim interfejsom.",
+            aiFollowUp = "Kako bi izgledalo pravilnije reÅ¡enje sa Strategy obrascem u ovom sluÄaju?",
             orderIndex = 503
         ),
         JuniorSeedBuilders.errorDetectionQuestion(
-            questionId = "J5.4",
-            title = "Pogrešna primena Command obrasca",
-            prompt = "Analiziraj pseudo-kod i pronađi problem.",
+            questionId = "J4.4",
+            title = "PogreÅ¡na primena Command obrasca",
+            prompt = "Analiziraj pseudo-kod i pronaÄ‘i problem.",
             codeBlock = """
                 class ToolbarButton {
                     click(actionType) {
@@ -86,16 +86,16 @@ internal object JuniorErrorDetectionSeed {
                     }
                 }
             """,
-            options = listOf("Dugme i dalje sadrži granajuću logiku svih akcija umesto da koristi komande", "Metoda se zove click", "Editor ima metode copy i paste", "Parametar actionType je tekstualan"),
-            correctAnswers = listOf("Dugme i dalje sadrži granajuću logiku svih akcija umesto da koristi komande"),
-            explanation = "Iako problem liči na Command, akcije nisu izdvojene u objekte, pa je UI i dalje čvrsto vezan za izvršenje.",
-            aiFollowUp = "Kako bi izgledalo pravilnije rešenje u kome je svaka akcija izdvojena u poseban objekat?",
+            options = listOf("Dugme i dalje sadrÅ¾i granajuÄ‡u logiku svih akcija umesto da koristi komande", "Metoda se zove click", "Editor ima metode copy i paste", "Parametar actionType je tekstualan"),
+            correctAnswers = listOf("Dugme i dalje sadrÅ¾i granajuÄ‡u logiku svih akcija umesto da koristi komande"),
+            explanation = "Iako problem liÄi na Command, akcije nisu izdvojene u objekte, pa je UI i dalje Ävrsto vezan za izvrÅ¡enje.",
+            aiFollowUp = "Kako bi izgledalo pravilnije reÅ¡enje u kome je svaka akcija izdvojena u poseban objekat?",
             orderIndex = 504
         ),
         JuniorSeedBuilders.errorDetectionQuestion(
-            questionId = "J5.5",
-            title = "Pogrešna primena Builder obrasca",
-            prompt = "Uoči problem u pokušaju primene Builder obrasca.",
+            questionId = "J4.5",
+            title = "PogreÅ¡na primena Builder obrasca",
+            prompt = "UoÄi problem u pokuÅ¡aju primene Builder obrasca.",
             codeBlock = """
                 class ReportBuilder {
                     build(title, author, footer, chart, summary, lang, format, watermark) {
@@ -103,16 +103,16 @@ internal object JuniorErrorDetectionSeed {
                     }
                 }
             """,
-            options = listOf("Builder ne gradi objekat postepeno, već samo skriva isti veliki konstruktor iza druge metode", "Klasa se zove ReportBuilder", "Metoda vraća Report", "Postoji format parametar"),
-            correctAnswers = listOf("Builder ne gradi objekat postepeno, već samo skriva isti veliki konstruktor iza druge metode"),
-            explanation = "Suština Builder obrasca nije samo preimenovanje konstruktora, već postepena i čitljiva izgradnja objekta.",
-            aiFollowUp = "Šta bi trebalo da postoji u pravom Builder rešenju da bi imalo smisla?",
+            options = listOf("Builder ne gradi objekat postepeno, veÄ‡ samo skriva isti veliki konstruktor iza druge metode", "Klasa se zove ReportBuilder", "Metoda vraÄ‡a Report", "Postoji format parametar"),
+            correctAnswers = listOf("Builder ne gradi objekat postepeno, veÄ‡ samo skriva isti veliki konstruktor iza druge metode"),
+            explanation = "SuÅ¡tina Builder obrasca nije samo preimenovanje konstruktora, veÄ‡ postepena i Äitljiva izgradnja objekta.",
+            aiFollowUp = "Å ta bi trebalo da postoji u pravom Builder reÅ¡enju da bi imalo smisla?",
             orderIndex = 505
         ),
         JuniorSeedBuilders.errorDetectionQuestion(
-            questionId = "J5.6",
-            title = "Pogrešna primena Adapter obrasca",
-            prompt = "Pronađi grešku u sledećem rešenju.",
+            questionId = "J4.6",
+            title = "PogreÅ¡na primena Adapter obrasca",
+            prompt = "PronaÄ‘i greÅ¡ku u sledeÄ‡em reÅ¡enju.",
             codeBlock = """
                 class PaymentAdapter {
                     private stripeApi = new StripeApi()
@@ -126,16 +126,16 @@ internal object JuniorErrorDetectionSeed {
                     }
                 }
             """,
-            options = listOf("Jedna klasa glumi adapter za sve moguće sisteme kroz if-else grananje", "Adapter ima metodu pay", "Postoji StripeApi", "Korišćen je amount parametar"),
-            correctAnswers = listOf("Jedna klasa glumi adapter za sve moguće sisteme kroz if-else grananje"),
-            explanation = "Ovo više liči na centralizovanu proceduralnu logiku nego na čist Adapter pristup sa jasnim prevodom jednog konkretnog interfejsa.",
-            aiFollowUp = "Kako bi izgledalo čistije rešenje ako bi svaki spoljašnji servis imao svoj adapter?",
+            options = listOf("Jedna klasa glumi adapter za sve moguÄ‡e sisteme kroz if-else grananje", "Adapter ima metodu pay", "Postoji StripeApi", "KoriÅ¡Ä‡en je amount parametar"),
+            correctAnswers = listOf("Jedna klasa glumi adapter za sve moguÄ‡e sisteme kroz if-else grananje"),
+            explanation = "Ovo viÅ¡e liÄi na centralizovanu proceduralnu logiku nego na Äist Adapter pristup sa jasnim prevodom jednog konkretnog interfejsa.",
+            aiFollowUp = "Kako bi izgledalo Äistije reÅ¡enje ako bi svaki spoljaÅ¡nji servis imao svoj adapter?",
             orderIndex = 506
         ),
         JuniorSeedBuilders.errorDetectionQuestion(
-            questionId = "J5.10",
-            title = "Pogrešna primena Bridge obrasca",
-            prompt = "Pronađi konkretnu liniju ili linije koje ruše pravilnu primenu Bridge obrasca.",
+            questionId = "J4.10",
+            title = "PogreÅ¡na primena Bridge obrasca",
+            prompt = "PronaÄ‘i konkretnu liniju ili linije koje ruÅ¡e pravilnu primenu Bridge obrasca.",
             codeBlock = """
                 1  interface Sender {
                 2      send(text)
@@ -156,14 +156,14 @@ internal object JuniorErrorDetectionSeed {
             """,
             options = listOf("Linija 1", "Linija 2", "Linija 5", "Linija 9", "Linija 14", "Linija 15"),
             correctAnswers = listOf("Linija 14", "Linija 15"),
-            explanation = "AlertMessage direktno ugrađuje konkretne kanale slanja umesto da poseduje referencu na apstrakciju Sender. Time se ruši razdvajanje apstrakcije i implementacije.",
+            explanation = "AlertMessage direktno ugraÄ‘uje konkretne kanale slanja umesto da poseduje referencu na apstrakciju Sender. Time se ruÅ¡i razdvajanje apstrakcije i implementacije.",
             aiFollowUp = "Kako bi AlertMessage trebalo da izgleda da bi pravilno koristio Bridge?",
             orderIndex = 510
         ),
         JuniorSeedBuilders.errorDetectionQuestion(
-            questionId = "J5.11",
-            title = "Pogrešna primena Visitor obrasca",
-            prompt = "Obeleži liniju ili linije koje prave problem.",
+            questionId = "J4.11",
+            title = "PogreÅ¡na primena Visitor obrasca",
+            prompt = "ObeleÅ¾i liniju ili linije koje prave problem.",
             codeBlock = """
                 1  interface Shape {
                 2      area()
@@ -181,14 +181,14 @@ internal object JuniorErrorDetectionSeed {
             """,
             options = listOf("Linija 2", "Linija 3", "Linija 4", "Linija 5", "Linija 8", "Linija 9"),
             correctAnswers = listOf("Linija 3", "Linija 4", "Linija 5"),
-            explanation = "Operacije koje bi mogle biti izdvojene u visitor-e ugrađene su u sam interfejs elemenata. To vodi širenju svih klasa elemenata pri dodavanju novih operacija.",
+            explanation = "Operacije koje bi mogle biti izdvojene u visitor-e ugraÄ‘ene su u sam interfejs elemenata. To vodi Å¡irenju svih klasa elemenata pri dodavanju novih operacija.",
             aiFollowUp = "Koje bi operacije ovde bile dobar kandidat da se izdvoje u visitor klase?",
             orderIndex = 511
         ),
         JuniorSeedBuilders.errorDetectionQuestion(
-            questionId = "J5.12",
-            title = "Pogrešna primena Memento obrasca",
-            prompt = "Obeleži tačnu liniju ili linije koje ruše dobru primenu obrasca.",
+            questionId = "J4.12",
+            title = "PogreÅ¡na primena Memento obrasca",
+            prompt = "ObeleÅ¾i taÄnu liniju ili linije koje ruÅ¡e dobru primenu obrasca.",
             codeBlock = """
                 1  class EditorMemento {
                 2      public text
@@ -203,14 +203,14 @@ internal object JuniorErrorDetectionSeed {
             """,
             options = listOf("Linija 1", "Linija 2", "Linija 3", "Linija 6", "Linija 7", "Linija 8"),
             correctAnswers = listOf("Linija 2", "Linija 3", "Linija 8"),
-            explanation = "Memento izlaže unutrašnje stanje spolja i dopušta caretaker-u da ga menja. Time se gubi enkapsulacija koja je suština Memento obrasca.",
-            aiFollowUp = "Kako bi zaštitio stanje unutar mementa da spoljne klase ne mogu da ga menjaju?",
+            explanation = "Memento izlaÅ¾e unutraÅ¡nje stanje spolja i dopuÅ¡ta caretaker-u da ga menja. Time se gubi enkapsulacija koja je suÅ¡tina Memento obrasca.",
+            aiFollowUp = "Kako bi zaÅ¡titio stanje unutar mementa da spoljne klase ne mogu da ga menjaju?",
             orderIndex = 512
         ),
         JuniorSeedBuilders.errorDetectionQuestion(
-            questionId = "J5.13",
-            title = "Pogrešna primena Composite obrasca",
-            prompt = "Obeleži konkretnu liniju ili linije koje su problematične.",
+            questionId = "J4.13",
+            title = "PogreÅ¡na primena Composite obrasca",
+            prompt = "ObeleÅ¾i konkretnu liniju ili linije koje su problematiÄne.",
             codeBlock = """
                 1  interface MenuComponent {
                 2      render()
@@ -232,14 +232,14 @@ internal object JuniorErrorDetectionSeed {
             """,
             options = listOf("Linija 1", "Linija 2", "Linija 5", "Linija 6", "Linija 8", "Linija 14"),
             correctAnswers = listOf("Linija 6", "Linija 8"),
-            explanation = "MenuGroup prihvata samo MenuItem, a ne zajednički tip MenuComponent. Zbog toga ne može da sadrži druge grupe i ne formira pravi kompozit.",
-            aiFollowUp = "Kako bi izmenio ove linije da grupa može da sadrži i stavke i podgrupe?",
+            explanation = "MenuGroup prihvata samo MenuItem, a ne zajedniÄki tip MenuComponent. Zbog toga ne moÅ¾e da sadrÅ¾i druge grupe i ne formira pravi kompozit.",
+            aiFollowUp = "Kako bi izmenio ove linije da grupa moÅ¾e da sadrÅ¾i i stavke i podgrupe?",
             orderIndex = 513
         ),
         JuniorSeedBuilders.errorDetectionQuestion(
-            questionId = "J5.14",
-            title = "Pogrešna primena Flyweight obrasca",
-            prompt = "Obeleži liniju ili linije koje prave problem.",
+            questionId = "J4.14",
+            title = "PogreÅ¡na primena Flyweight obrasca",
+            prompt = "ObeleÅ¾i liniju ili linije koje prave problem.",
             codeBlock = """
                 1  class CharacterGlyph {
                 2      letter
@@ -256,14 +256,14 @@ internal object JuniorErrorDetectionSeed {
             """,
             options = listOf("Linija 2", "Linija 3", "Linija 4", "Linija 5", "Linija 6", "Linija 7", "Linija 11"),
             correctAnswers = listOf("Linija 3", "Linija 4", "Linija 5", "Linija 11"),
-            explanation = "Zajednički podaci o fontu i boji se čuvaju u svakom objektu i svaki put se pravi kompletan novi objekat. Time se propušta deljenje zajedničkog stanja.",
-            aiFollowUp = "Koji podaci bi trebalo da budu deo deljenog flyweight objekta, a koji deo spoljašnjeg stanja?",
+            explanation = "ZajedniÄki podaci o fontu i boji se Äuvaju u svakom objektu i svaki put se pravi kompletan novi objekat. Time se propuÅ¡ta deljenje zajedniÄkog stanja.",
+            aiFollowUp = "Koji podaci bi trebalo da budu deo deljenog flyweight objekta, a koji deo spoljaÅ¡njeg stanja?",
             orderIndex = 514
         ),
         JuniorSeedBuilders.errorDetectionQuestion(
-            questionId = "J5.15",
-            title = "Pogrešna primena Mediator obrasca",
-            prompt = "Obeleži konkretnu liniju ili linije koje ruše ideju obrasca.",
+            questionId = "J4.15",
+            title = "PogreÅ¡na primena Mediator obrasca",
+            prompt = "ObeleÅ¾i konkretnu liniju ili linije koje ruÅ¡e ideju obrasca.",
             codeBlock = """
                 1  class NameField {
                 2      private submitButton
@@ -285,9 +285,10 @@ internal object JuniorErrorDetectionSeed {
             """,
             options = listOf("Linija 2", "Linija 3", "Linija 6", "Linija 7", "Linija 12", "Linija 15"),
             correctAnswers = listOf("Linija 2", "Linija 3", "Linija 6", "Linija 7", "Linija 12", "Linija 15"),
-            explanation = "Komponente direktno poznaju i kontrolišu jedna drugu. Time komunikacija nije centralizovana kroz mediator, već ostaje rasuta među kolegama.",
-            aiFollowUp = "Kako bi ova interakcija izgledala kada bi obe komponente komunicirale isključivo preko mediatora?",
+            explanation = "Komponente direktno poznaju i kontroliÅ¡u jedna drugu. Time komunikacija nije centralizovana kroz mediator, veÄ‡ ostaje rasuta meÄ‘u kolegama.",
+            aiFollowUp = "Kako bi ova interakcija izgledala kada bi obe komponente komunicirale iskljuÄivo preko mediatora?",
             orderIndex = 515
         )
     )
 }
+

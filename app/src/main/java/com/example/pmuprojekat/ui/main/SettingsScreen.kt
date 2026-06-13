@@ -673,14 +673,14 @@ private fun DangerZoneCard(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Opasna zona",
+                text = "Resetovanje napretka",
                 color = Color(0xFFE11D48),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold
             )
 
             Text(
-                text = "Resetovanje progresa briše sve rešene zadatke, odgovore, XP i statistiku. Pitanja i profilna podešavanja ostaju sačuvani.",
+                text = "Resetovanje napretka briše rešene zadatke, odgovore, XP i statistiku. Pitanja i podešavanja profila ostaju sačuvani.",
                 color = AppPalette.TextSecondary,
                 fontSize = 13.sp,
                 lineHeight = 19.sp
@@ -696,7 +696,7 @@ private fun DangerZoneCard(
                 )
             ) {
                 Text(
-                    text = "Resetuj progres",
+                    text = "Resetuj napredak",
                     fontWeight = FontWeight.ExtraBold
                 )
             }

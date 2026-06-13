@@ -525,7 +525,7 @@ private fun LevelQuestionCard(
     typeProgress: TypeProgressUi?,
     onClick: () -> Unit
 ) {
-    val color = difficultyColor(question.difficulty)
+    val color = levelColor(question.levelId)
 
     Card(
         modifier = Modifier
@@ -602,7 +602,7 @@ private fun LevelQuestionCard(
 
                     Text(
                         text = "${typeProgress.completedCount}/${typeProgress.totalCount} završeno za ovaj tip",
-                        color = AppPalette.Blue,
+                        color = color,
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
@@ -622,7 +622,7 @@ private fun LevelQuestionCard(
 
             Text(
                 text = "›",
-                color = AppPalette.TextMuted,
+                color = color.copy(alpha = 0.75f),
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Light
             )
@@ -682,15 +682,3 @@ private fun levelColor(levelId: String): Color {
     }
 }
 
-private fun difficultyColor(difficulty: String): Color {
-    return when (difficulty.lowercase()) {
-        "lako" -> AppPalette.Green
-        "srednje" -> AppPalette.Orange
-        "teže" -> AppPalette.Purple
-        "easy" -> AppPalette.Green
-        "medium" -> AppPalette.Orange
-        "hard" -> AppPalette.Purple
-        "expert" -> AppPalette.Indigo
-        else -> AppPalette.Blue
-    }
-}

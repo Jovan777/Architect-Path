@@ -474,7 +474,7 @@ private fun LevelCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "${level.topicCount} tipova",
+                        text = "${level.topicCount} tipa",
                         color = AppPalette.TextMuted,
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Medium
@@ -806,7 +806,7 @@ private fun QuestionPreviewCard(
     question: QuestionPreviewUi,
     onClick: () -> Unit
 ) {
-    val accent = difficultyColor(question.difficulty)
+    val accent = levelStyle(question.levelId).accentColor
 
     Card(
         modifier = Modifier
@@ -881,7 +881,7 @@ private fun QuestionPreviewCard(
 
             Text(
                 text = "›",
-                color = AppPalette.TextMuted,
+                color = accent.copy(alpha = 0.75f),
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Light
             )
@@ -1289,18 +1289,6 @@ private fun levelStyle(levelId: String): LevelVisualStyle {
             softColor = Color(0xFFEFF6FF),
             illustration = "?"
         )
-    }
-}
-
-private fun difficultyColor(difficulty: String): Color {
-    return when (difficulty.lowercase()) {
-        "lako" -> AppPalette.Green
-        "srednje" -> AppPalette.Orange
-        "teže" -> AppPalette.Purple
-        "hard" -> AppPalette.Purple
-        "medium" -> AppPalette.Orange
-        "easy" -> AppPalette.Green
-        else -> AppPalette.Blue
     }
 }
 
