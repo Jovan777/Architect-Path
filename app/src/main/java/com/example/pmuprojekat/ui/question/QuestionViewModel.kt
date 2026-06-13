@@ -135,7 +135,11 @@ class QuestionViewModel @Inject constructor(
         val isCodeDecisionChoice =
             step.type == StepType.SINGLE_CHOICE.id && !step.codeBlock.isNullOrBlank()
 
-        if (isCodeDecisionChoice && draft.selectedOptionIds.isNotEmpty()) {
+        if (
+            isCodeDecisionChoice &&
+            draft.selectedOptionIds.isNotEmpty() &&
+            !isDraftReselectionAllowedForCodeChoice(step)
+        ) {
             return
         }
 
@@ -161,6 +165,10 @@ class QuestionViewModel @Inject constructor(
             stepId = step.stepId,
             draft = draft.copy(selectedOptionIds = updatedSelected)
         )
+    }
+
+    private fun isDraftReselectionAllowedForCodeChoice(step: QuestionStepUi): Boolean {
+        return step.stepId.startsWith("J3.") || step.stepId.startsWith("M2.")
     }
 
 

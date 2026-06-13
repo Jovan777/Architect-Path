@@ -184,7 +184,7 @@ object InitialSeedData {
     private fun String.cleanSeedLabel(): String {
         return lines()
             .joinToString(" ") { it.trim() }
-            .replace("â€”", "-")
+            .replace("—", "-")
             .replace(Regex("\\s+"), " ")
             .trim()
     }

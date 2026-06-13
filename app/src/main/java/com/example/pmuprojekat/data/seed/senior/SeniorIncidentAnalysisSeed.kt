@@ -35,7 +35,6 @@ object SeniorIncidentAnalysisSeed {
             aiFollowUp = """
             Zašto je kod ovog incidenta važnije pratiti usklađenost prikaza i checkout-a nego samo prosečno vreme odgovora sistema?
 
-            4. Četvrti tip — Trade-off evaluacija tehničkih odluka
             """.trimIndent(),
             wave = 1,
             orderIndex = 3
@@ -84,7 +83,6 @@ object SeniorIncidentAnalysisSeed {
             aiFollowUp = """
             Zašto je kod telemetrijskih sistema često važnije pravilno tumačiti vreme nastanka događaja nego samo gledati redosled kojim su događaji stigli u sistem?
 
-            4. Četvrti tip — Trade-off evaluacija tehničkih odluka
             """.trimIndent(),
             wave = 2,
             orderIndex = 8
@@ -173,7 +171,6 @@ vratiti prethodnu verziju fraud pravila za pogođeni segment ili smanjiti uticaj
             aiFollowUp = """
             Zašto “fajl je uspešno uploadovan” ne sme automatski da znači i “fajl je bezbedan za otvaranje”? 
 
-            4. Četvrti tip — Trade-off evaluacija tehničkih odluka
             """.trimIndent(),
             wave = 4,
             orderIndex = 18
@@ -220,7 +217,6 @@ uvesti strožu kontrolu verzije / konkurentnosti nad izmenom fonda mesta i zaust
             aiFollowUp = """
             Zašto u sistemu rezervacija nije dovoljno da svaka pojedinačna operacija izgleda ispravna, ako dve istovremene operacije mogu da koriste različitu verziju istog poslovnog stanja?
 
-            4. Četvrti tip — Trade-off evaluacija tehničkih odluka
             """.trimIndent(),
             wave = 5,
             orderIndex = 23
@@ -264,7 +260,6 @@ uvesti strožu kontrolu verzije / konkurentnosti nad izmenom fonda mesta i zaust
             aiFollowUp = """
             Zašto je u multiplayer ekonomiji često skuplje dozvoliti i retko dupliranje nagrada nego povremeno uvesti strožu kontrolu završnog koraka?
 
-            4. Četvrti tip — Trade-off evaluacija tehničkih odluka
             """.trimIndent(),
             wave = 6,
             orderIndex = 28

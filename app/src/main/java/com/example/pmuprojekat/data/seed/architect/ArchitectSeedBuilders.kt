@@ -197,9 +197,9 @@ internal object ArchitectSeedBuilders {
     private fun cleanArchitectCardText(text: String): String {
         return text
             .replace(Regex("\\s+"), " ")
-            .substringBefore("TaÄan redosled:")
-            .substringBefore("TaÄan raspored:")
-            .substringBefore("TaÄan izbor i redosled:")
+            .substringBefore("Tačan redosled:")
+            .substringBefore("Tačan raspored:")
+            .substringBefore("Tačan izbor i redosled:")
             .substringBefore("Ta")
             .substringBefore("________________________________________")
             .trim()

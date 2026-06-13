@@ -916,6 +916,7 @@ private fun ChoiceStepContent(
 ) {
     val isCodeDecisionChoice =
         step.type == StepType.SINGLE_CHOICE.id && !step.codeBlock.isNullOrBlank()
+    val allowsDraftReselection = isDraftReselectionAllowedForCodeChoice(step)
 
     val answerAlreadySelected =
         isCodeDecisionChoice && draft.selectedOptionIds.isNotEmpty()
@@ -935,12 +936,12 @@ private fun ChoiceStepContent(
                 label = optionLabel,
                 text = option.text,
                 selected = selected,
-                enabled = !isLocked && !answerAlreadySelected,
+                enabled = !isLocked && (!answerAlreadySelected || allowsDraftReselection),
                 onClick = { onToggleOption(step, option.optionId) }
             )
         }
 
-        if (answerAlreadySelected && !isLocked) {
+        if (answerAlreadySelected && !isLocked && !allowsDraftReselection) {
             Text(
                 text = "Odgovor je izabran. Možeš da proveriš korak i nastaviš dalje.",
                 color = AppPalette.TextSecondary,
@@ -950,6 +951,10 @@ private fun ChoiceStepContent(
             )
         }
     }
+}
+
+private fun isDraftReselectionAllowedForCodeChoice(step: QuestionStepUi): Boolean {
+    return step.stepId.startsWith("J3.") || step.stepId.startsWith("M2.")
 }
 
 private fun displayableOptionLabel(label: String?): String? {
@@ -1220,7 +1225,7 @@ private fun ArchitectPressureDefenseContent(
 ) {
     val showResultColors = feedback != null
     val pressureTitle = step.title
-        .replace("â€”", "-")
+        .replace("—", "-")
         .lines()
         .joinToString(" ") { it.trim() }
         .trim()
