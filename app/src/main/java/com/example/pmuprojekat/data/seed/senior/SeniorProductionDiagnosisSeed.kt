@@ -74,7 +74,6 @@ object SeniorProductionDiagnosisSeed {
             aiFollowUp = """
             Zašto je opasno gasiti samo simptom dupliranih notifikacija, a ne istražiti granicu između potvrde naplate i finalizacije porudžbine?
 
-            2. Drugi tip — Izbor strategije optimizacije postojećeg sistema
             """.trimIndent(),
             wave = 1,
             orderIndex = 1
@@ -150,7 +149,6 @@ prvo proveriti da li se rezervacija artikla izvršava atomski i da li postoji za
             aiFollowUp = """
             Zašto je kod sistema sa ograničenim zalihama opasno osloniti se samo na trenutno prikazanu količinu, ako rezervacija nije izvedena kao pouzdana i atomska operacija?
 
-            2. Drugi tip — Izbor strategije optimizacije postojećeg sistema
             """.trimIndent(),
             wave = 2,
             orderIndex = 6

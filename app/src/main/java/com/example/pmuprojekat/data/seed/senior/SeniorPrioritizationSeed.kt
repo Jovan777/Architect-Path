@@ -39,7 +39,6 @@ object SeniorPrioritizationSeed {
             aiFollowUp = """
             Zašto povećanje timeout-a često samo produžava patnju sistema umesto da ukloni uzrok zagušenja?
 
-            1. Prvi tip — Analiza simptoma, uzroka i problematične komponente sistema
             """.trimIndent(),
             wave = 1,
             orderIndex = 5
@@ -83,7 +82,6 @@ object SeniorPrioritizationSeed {
             aiFollowUp = """
             Zašto je u sistemu javnog prevoza ponekad bolje prikazati “podatak nije dovoljno svež” nego preciznu ETA vrednost koja deluje uverljivo, ali je zasnovana na zastarelom GPS signalu?
 
-            1. Prvi tip — Analiza simptoma, uzroka i problematične komponente sistema
             """.trimIndent(),
             wave = 2,
             orderIndex = 10
@@ -118,7 +116,6 @@ object SeniorPrioritizationSeed {
             aiFollowUp = """
             Zašto je kod plaćanja opasno prerano prikazati konačan neuspeh, ako sistem još nije uskladio lokalni status sa statusom payment providera?
 
-            1. Prvi tip — Analiza simptoma, uzroka i problematične komponente sistema
             """.trimIndent(),
             wave = 3,
             orderIndex = 15
@@ -157,7 +154,6 @@ object SeniorPrioritizationSeed {
             aiFollowUp = """
             Zašto je kod dispečinga hitnih ekipa opasno nastaviti sa automatskom dodelom ako sistem ne može da dokaže da je podatak o raspoloživosti dovoljno svež? 
 
-            1. Prvi tip — Analiza simptoma, uzroka i problematične komponente sistema
             """.trimIndent(),
             wave = 4,
             orderIndex = 20
@@ -191,7 +187,6 @@ object SeniorPrioritizationSeed {
             AI Provocation (easy)
             Zašto je kod tihih korupcija podataka često opasnije prerano „čistiti“ stanje nego najpre zaustaviti dalje kvarenje i obeležiti šta je nepouzdano?
 
-            1. Prvi tip — Analiza simptoma, uzroka i problematične komponente sistema
             """.trimIndent(),
             interventionCards = listOf(
                 "zaustaviti naredne migracione talase dok se ne razjasni mehanizam nastanka duplikata",
@@ -214,7 +209,6 @@ object SeniorPrioritizationSeed {
             aiFollowUp = """
             Zašto je kod tihih korupcija podataka često opasnije prerano „čistiti“ stanje nego najpre zaustaviti dalje kvarenje i obeležiti šta je nepouzdano?
 
-            1. Prvi tip — Analiza simptoma, uzroka i problematične komponente sistema
             """.trimIndent(),
             wave = 5,
             orderIndex = 25

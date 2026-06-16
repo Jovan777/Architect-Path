@@ -42,7 +42,6 @@ object SeniorOptimizationStrategySeed {
             aiFollowUp = """
             Zašto cache deluje kao prirodan prvi izbor, a ipak u nekim sistemima nije najbolja početna optimizacija?
 
-            3. Treći tip — Incident analiza u produkciji
             """.trimIndent(),
             wave = 1,
             orderIndex = 2
@@ -225,7 +224,6 @@ object SeniorOptimizationStrategySeed {
             ),
             aiFollowUp = """
             Zašto je u ovakvom sistemu opasno optimizovati samo brzinu izvršavanja, a ne i samu strukturu odlučivanja koja određuje koja pravila uopšte ulaze u igru?
-            3. Treći tip — Incident analiza u produkciji
             """.trimIndent(),
             wave = 5,
             orderIndex = 22
@@ -276,7 +274,6 @@ object SeniorOptimizationStrategySeed {
             aiFollowUp = """
             Zašto je kod velikih multiplayer sistema često bolje smanjiti broj nepotrebnih poruka nego samo povećavati infrastrukturu koja ih šalje? 
 
-            3. Treći tip — Incident analiza u produkciji
             """.trimIndent(),
             wave = 6,
             orderIndex = 27

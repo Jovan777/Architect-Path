@@ -48,7 +48,6 @@ object SeniorTradeOffSeed {
             aiFollowUp = """
             Zašto tehnički elegantnije rešenje nije automatski i najadekvatnije ako narušava granicu između kritičnog poslovnog toka i sporednih reakcija?
 
-            5. Peti tip — Prioritizacija intervencije pod pritiskom
             """.trimIndent(),
             wave = 1,
             orderIndex = 4
@@ -93,7 +92,6 @@ object SeniorTradeOffSeed {
             aiFollowUp = """
             Kada je centralizacija prihvatljiva cena, ako sistem mora da obezbedi pravno proverljiv i jedinstven trag poslovnih odluka?
 
-            5. Peti tip — Prioritizacija intervencije pod pritiskom
             """.trimIndent(),
             wave = 2,
             orderIndex = 9
@@ -138,7 +136,6 @@ object SeniorTradeOffSeed {
             aiFollowUp = """
             Zašto read replica često nije samo infrastrukturna odluka, već i odluka o tome koji delovi sistema smeju da žive sa blagim kašnjenjem podataka?
 
-            5. Peti tip — Prioritizacija intervencije pod pritiskom
             """.trimIndent(),
             wave = 3,
             orderIndex = 14
@@ -183,7 +180,6 @@ object SeniorTradeOffSeed {
             aiFollowUp = """
             Zašto samo uvođenje prioriteta u jednom scheduler-u možda nije dovoljno ako različite klase poslova imaju potpuno različite profile trajanja, važnosti i opterećenja?
 
-            5. Peti tip — Prioritizacija intervencije pod pritiskom
             """.trimIndent(),
             wave = 4,
             orderIndex = 19
@@ -228,7 +224,6 @@ object SeniorTradeOffSeed {
             aiFollowUp = """
             Zašto je kod workflow sistema često opasnije „prisilno ujednačiti različite procese“ nego održavati malo više kontrolisane raznolikosti?
 
-            5. Peti tip — Prioritizacija intervencije pod pritiskom
             """.trimIndent(),
             wave = 5,
             orderIndex = 24
@@ -268,7 +263,6 @@ object SeniorTradeOffSeed {
             aiFollowUp = """
             Zašto kod multiplayer igara nije dovoljno izabrati samo najbrži pristup, ako taj pristup smanjuje poverenje u autoritativno stanje meča?
 
-            5. Peti tip — Prioritizacija intervencije pod pritiskom
             """.trimIndent(),
             wave = 6,
             orderIndex = 29
@@ -308,7 +302,6 @@ object SeniorTradeOffSeed {
             aiFollowUp = """
             Zašto kod AI asistenta nad često promenljivim dokumentima nije dovoljno da model “zna stil i terminologiju”, već mora imati pristup aktuelnom i proverljivom izvoru?
 
-            5. Peti tip — Prioritizacija intervencije pod pritiskom
             """.trimIndent(),
             wave = 7,
             orderIndex = 34
