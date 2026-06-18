@@ -1,9 +1,26 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.kotlinCompose)
     alias(libs.plugins.kotlinKapt)
     alias(libs.plugins.hilt)
+}
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use(::load)
+    }
+}
+
+fun localProperty(name: String, defaultValue: String = ""): String {
+    return localProperties.getProperty(name, defaultValue)
+}
+
+fun String.asBuildConfigString(): String {
+    return replace("\\", "\\\\").replace("\"", "\\\"")
 }
 
 android {
@@ -18,6 +35,26 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        /*
+         * Prototype-only configuration: a key exposed through BuildConfig is bundled
+         * inside the APK and can be extracted. For production, use a backend proxy.
+         */
+        buildConfigField(
+            "String",
+            "OPENAI_API_KEY",
+            "\"${localProperty("OPENAI_API_KEY").asBuildConfigString()}\""
+        )
+        buildConfigField(
+            "String",
+            "OPENAI_API_BASE_URL",
+            "\"${localProperty("OPENAI_API_BASE_URL", "https://api.openai.com/v1/chat/completions").asBuildConfigString()}\""
+        )
+        buildConfigField(
+            "String",
+            "OPENAI_MODEL",
+            "\"${localProperty("OPENAI_MODEL", "gpt-4o-mini").asBuildConfigString()}\""
+        )
     }
 
     buildTypes {
@@ -41,6 +78,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

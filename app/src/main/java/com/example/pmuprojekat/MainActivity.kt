@@ -173,6 +173,8 @@ class MainActivity : ComponentActivity() {
                             onRemoveOptionZone = questionViewModel::removeOptionZone,
                             onUpdateBlankAnswer = questionViewModel::updateBlankAnswer,
                             onUpdateFreeText = questionViewModel::updateFreeText,
+                            onUpdateAiFollowUpAnswer = questionViewModel::updateAiFollowUpAnswer,
+                            onRequestAiAnalysis = questionViewModel::requestAiAnalysis,
                             onCheckStep = questionViewModel::checkCurrentStep,
                             onPreviousStep = questionViewModel::goToPreviousStep,
                             onNextStep = questionViewModel::goToNextStep,

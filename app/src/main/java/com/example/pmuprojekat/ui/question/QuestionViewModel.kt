@@ -3,6 +3,11 @@ package com.example.pmuprojekat.ui.question
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.pmuprojekat.ai.AiAnalysisOptionContext
+import com.example.pmuprojekat.ai.AiAnalysisRequest
+import com.example.pmuprojekat.ai.AiAnalysisService
+import com.example.pmuprojekat.ai.AiAnalysisStepContext
+import com.example.pmuprojekat.ai.AiAnalysisZoneContext
 import com.example.pmuprojekat.core.model.StepType
 import com.example.pmuprojekat.core.model.XpCalculator
 import com.example.pmuprojekat.data.local.entity.UserStepAnswerEntity
@@ -22,7 +27,8 @@ import kotlin.math.roundToInt
 
 @HiltViewModel
 class QuestionViewModel @Inject constructor(
-    private val repository: LearningRepository
+    private val repository: LearningRepository,
+    private val aiAnalysisService: AiAnalysisService
 ) : ViewModel() {
 
     private val selectedQuestionId = MutableStateFlow<String?>(null)
@@ -34,6 +40,10 @@ class QuestionViewModel @Inject constructor(
     private val completedQuestionIds = MutableStateFlow<Set<String>>(emptySet())
     private val shuffledOptionIdsByStepId = MutableStateFlow<Map<String, List<String>>>(emptyMap())
     private val newlyAwardedXpByQuestionId = MutableStateFlow<Map<String, Int>>(emptyMap())
+    private val aiFollowUpAnswer = MutableStateFlow("")
+    private val isAiAnalysisLoading = MutableStateFlow(false)
+    private val aiAnalysisText = MutableStateFlow<String?>(null)
+    private val aiAnalysisError = MutableStateFlow<String?>(null)
 
     private data class QuestionRuntimeState(
         val questionWithSteps: QuestionWithSteps?,
@@ -41,6 +51,13 @@ class QuestionViewModel @Inject constructor(
         val drafts: Map<String, StepAnswerDraft>,
         val feedbacks: Map<String, StepFeedbackUi>,
         val answered: Set<String>
+    )
+
+    private data class AiAnalysisRuntimeState(
+        val followUpAnswer: String,
+        val isLoading: Boolean,
+        val text: String?,
+        val error: String?
     )
 
     private val questionFlow = selectedQuestionId.flatMapLatest { questionId ->
@@ -72,15 +89,31 @@ class QuestionViewModel @Inject constructor(
         )
     }
 
+    private val aiAnalysisRuntimeState = combine(
+        aiFollowUpAnswer,
+        isAiAnalysisLoading,
+        aiAnalysisText,
+        aiAnalysisError
+    ) { answer, isLoading, text, error ->
+        AiAnalysisRuntimeState(
+            followUpAnswer = answer,
+            isLoading = isLoading,
+            text = text,
+            error = error
+        )
+    }
+
     val uiState = combine(
         runtimeState,
         correctStepIds,
         completedQuestionIds,
-        newlyAwardedXpByQuestionId
+        newlyAwardedXpByQuestionId,
+        aiAnalysisRuntimeState
     ) { runtime,
         correct,
         completed,
-        newlyAwardedXp ->
+        newlyAwardedXp,
+        aiAnalysis ->
 
         val questionWithSteps = runtime.questionWithSteps
 
@@ -94,7 +127,8 @@ class QuestionViewModel @Inject constructor(
                 answeredStepIds = runtime.answered,
                 correctStepIds = correct,
                 completedQuestionIds = completed,
-                newlyAwardedXpByQuestionId = newlyAwardedXp
+                newlyAwardedXpByQuestionId = newlyAwardedXp,
+                aiAnalysis = aiAnalysis
             )
         }
     }.stateIn(
@@ -121,9 +155,47 @@ class QuestionViewModel @Inject constructor(
         answeredStepIds.value = emptySet()
         correctStepIds.value = emptySet()
         shuffledOptionIdsByStepId.value = emptyMap()
+        aiFollowUpAnswer.value = ""
+        isAiAnalysisLoading.value = false
+        aiAnalysisText.value = null
+        aiAnalysisError.value = null
 
         if (restartAttempt) {
             completedQuestionIds.value = completedQuestionIds.value - questionId
+        }
+    }
+
+    fun updateAiFollowUpAnswer(value: String) {
+        aiFollowUpAnswer.value = value
+        aiAnalysisError.value = null
+    }
+
+    fun requestAiAnalysis() {
+        val state = uiState.value
+        if (!state.isCompleted || isAiAnalysisLoading.value) return
+
+        val request = buildAiAnalysisRequest(state)
+
+        viewModelScope.launch {
+            isAiAnalysisLoading.value = true
+            aiAnalysisError.value = null
+
+            aiAnalysisService.analyze(request)
+                .onSuccess { analysis ->
+                    aiAnalysisText.value = analysis
+                }
+                .onFailure { error ->
+                    aiAnalysisError.value = buildString {
+                        append("AI analiza trenutno nije dostupna.")
+                        val message = error.message
+                        if (!message.isNullOrBlank()) {
+                            append(" ")
+                            append(message)
+                        }
+                    }
+                }
+
+            isAiAnalysisLoading.value = false
         }
     }
 
@@ -697,6 +769,159 @@ class QuestionViewModel @Inject constructor(
         )
     }
 
+    private fun buildAiAnalysisRequest(state: QuestionUiState): AiAnalysisRequest {
+        val drafts = draftsByStepId.value
+        val feedbacks = feedbackByStepId.value
+        val answered = answeredStepIds.value
+        val correct = correctStepIds.value
+
+        return AiAnalysisRequest(
+            questionId = state.questionId.orEmpty(),
+            title = state.title,
+            level = state.level,
+            type = state.type,
+            difficulty = state.difficulty,
+            prompt = state.prompt,
+            scorePercent = state.scorePercent,
+            aiFollowUpQuestion = state.aiFollowUp,
+            aiFollowUpAnswer = aiFollowUpAnswer.value,
+            steps = state.steps.map { step ->
+                val draft = drafts[step.stepId] ?: defaultDraftForStep(step)
+                val feedback = feedbacks[step.stepId]
+                AiAnalysisStepContext(
+                    stepId = step.stepId,
+                    type = step.type,
+                    title = step.title,
+                    instruction = step.instruction,
+                    codeBlock = step.codeBlock,
+                    options = step.options.map { option ->
+                        AiAnalysisOptionContext(
+                            optionId = option.optionId,
+                            label = option.label,
+                            text = option.text,
+                            isCorrect = option.isCorrect,
+                            correctOrder = option.correctOrder,
+                            correctZoneId = option.correctZoneId,
+                            isDistractor = option.isDistractor
+                        )
+                    },
+                    zones = step.zones.map { zone ->
+                        AiAnalysisZoneContext(
+                            zoneId = zone.zoneId,
+                            title = zone.title
+                        )
+                    },
+                    userAnswer = describeUserAnswer(step, draft),
+                    correctAnswer = describeCorrectAnswer(step),
+                    feedback = feedback?.let { "${it.title}: ${it.message}" }
+                        ?: if (answered.contains(step.stepId)) {
+                            "Korak je oznacen kao proveren, ali detaljan feedback nije dostupan."
+                        } else {
+                            "Korak nije proveren."
+                        },
+                    architecturalRelevance = describeArchitecturalRelevance(step),
+                    wasAnswered = answered.contains(step.stepId),
+                    wasCorrect = correct.contains(step.stepId)
+                )
+            }
+        )
+    }
+
+    private fun describeUserAnswer(step: QuestionStepUi, draft: StepAnswerDraft): String {
+        val selected = draft.selectedOptionIds.mapNotNull { selectedId ->
+            step.options.firstOrNull { it.optionId == selectedId }?.optionSummary()
+        }
+
+        val ordered = draft.orderedOptionIds.mapIndexedNotNull { index, optionId ->
+            step.options.firstOrNull { it.optionId == optionId }?.let { option ->
+                "${index + 1}. ${option.optionSummary()}"
+            }
+        }
+
+        val excluded = draft.excludedOptionIds.mapNotNull { optionId ->
+            step.options.firstOrNull { it.optionId == optionId }?.optionSummary()
+        }
+
+        val mapped = draft.mappedZoneByOptionId.mapNotNull { (optionId, zoneId) ->
+            val option = step.options.firstOrNull { it.optionId == optionId }
+            val zone = step.zones.firstOrNull { it.zoneId == zoneId }
+            if (option != null && zone != null) {
+                "${option.optionSummary()} -> ${zone.title}"
+            } else {
+                null
+            }
+        }
+
+        val blanks = draft.blankAnswersByBlankId.mapNotNull { (blankId, value) ->
+            val blank = step.blanks.firstOrNull { it.blankId == blankId }
+            blank?.let { "${it.placeholder}: $value" }
+        }
+
+        return listOf(
+            selected.takeIf { it.isNotEmpty() }?.joinToString(prefix = "Selected: "),
+            ordered.takeIf { it.isNotEmpty() }?.joinToString(separator = "; ", prefix = "Order: "),
+            excluded.takeIf { it.isNotEmpty() }?.joinToString(prefix = "Excluded: "),
+            mapped.takeIf { it.isNotEmpty() }?.joinToString(separator = "; ", prefix = "Mapped: "),
+            blanks.takeIf { it.isNotEmpty() }?.joinToString(separator = "; ", prefix = "Blanks: "),
+            draft.freeTextAnswer.takeIf { it.isNotBlank() }?.let { "Free text: $it" }
+        )
+            .filterNotNull()
+            .joinToString(separator = " | ")
+            .ifBlank { "No answer recorded." }
+    }
+
+    private fun describeCorrectAnswer(step: QuestionStepUi): String {
+        val correctOptions = step.options
+            .filter { it.isCorrect }
+            .map { it.optionSummary() }
+
+        val expectedOrder = step.options
+            .filter { it.correctOrder != null && !it.isDistractor }
+            .sortedBy { it.correctOrder }
+            .mapIndexed { index, option -> "${index + 1}. ${option.optionSummary()}" }
+
+        val expectedMappings = step.options
+            .filter { it.correctZoneId != null && !it.isDistractor }
+            .mapNotNull { option ->
+                val zone = step.zones.firstOrNull { it.zoneId == option.correctZoneId }
+                zone?.let { "${option.optionSummary()} -> ${it.title}" }
+            }
+
+        val distractors = step.options
+            .filter { it.isDistractor }
+            .map { it.optionSummary() }
+
+        val blanks = step.blanks.map { blank ->
+            "${blank.placeholder}: ${blank.correctValue}"
+        }
+
+        return listOf(
+            correctOptions.takeIf { it.isNotEmpty() }?.joinToString(prefix = "Correct option(s): "),
+            expectedOrder.takeIf { it.isNotEmpty() }?.joinToString(separator = "; ", prefix = "Expected order: "),
+            expectedMappings.takeIf { it.isNotEmpty() }?.joinToString(separator = "; ", prefix = "Expected mapping: "),
+            distractors.takeIf { it.isNotEmpty() }?.joinToString(prefix = "Distractors/traps: "),
+            blanks.takeIf { it.isNotEmpty() }?.joinToString(separator = "; ", prefix = "Correct blanks: "),
+            step.explanation?.takeIf { it.isNotBlank() }?.let { "Explanation: $it" }
+        )
+            .filterNotNull()
+            .joinToString(separator = " | ")
+            .ifBlank { "No explicit correct answer metadata available." }
+    }
+
+    private fun describeArchitecturalRelevance(step: QuestionStepUi): String {
+        return step.explanation
+            ?.takeIf { it.isNotBlank() }
+            ?: buildString {
+                append("Use this step's full instruction, options, zones and expected answer as evidence. ")
+                append("Connect feedback only to visible task concepts; do not infer a misconception without support.")
+            }
+    }
+
+    private fun StepOptionUi.optionSummary(): String {
+        val labelPrefix = label?.takeIf { it.isNotBlank() }?.let { "$it. " }.orEmpty()
+        return "$labelPrefix$text"
+    }
+
     private fun collectAutoEvaluatedSteps(state: QuestionUiState): List<QuestionStepUi> {
         return state.steps.filter { it.isAutoEvaluated }
     }
@@ -708,7 +933,8 @@ class QuestionViewModel @Inject constructor(
         answeredStepIds: Set<String>,
         correctStepIds: Set<String>,
         completedQuestionIds: Set<String>,
-        newlyAwardedXpByQuestionId: Map<String, Int>
+        newlyAwardedXpByQuestionId: Map<String, Int>,
+        aiAnalysis: AiAnalysisRuntimeState
     ): QuestionUiState {
         val sortedSteps = steps
             .sortedBy { it.step.stepOrder }
@@ -807,7 +1033,11 @@ class QuestionViewModel @Inject constructor(
             correctStepIds = correctStepIds,
             isCompleted = completedQuestionIds.contains(questionId),
             scorePercent = score,
-            xpReward = xpReward
+            xpReward = xpReward,
+            aiFollowUpAnswer = aiAnalysis.followUpAnswer,
+            isAiAnalysisLoading = aiAnalysis.isLoading,
+            aiAnalysisText = aiAnalysis.text,
+            aiAnalysisError = aiAnalysis.error
         )
     }
 

@@ -36,6 +36,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -104,6 +105,8 @@ fun QuestionScreen(
     onRemoveOptionZone: (QuestionStepUi, String) -> Unit,
     onUpdateBlankAnswer: (QuestionStepUi, String, String) -> Unit,
     onUpdateFreeText: (QuestionStepUi, String) -> Unit,
+    onUpdateAiFollowUpAnswer: (String) -> Unit,
+    onRequestAiAnalysis: () -> Unit,
     onCheckStep: () -> Unit,
     onPreviousStep: () -> Unit,
     onNextStep: () -> Unit,
@@ -133,7 +136,9 @@ fun QuestionScreen(
                     hasNextQuestion = hasNextQuestion,
                     onNextQuestion = onNextQuestion,
                     onBack = onBackToQuestionList,
-                    onRetryQuestion =  onRetryQuestion
+                    onRetryQuestion = onRetryQuestion,
+                    onUpdateAiFollowUpAnswer = onUpdateAiFollowUpAnswer,
+                    onRequestAiAnalysis = onRequestAiAnalysis
                 )
             } else {
                 Column(
@@ -6495,7 +6500,9 @@ private fun QuestionResultScreen(
     hasNextQuestion: Boolean,
     onNextQuestion: () -> Unit,
     onRetryQuestion: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onUpdateAiFollowUpAnswer: (String) -> Unit,
+    onRequestAiAnalysis: () -> Unit
 ) {
     val resultVisual = remember(uiState.scorePercent) {
         questionResultVisual(uiState.scorePercent)
@@ -6599,6 +6606,92 @@ private fun QuestionResultScreen(
                         lineHeight = 22.sp,
                         fontWeight = FontWeight.SemiBold
                     )
+
+                    OutlinedTextField(
+                        value = uiState.aiFollowUpAnswer,
+                        onValueChange = onUpdateAiFollowUpAnswer,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 112.dp),
+                        label = {
+                            Text("Tvoj odgovor")
+                        },
+                        placeholder = {
+                            Text("Objasni kako razmisljas o ovom problemu...")
+                        },
+                        enabled = !uiState.isAiAnalysisLoading,
+                        minLines = 4,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AppPalette.Blue,
+                            unfocusedBorderColor = AppPalette.Border,
+                            focusedLabelColor = AppPalette.Blue,
+                            cursorColor = AppPalette.Blue
+                        ),
+                        shape = RoundedCornerShape(18.dp)
+                    )
+
+                    Button(
+                        onClick = onRequestAiAnalysis,
+                        enabled = !uiState.isAiAnalysisLoading,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppPalette.Indigo,
+                            contentColor = Color.White,
+                            disabledContainerColor = Color(0xFFCBD5E1),
+                            disabledContentColor = Color.White
+                        )
+                    ) {
+                        if (uiState.isAiAnalysisLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text("Analiza je u toku")
+                        } else {
+                            Text(
+                                text = "Dobij mentorsku analizu",
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    if (!uiState.aiAnalysisError.isNullOrBlank()) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color(0xFFFFF7ED),
+                            border = BorderStroke(1.dp, Color(0xFFFDBA74))
+                        ) {
+                            Text(
+                                text = uiState.aiAnalysisError,
+                                modifier = Modifier.padding(14.dp),
+                                color = Color(0xFF9A3412),
+                                fontSize = 14.sp,
+                                lineHeight = 20.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    if (!uiState.aiAnalysisText.isNullOrBlank()) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, AppPalette.Border)
+                        ) {
+                            Text(
+                                text = uiState.aiAnalysisText,
+                                modifier = Modifier.padding(16.dp),
+                                color = AppPalette.TextPrimary,
+                                fontSize = 14.sp,
+                                lineHeight = 21.sp
+                            )
+                        }
+                    }
                 }
             }
         }

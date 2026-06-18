@@ -28,7 +28,12 @@ data class QuestionUiState(
 
     val isCompleted: Boolean = false,
     val scorePercent: Int = 0,
-    val xpReward: Int = 0
+    val xpReward: Int = 0,
+
+    val aiFollowUpAnswer: String = "",
+    val isAiAnalysisLoading: Boolean = false,
+    val aiAnalysisText: String? = null,
+    val aiAnalysisError: String? = null
 ) {
     val canGoPrevious: Boolean
         get() = currentStepIndex > 0 && !isCompleted
