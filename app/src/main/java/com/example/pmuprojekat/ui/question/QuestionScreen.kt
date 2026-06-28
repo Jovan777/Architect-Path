@@ -11,6 +11,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,10 +29,12 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -55,8 +59,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -692,7 +698,7 @@ private fun StepCard(
                 )
             }
 
-            if (!step.codeBlock.isNullOrBlank()) {
+            if (!step.codeBlock.isNullOrBlank() && !isJuniorInlineCodeCompletionStep(step)) {
                 CodeBlock(code = step.codeBlock)
             }
 
@@ -889,6 +895,7 @@ private fun StepCard(
                     CodeCompletionStepContent(
                         step = step,
                         draft = draft,
+                        feedback = feedback,
                         isLocked = isLocked,
                         onUpdateBlankAnswer = onUpdateBlankAnswer
                     )
@@ -6224,6 +6231,37 @@ private fun solidInputColors() = OutlinedTextFieldDefaults.colors(
 private fun CodeCompletionStepContent(
     step: QuestionStepUi,
     draft: StepAnswerDraft,
+    feedback: StepFeedbackUi?,
+    isLocked: Boolean,
+    onUpdateBlankAnswer: (QuestionStepUi, String, String) -> Unit
+) {
+    if (isJuniorInlineCodeCompletionStep(step) && !step.codeBlock.isNullOrBlank()) {
+        InlineCodeCompletionBlock(
+            step = step,
+            draft = draft,
+            feedback = feedback,
+            isLocked = isLocked,
+            onUpdateBlankAnswer = onUpdateBlankAnswer
+        )
+        return
+    }
+
+    CodeCompletionFormFields(
+        step = step,
+        draft = draft,
+        isLocked = isLocked,
+        onUpdateBlankAnswer = onUpdateBlankAnswer
+    )
+}
+
+private fun isJuniorInlineCodeCompletionStep(step: QuestionStepUi): Boolean {
+    return step.type == StepType.CODE_COMPLETION.id && step.stepId.startsWith("J1.")
+}
+
+@Composable
+private fun CodeCompletionFormFields(
+    step: QuestionStepUi,
+    draft: StepAnswerDraft,
     isLocked: Boolean,
     onUpdateBlankAnswer: (QuestionStepUi, String, String) -> Unit
 ) {
@@ -6254,6 +6292,199 @@ private fun CodeCompletionStepContent(
                 colors = solidInputColors()
             )
         }
+    }
+}
+
+@Composable
+private fun InlineCodeCompletionBlock(
+    step: QuestionStepUi,
+    draft: StepAnswerDraft,
+    feedback: StepFeedbackUi?,
+    isLocked: Boolean,
+    onUpdateBlankAnswer: (QuestionStepUi, String, String) -> Unit
+) {
+    val lines = remember(step.codeBlock, step.blanks) {
+        inlineCodeLines(
+            code = step.codeBlock.orEmpty(),
+            blanks = step.blanks.sortedBy { it.blankOrder }
+        )
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = AppPalette.Navy
+    ) {
+        Column(
+            modifier = Modifier
+                .horizontalScroll(rememberScrollState())
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            lines.forEachIndexed { lineIndex, tokens ->
+                Row(
+                    modifier = Modifier.heightIn(min = 22.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (tokens.isEmpty()) {
+                        CodeStaticText(text = " ")
+                    } else {
+                        tokens.forEachIndexed { tokenIndex, token ->
+                            key(lineIndex, tokenIndex) {
+                                when (token) {
+                                    is InlineCodeToken.Static -> {
+                                        CodeStaticText(text = token.text)
+                                    }
+
+                                    is InlineCodeToken.Blank -> {
+                                        val value = draft.blankAnswersByBlankId[token.blank.blankId].orEmpty()
+                                        val isChecked = feedback != null
+                                        val isCorrect = value.trim() == token.blank.correctValue.trim()
+
+                                        InlineCodeBlankField(
+                                            value = value,
+                                            correctValue = token.blank.correctValue,
+                                            isEnabled = !isLocked,
+                                            isChecked = isChecked,
+                                            isCorrect = isCorrect,
+                                            onValueChange = { nextValue ->
+                                                onUpdateBlankAnswer(step, token.blank.blankId, nextValue)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CodeStaticText(text: String) {
+    Text(
+        text = text,
+        color = Color(0xFFE2E8F0),
+        fontSize = 12.sp,
+        lineHeight = 18.sp,
+        fontFamily = FontFamily.Monospace
+    )
+}
+
+@Composable
+private fun InlineCodeBlankField(
+    value: String,
+    correctValue: String,
+    isEnabled: Boolean,
+    isChecked: Boolean,
+    isCorrect: Boolean,
+    onValueChange: (String) -> Unit
+) {
+    val interactionSource = remember {
+        MutableInteractionSource()
+    }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+
+    val borderColor = when {
+        isChecked && isCorrect -> AppPalette.Green
+        isChecked && !isCorrect -> Color(0xFFE11D48)
+        isFocused -> AppPalette.Blue
+        else -> Color(0xFF64748B)
+    }
+    val background = when {
+        isChecked && isCorrect -> Color(0xFF064E3B)
+        isChecked && !isCorrect -> Color(0xFF4C0519)
+        else -> Color(0xFF1E293B)
+    }
+    val maxChars = maxOf(value.length, correctValue.length, 3)
+    val fieldWidth = ((maxChars * 8) + 28).coerceIn(70, 180).dp
+
+    BasicTextField(
+        modifier = Modifier
+            .widthIn(min = 70.dp, max = 180.dp)
+            .width(fieldWidth),
+        value = value,
+        onValueChange = onValueChange,
+        enabled = isEnabled,
+        singleLine = true,
+        interactionSource = interactionSource,
+        cursorBrush = SolidColor(AppPalette.Blue),
+        textStyle = TextStyle(
+            color = Color.White,
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.SemiBold
+        ),
+        decorationBox = { innerTextField ->
+            Surface(
+                shape = RoundedCornerShape(7.dp),
+                color = background,
+                border = BorderStroke(1.dp, borderColor)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .heightIn(min = 24.dp)
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (value.isBlank()) {
+                        Text(
+                            text = "...",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    innerTextField()
+                }
+            }
+        }
+    )
+}
+
+private sealed class InlineCodeToken {
+    data class Static(val text: String) : InlineCodeToken()
+    data class Blank(val blank: CodeBlankUi) : InlineCodeToken()
+}
+
+private fun inlineCodeLines(
+    code: String,
+    blanks: List<CodeBlankUi>
+): List<List<InlineCodeToken>> {
+    val blankPattern = Regex("_{3,}")
+    var blankIndex = 0
+
+    return code.trimIndent().lines().map { line ->
+        val tokens = mutableListOf<InlineCodeToken>()
+        var segmentStart = 0
+
+        blankPattern.findAll(line).forEach { match ->
+            if (match.range.first > segmentStart) {
+                tokens += InlineCodeToken.Static(
+                    text = line.substring(segmentStart, match.range.first)
+                )
+            }
+
+            val blank = blanks.getOrNull(blankIndex)
+            if (blank != null) {
+                tokens += InlineCodeToken.Blank(blank)
+                blankIndex += 1
+            } else {
+                tokens += InlineCodeToken.Static(match.value)
+            }
+
+            segmentStart = match.range.last + 1
+        }
+
+        if (segmentStart < line.length) {
+            tokens += InlineCodeToken.Static(line.substring(segmentStart))
+        }
+
+        tokens
     }
 }
 
