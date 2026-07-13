@@ -55,6 +55,11 @@ android {
             "OPENAI_MODEL",
             "\"${localProperty("OPENAI_MODEL", "gpt-4o-mini").asBuildConfigString()}\""
         )
+        buildConfigField(
+            "String",
+            "OPENAI_VISION_MODEL",
+            "\"${localProperty("OPENAI_VISION_MODEL", localProperty("OPENAI_MODEL", "gpt-4o-mini")).asBuildConfigString()}\""
+        )
     }
 
     buildTypes {

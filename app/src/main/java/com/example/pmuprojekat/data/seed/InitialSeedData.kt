@@ -24,6 +24,7 @@ import com.example.pmuprojekat.data.seed.architect.ArchitectCompositionSeed
 import com.example.pmuprojekat.data.seed.architect.ArchitectExtensionSeed
 import com.example.pmuprojekat.data.seed.architect.ArchitectReviewSeed
 import com.example.pmuprojekat.data.seed.architect.ArchitectScalingSeed
+import com.example.pmuprojekat.data.seed.architect.ArchitectSketchSeed
 import com.example.pmuprojekat.data.seed.architect.ArchitectStyleSeed
 
 object InitialSeedData {
@@ -56,6 +57,7 @@ object InitialSeedData {
             addAll(ArchitectCompositionSeed.questions)
             addAll(ArchitectScalingSeed.questions)
             addAll(ArchitectCompromiseSeed.questions.map { it.asArchitectType6Workspace() })
+            addAll(ArchitectSketchSeed.questions)
         }
     }
 

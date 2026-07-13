@@ -1,6 +1,14 @@
 package com.example.pmuprojekat.ui.question
 
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -16,6 +24,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -53,7 +62,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +72,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -92,7 +104,15 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import com.example.pmuprojekat.core.model.QuestionType
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+import java.io.File
 
 @Composable
 fun QuestionScreen(
@@ -113,6 +133,8 @@ fun QuestionScreen(
     onUpdateFreeText: (QuestionStepUi, String) -> Unit,
     onUpdateAiFollowUpAnswer: (String) -> Unit,
     onRequestAiAnalysis: () -> Unit,
+    onRequestSketchAnalysis: (ByteArray, String) -> Unit,
+    onClearSketchAnalysis: () -> Unit,
     onCheckStep: () -> Unit,
     onPreviousStep: () -> Unit,
     onNextStep: () -> Unit,
@@ -136,6 +158,14 @@ fun QuestionScreen(
         ) {
             if (uiState.isLoading) {
                 LoadingQuestionState()
+            } else if (isArchitectSketchQuestion(uiState)) {
+                ArchitectSketchQuestionScreen(
+                    uiState = uiState,
+                    innerPadding = innerPadding,
+                    onBack = onBack,
+                    onRequestSketchAnalysis = onRequestSketchAnalysis,
+                    onClearSketchAnalysis = onClearSketchAnalysis
+                )
             } else if (uiState.isCompleted) {
                 QuestionResultScreen(
                     uiState = uiState,
@@ -203,6 +233,431 @@ fun QuestionScreen(
                 }
             }
         }
+    }
+}
+
+private fun isArchitectSketchQuestion(uiState: QuestionUiState): Boolean {
+    return uiState.type == QuestionType.ARCHITECTURE_SKETCH.id
+}
+
+@Composable
+private fun ArchitectSketchQuestionScreen(
+    uiState: QuestionUiState,
+    innerPadding: PaddingValues,
+    onBack: () -> Unit,
+    onRequestSketchAnalysis: (ByteArray, String) -> Unit,
+    onClearSketchAnalysis: () -> Unit
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val step = uiState.steps.firstOrNull()
+    var pendingPhotoUri by remember(uiState.questionId) { mutableStateOf<Uri?>(null) }
+    var capturedPhotoUri by remember(uiState.questionId) { mutableStateOf<Uri?>(null) }
+    var cameraMessage by remember(uiState.questionId) { mutableStateOf<String?>(null) }
+
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        val uri = pendingPhotoUri
+        if (success && uri != null) {
+            capturedPhotoUri = uri
+            cameraMessage = null
+            onClearSketchAnalysis()
+        } else {
+            cameraMessage = "Fotografisanje je otkazano."
+        }
+        pendingPhotoUri = null
+    }
+
+    fun launchCameraCapture() {
+        val uri = runCatching { createSketchImageUri(context) }.getOrNull()
+        if (uri == null) {
+            cameraMessage = "Nije moguće pripremiti privremenu datoteku za fotografiju."
+            return
+        }
+
+        pendingPhotoUri = uri
+        takePictureLauncher.launch(uri)
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            launchCameraCapture()
+        } else {
+            cameraMessage = "Dozvola za kameru nije odobrena. Možeš je naknadno uključiti u podešavanjima aplikacije."
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+            .padding(
+                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
+                bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            )
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 18.dp)
+            .padding(top = 12.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        QuestionHeader(
+            uiState = uiState,
+            onBack = onBack
+        )
+
+        PromptCard(
+            title = "Opis sistema",
+            prompt = uiState.prompt,
+            diagramImageName = null
+        )
+
+        if (step != null) {
+            ArchitectSketchInstructionCard(step = step)
+        }
+
+        ArchitectSketchCameraCard(
+            capturedPhotoUri = capturedPhotoUri,
+            cameraMessage = cameraMessage,
+            isLoading = uiState.isSketchAnalysisLoading,
+            analysisText = uiState.sketchAnalysisText,
+            analysisError = uiState.sketchAnalysisError,
+            onCaptureClick = {
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                    PackageManager.PERMISSION_GRANTED
+                ) {
+                    launchCameraCapture()
+                } else {
+                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+            },
+            onSubmitClick = { uri ->
+                coroutineScope.launch {
+                    cameraMessage = null
+                    val imageBytes = withContext(Dispatchers.IO) {
+                        readSketchImageBytes(context, uri)
+                    }
+
+                    if (imageBytes == null) {
+                        cameraMessage = "Fotografija nije dostupna. Probaj ponovo da fotografišeš crtež."
+                    } else {
+                        onRequestSketchAnalysis(imageBytes, "image/jpeg")
+                    }
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun ArchitectSketchInstructionCard(
+    step: QuestionStepUi
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        border = BorderStroke(1.dp, AppPalette.Border)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Zadatak za korisnika",
+                    color = AppPalette.Blue,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    text = step.instruction,
+                    color = AppPalette.TextPrimary,
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFFF8FAFC),
+                border = BorderStroke(1.dp, AppPalette.Border)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Na crtežu označi",
+                        color = AppPalette.TextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        text = step.codeBlock.orEmpty(),
+                        color = AppPalette.TextSecondary,
+                        fontSize = 13.sp,
+                        lineHeight = 20.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArchitectSketchCameraCard(
+    capturedPhotoUri: Uri?,
+    cameraMessage: String?,
+    isLoading: Boolean,
+    analysisText: String?,
+    analysisError: String?,
+    onCaptureClick: () -> Unit,
+    onSubmitClick: (Uri) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        border = BorderStroke(1.dp, AppPalette.Border)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Fotografija skice",
+                    color = AppPalette.TextPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    text = "Nacrtaj arhitekturu na papiru, zatim fotografiši crtež i pošalji ga na kratku AI mentorsku analizu.",
+                    color = AppPalette.TextSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp
+                )
+            }
+
+            if (capturedPhotoUri != null) {
+                CapturedSketchPreview(uri = capturedPhotoUri)
+            } else {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    shape = RoundedCornerShape(22.dp),
+                    color = Color(0xFFF8FAFC),
+                    border = BorderStroke(1.dp, AppPalette.Border)
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Još nema fotografije crteža.",
+                            color = AppPalette.TextSecondary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            if (!cameraMessage.isNullOrBlank()) {
+                Text(
+                    text = cameraMessage,
+                    color = Color(0xFFB45309),
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                onClick = onCaptureClick,
+                enabled = !isLoading,
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AppPalette.Blue)
+            ) {
+                Text(
+                    text = if (capturedPhotoUri == null) "Fotografiši crtež" else "Ponovi fotografisanje",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+
+            if (capturedPhotoUri != null) {
+                OutlinedButton(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    onClick = { onSubmitClick(capturedPhotoUri) },
+                    enabled = !isLoading,
+                    shape = RoundedCornerShape(18.dp),
+                    border = BorderStroke(1.2.dp, AppPalette.Blue)
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = AppPalette.Blue
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                    }
+                    Text(
+                        text = if (isLoading) "AI analizira skicu..." else "Pošalji na AI analizu",
+                        color = AppPalette.Blue,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+
+            if (!analysisError.isNullOrBlank()) {
+                FeedbackCard(
+                    feedback = StepFeedbackUi(
+                        isCorrect = false,
+                        title = "AI analiza nije uspela",
+                        message = analysisError
+                    )
+                )
+            }
+
+            if (!analysisText.isNullOrBlank()) {
+                ArchitectSketchAnalysisCard(text = analysisText)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CapturedSketchPreview(uri: Uri) {
+    val context = LocalContext.current
+    val previewBitmap by produceState<Bitmap?>(initialValue = null, uri) {
+        value = withContext(Dispatchers.IO) {
+            loadPreviewBitmap(context, uri)
+        }
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 220.dp, max = 340.dp),
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0xFFF8FAFC),
+        border = BorderStroke(1.dp, AppPalette.Border)
+    ) {
+        if (previewBitmap != null) {
+            Image(
+                bitmap = previewBitmap!!.asImageBitmap(),
+                contentDescription = "Pregled fotografisanog crteža",
+                modifier = Modifier.fillMaxWidth(),
+                contentScale = ContentScale.Fit
+            )
+        } else {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.5.dp,
+                    color = AppPalette.Blue
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArchitectSketchAnalysisCard(text: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0xFFEFF6FF),
+        border = BorderStroke(1.dp, Color(0xFFBFDBFE))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "AI mentorska analiza",
+                color = AppPalette.Blue,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                text = text,
+                color = AppPalette.TextPrimary,
+                fontSize = 14.sp,
+                lineHeight = 21.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+private fun createSketchImageUri(context: Context): Uri {
+    val directory = File(context.cacheDir, "sketch_images").apply {
+        mkdirs()
+    }
+    val file = File.createTempFile("a7_sketch_", ".jpg", directory)
+    return FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file
+    )
+}
+
+private fun loadPreviewBitmap(context: Context, uri: Uri): Bitmap? {
+    val bytes = context.contentResolver.openInputStream(uri)?.use { input ->
+        input.readBytes()
+    } ?: return null
+
+    return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+}
+
+private fun readSketchImageBytes(context: Context, uri: Uri): ByteArray? {
+    val sourceBytes = context.contentResolver.openInputStream(uri)?.use { input ->
+        input.readBytes()
+    } ?: return null
+
+    val bitmap = BitmapFactory.decodeByteArray(sourceBytes, 0, sourceBytes.size)
+        ?: return sourceBytes
+
+    val maxSide = maxOf(bitmap.width, bitmap.height)
+    val scale = if (maxSide > 1600) 1600f / maxSide.toFloat() else 1f
+    val uploadBitmap = if (scale < 1f) {
+        Bitmap.createScaledBitmap(
+            bitmap,
+            (bitmap.width * scale).roundToInt().coerceAtLeast(1),
+            (bitmap.height * scale).roundToInt().coerceAtLeast(1),
+            true
+        )
+    } else {
+        bitmap
+    }
+
+    return ByteArrayOutputStream().use { output ->
+        uploadBitmap.compress(Bitmap.CompressFormat.JPEG, 88, output)
+        output.toByteArray()
     }
 }
 

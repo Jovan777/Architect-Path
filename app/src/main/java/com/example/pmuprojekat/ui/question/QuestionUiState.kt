@@ -33,7 +33,11 @@ data class QuestionUiState(
     val aiFollowUpAnswer: String = "",
     val isAiAnalysisLoading: Boolean = false,
     val aiAnalysisText: String? = null,
-    val aiAnalysisError: String? = null
+    val aiAnalysisError: String? = null,
+
+    val isSketchAnalysisLoading: Boolean = false,
+    val sketchAnalysisText: String? = null,
+    val sketchAnalysisError: String? = null
 ) {
     val canGoPrevious: Boolean
         get() = currentStepIndex > 0 && !isCompleted

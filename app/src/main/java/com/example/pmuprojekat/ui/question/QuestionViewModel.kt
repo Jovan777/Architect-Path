@@ -8,6 +8,8 @@ import com.example.pmuprojekat.ai.AiAnalysisRequest
 import com.example.pmuprojekat.ai.AiAnalysisService
 import com.example.pmuprojekat.ai.AiAnalysisStepContext
 import com.example.pmuprojekat.ai.AiAnalysisZoneContext
+import com.example.pmuprojekat.ai.AiSketchAnalysisRequest
+import com.example.pmuprojekat.ai.AiSketchAnalysisService
 import com.example.pmuprojekat.core.model.StepType
 import com.example.pmuprojekat.core.model.XpCalculator
 import com.example.pmuprojekat.data.local.entity.UserStepAnswerEntity
@@ -28,7 +30,8 @@ import kotlin.math.roundToInt
 @HiltViewModel
 class QuestionViewModel @Inject constructor(
     private val repository: LearningRepository,
-    private val aiAnalysisService: AiAnalysisService
+    private val aiAnalysisService: AiAnalysisService,
+    private val aiSketchAnalysisService: AiSketchAnalysisService
 ) : ViewModel() {
 
     private val selectedQuestionId = MutableStateFlow<String?>(null)
@@ -44,6 +47,9 @@ class QuestionViewModel @Inject constructor(
     private val isAiAnalysisLoading = MutableStateFlow(false)
     private val aiAnalysisText = MutableStateFlow<String?>(null)
     private val aiAnalysisError = MutableStateFlow<String?>(null)
+    private val isSketchAnalysisLoading = MutableStateFlow(false)
+    private val sketchAnalysisText = MutableStateFlow<String?>(null)
+    private val sketchAnalysisError = MutableStateFlow<String?>(null)
 
     private data class QuestionRuntimeState(
         val questionWithSteps: QuestionWithSteps?,
@@ -55,6 +61,22 @@ class QuestionViewModel @Inject constructor(
 
     private data class AiAnalysisRuntimeState(
         val followUpAnswer: String,
+        val isLoading: Boolean,
+        val text: String?,
+        val error: String?,
+        val isSketchLoading: Boolean,
+        val sketchText: String?,
+        val sketchError: String?
+    )
+
+    private data class TextAiRuntimeState(
+        val followUpAnswer: String,
+        val isLoading: Boolean,
+        val text: String?,
+        val error: String?
+    )
+
+    private data class SketchAiRuntimeState(
         val isLoading: Boolean,
         val text: String?,
         val error: String?
@@ -89,17 +111,44 @@ class QuestionViewModel @Inject constructor(
         )
     }
 
-    private val aiAnalysisRuntimeState = combine(
+    private val textAiRuntimeState = combine(
         aiFollowUpAnswer,
         isAiAnalysisLoading,
         aiAnalysisText,
         aiAnalysisError
     ) { answer, isLoading, text, error ->
-        AiAnalysisRuntimeState(
+        TextAiRuntimeState(
             followUpAnswer = answer,
             isLoading = isLoading,
             text = text,
             error = error
+        )
+    }
+
+    private val sketchAiRuntimeState = combine(
+        isSketchAnalysisLoading,
+        sketchAnalysisText,
+        sketchAnalysisError
+    ) { isLoading, text, error ->
+        SketchAiRuntimeState(
+            isLoading = isLoading,
+            text = text,
+            error = error
+        )
+    }
+
+    private val aiAnalysisRuntimeState = combine(
+        textAiRuntimeState,
+        sketchAiRuntimeState
+    ) { textAi, sketchAi ->
+        AiAnalysisRuntimeState(
+            followUpAnswer = textAi.followUpAnswer,
+            isLoading = textAi.isLoading,
+            text = textAi.text,
+            error = textAi.error,
+            isSketchLoading = sketchAi.isLoading,
+            sketchText = sketchAi.text,
+            sketchError = sketchAi.error
         )
     }
 
@@ -159,6 +208,9 @@ class QuestionViewModel @Inject constructor(
         isAiAnalysisLoading.value = false
         aiAnalysisText.value = null
         aiAnalysisError.value = null
+        isSketchAnalysisLoading.value = false
+        sketchAnalysisText.value = null
+        sketchAnalysisError.value = null
 
         if (restartAttempt) {
             completedQuestionIds.value = completedQuestionIds.value - questionId
@@ -196,6 +248,82 @@ class QuestionViewModel @Inject constructor(
                 }
 
             isAiAnalysisLoading.value = false
+        }
+    }
+
+    fun clearSketchAnalysis() {
+        sketchAnalysisText.value = null
+        sketchAnalysisError.value = null
+    }
+
+    fun requestSketchAnalysis(imageBytes: ByteArray, imageMimeType: String) {
+        val state = uiState.value
+        val questionId = state.questionId ?: return
+        val step = state.steps.firstOrNull() ?: return
+
+        if (isSketchAnalysisLoading.value) return
+
+        val request = AiSketchAnalysisRequest(
+            questionId = questionId,
+            title = state.title,
+            systemDescription = state.prompt,
+            drawingInstruction = step.instruction,
+            drawingChecklist = step.codeBlock.orEmpty(),
+            internalRubric = step.explanation.orEmpty(),
+            imageBytes = imageBytes,
+            imageMimeType = imageMimeType
+        )
+
+        viewModelScope.launch {
+            isSketchAnalysisLoading.value = true
+            sketchAnalysisError.value = null
+
+            aiSketchAnalysisService.analyze(request)
+                .onSuccess { analysis ->
+                    sketchAnalysisText.value = analysis
+                    answeredStepIds.value = answeredStepIds.value + step.stepId
+                    correctStepIds.value = correctStepIds.value + step.stepId
+                    feedbackByStepId.value = feedbackByStepId.value + (
+                        step.stepId to StepFeedbackUi(
+                            isCorrect = true,
+                            title = "AI analiza je završena",
+                            message = "Fotografija skice je poslata na mentorsku analizu."
+                        )
+                    )
+
+                    repository.saveStepAnswer(
+                        UserStepAnswerEntity(
+                            userId = LearningRepository.LOCAL_USER_ID,
+                            questionId = questionId,
+                            stepId = step.stepId,
+                            freeTextAnswer = "Fotografija skice je poslata na AI analizu.",
+                            isCorrect = true
+                        )
+                    )
+
+                    if (!state.isCompleted) {
+                        val reward = repository.completeQuestion(
+                            questionId = questionId,
+                            scorePercent = 100
+                        )
+
+                        newlyAwardedXpByQuestionId.value =
+                            newlyAwardedXpByQuestionId.value + (questionId to reward.newlyAwardedXp)
+                        completedQuestionIds.value = completedQuestionIds.value + questionId
+                    }
+                }
+                .onFailure { error ->
+                    sketchAnalysisError.value = buildString {
+                        append("AI analiza skice trenutno nije dostupna.")
+                        val message = error.message
+                        if (!message.isNullOrBlank()) {
+                            append(" ")
+                            append(message)
+                        }
+                    }
+                }
+
+            isSketchAnalysisLoading.value = false
         }
     }
 
@@ -1037,7 +1165,10 @@ class QuestionViewModel @Inject constructor(
             aiFollowUpAnswer = aiAnalysis.followUpAnswer,
             isAiAnalysisLoading = aiAnalysis.isLoading,
             aiAnalysisText = aiAnalysis.text,
-            aiAnalysisError = aiAnalysis.error
+            aiAnalysisError = aiAnalysis.error,
+            isSketchAnalysisLoading = aiAnalysis.isSketchLoading,
+            sketchAnalysisText = aiAnalysis.sketchText,
+            sketchAnalysisError = aiAnalysis.sketchError
         )
     }
 

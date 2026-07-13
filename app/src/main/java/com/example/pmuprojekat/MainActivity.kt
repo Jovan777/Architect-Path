@@ -175,6 +175,8 @@ class MainActivity : ComponentActivity() {
                             onUpdateFreeText = questionViewModel::updateFreeText,
                             onUpdateAiFollowUpAnswer = questionViewModel::updateAiFollowUpAnswer,
                             onRequestAiAnalysis = questionViewModel::requestAiAnalysis,
+                            onRequestSketchAnalysis = questionViewModel::requestSketchAnalysis,
+                            onClearSketchAnalysis = questionViewModel::clearSketchAnalysis,
                             onCheckStep = questionViewModel::checkCurrentStep,
                             onPreviousStep = questionViewModel::goToPreviousStep,
                             onNextStep = questionViewModel::goToNextStep,

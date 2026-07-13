@@ -32,5 +32,6 @@ enum class QuestionType(
     ARCHITECTURE_REVIEW("architecture_review", "Revizija arhitekture"),
     ARCHITECTURE_COMPOSITION("architecture_composition", "Sastavljanje arhitekture"),
     SCALING_ASSESSMENT("scaling_assessment", "Procena skaliranja"),
-    ARCHITECTURAL_COMPROMISE("architectural_compromise", "Arhitektonski kompromis")
+    ARCHITECTURAL_COMPROMISE("architectural_compromise", "Arhitektonski kompromis"),
+    ARCHITECTURE_SKETCH("architecture_sketch", "Arhitektonsko skiciranje sistema")
 }

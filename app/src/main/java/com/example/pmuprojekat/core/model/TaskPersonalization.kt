@@ -166,7 +166,8 @@ object TaskPersonalizer {
             QuestionType.ARCHITECTURE_STYLE.id,
             QuestionType.ARCHITECTURE_REVIEW.id,
             QuestionType.SCALING_ASSESSMENT.id,
-            QuestionType.ARCHITECTURAL_COMPROMISE.id -> TaskFormatPreference.ARCHITECTURAL_SCENARIOS
+            QuestionType.ARCHITECTURAL_COMPROMISE.id,
+            QuestionType.ARCHITECTURE_SKETCH.id -> TaskFormatPreference.ARCHITECTURAL_SCENARIOS
 
             else -> TaskFormatPreference.INTERACTIVE_STEPS
         }
