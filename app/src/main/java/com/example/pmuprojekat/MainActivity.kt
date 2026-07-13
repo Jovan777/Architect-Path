@@ -23,6 +23,8 @@ import com.example.pmuprojekat.ui.main.WavesScreen
 import com.example.pmuprojekat.ui.onboarding.OnboardingScreen
 import com.example.pmuprojekat.ui.question.QuestionScreen
 import com.example.pmuprojekat.ui.question.QuestionViewModel
+import com.example.pmuprojekat.ui.taskcreation.TaskCreationScreen
+import com.example.pmuprojekat.ui.taskcreation.TaskCreationViewModel
 import com.example.pmuprojekat.ui.theme.PMUProjekatTheme
 import com.example.pmuprojekat.ui.vsai.VsAiLevelSelectionScreen
 import com.example.pmuprojekat.ui.vsai.VsAiPlaceholderScreen
@@ -35,6 +37,7 @@ class MainActivity : ComponentActivity() {
 
     private val homeViewModel: HomeViewModel by viewModels()
     private val questionViewModel: QuestionViewModel by viewModels()
+    private val taskCreationViewModel: TaskCreationViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_PMUProjekat)
@@ -45,6 +48,7 @@ class MainActivity : ComponentActivity() {
             PMUProjekatTheme {
                 val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
                 val questionUiState by questionViewModel.uiState.collectAsStateWithLifecycle()
+                val taskCreationUiState by taskCreationViewModel.uiState.collectAsStateWithLifecycle()
 
                 var routeBackStack by rememberSaveable {
                     mutableStateOf(listOf(tabRoute(MainTab.HOME)))
@@ -57,6 +61,7 @@ class MainActivity : ComponentActivity() {
                 val openedSettings = currentRoute == settingsRoute()
                 val openedVsAi = currentRoute == vsAiRoute()
                 val openedVsAiLevelId = vsAiLevelIdFromRoute(currentRoute)
+                val openedTaskCreation = currentRoute == taskCreationRoute()
 
                 fun popBackStack() {
                     if (routeBackStack.size > 1) {
@@ -216,6 +221,16 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    openedTaskCreation -> {
+                        TaskCreationScreen(
+                            uiState = taskCreationUiState,
+                            viewModel = taskCreationViewModel,
+                            onExit = {
+                                popBackStack()
+                            }
+                        )
+                    }
+
                     openedLevelId != null -> {
                         LevelQuestionsScreen(
                             uiState = homeUiState,
@@ -233,6 +248,10 @@ class MainActivity : ComponentActivity() {
                             onLevelSelected = ::openLevel,
                             onOpenVsAi = {
                                 navigateTo(vsAiRoute())
+                            },
+                            onOpenTaskCreation = {
+                                taskCreationViewModel.startNewFlow()
+                                navigateTo(taskCreationRoute())
                             },
                             onQuestionClick = ::openQuestion,
                             selectedTab = MainTab.HOME,
@@ -304,6 +323,10 @@ private fun settingsRoute(): String {
 
 private fun vsAiRoute(): String {
     return "vs-ai"
+}
+
+private fun taskCreationRoute(): String {
+    return "task-creation"
 }
 
 private fun vsAiLevelRoute(levelId: String): String {

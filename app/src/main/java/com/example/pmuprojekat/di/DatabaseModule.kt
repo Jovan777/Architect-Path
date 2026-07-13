@@ -10,6 +10,7 @@ import com.example.pmuprojekat.data.local.dao.QuestionDao
 import com.example.pmuprojekat.data.local.dao.SeedMetaDao
 import com.example.pmuprojekat.data.local.dao.UserAnswerDao
 import com.example.pmuprojekat.data.local.dao.UserDao
+import com.example.pmuprojekat.data.local.dao.UserTaskSubmissionDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -56,6 +57,39 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS user_task_submissions (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL,
+                    level TEXT NOT NULL,
+                    taskType TEXT NOT NULL,
+                    templateId TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    authorType TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    reviewStatus TEXT NOT NULL,
+                    publicationTarget TEXT NOT NULL,
+                    schemaVersion INTEGER NOT NULL,
+                    payloadJson TEXT NOT NULL,
+                    localOnly INTEGER NOT NULL,
+                    remoteSubmissionId TEXT,
+                    syncStatus TEXT NOT NULL,
+                    createdByRole TEXT NOT NULL,
+                    publicationMode TEXT NOT NULL,
+                    isPublic INTEGER NOT NULL,
+                    approvedAt INTEGER,
+                    approvedBy TEXT,
+                    rejectionReason TEXT
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -70,7 +104,7 @@ object DatabaseModule {
              * Dok si u razvoju, ovo je praktično.
              * Kasnije, kada se model stabilizuje, zameni pravim migracijama.
              */
-            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -94,5 +128,10 @@ object DatabaseModule {
     @Provides
     fun provideUserAnswerDao(database: PMUDatabase): UserAnswerDao {
         return database.userAnswerDao()
+    }
+
+    @Provides
+    fun provideUserTaskSubmissionDao(database: PMUDatabase): UserTaskSubmissionDao {
+        return database.userTaskSubmissionDao()
     }
 }

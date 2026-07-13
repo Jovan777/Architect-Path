@@ -103,6 +103,7 @@ fun SoftwareDesignHomeScreen(
     uiState: HomeUiState,
     onLevelSelected: (String) -> Unit,
     onOpenVsAi: () -> Unit,
+    onOpenTaskCreation: () -> Unit,
     onQuestionClick: (String) -> Unit,
     selectedTab: MainTab = MainTab.HOME,
     onBottomTabSelected: (MainTab) -> Unit = {}
@@ -172,7 +173,10 @@ fun SoftwareDesignHomeScreen(
 
                 TaskFormatsSection()
 
-                DashboardPreviewSection(uiState = uiState)
+                DashboardPreviewSection(
+                    uiState = uiState,
+                    onOpenTaskCreation = onOpenTaskCreation
+                )
 
                 RecommendedQuestionsSection(
                     questions = uiState.questionPreviews,
@@ -605,7 +609,8 @@ private fun TaskFormatChip(format: TaskFormatUiModel) {
 
 @Composable
 private fun DashboardPreviewSection(
-    uiState: HomeUiState
+    uiState: HomeUiState,
+    onOpenTaskCreation: () -> Unit
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -679,6 +684,62 @@ private fun DashboardPreviewSection(
                 FeatureCardImage(
                     imageResId = R.drawable.pmu_chat_with_ai,
                     contentDescription = "Pričaj sa AI"
+                )
+            }
+        }
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onOpenTaskCreation() },
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 5.dp),
+            border = BorderStroke(1.dp, AppPalette.Indigo.copy(alpha = 0.28f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(AppPalette.Indigo.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "+",
+                        color = AppPalette.Indigo,
+                        fontSize = 25.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(13.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Dodaj svoj zadatak",
+                        color = AppPalette.TextPrimary,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        text = "Napravi predlog po postojećem šablonu i sačuvaj ga za budući pregled.",
+                        color = AppPalette.TextSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
+                }
+
+                Text(
+                    text = ">",
+                    color = AppPalette.Indigo,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Light
                 )
             }
         }
@@ -1339,6 +1400,7 @@ fun SoftwareDesignHomeScreenPreview() {
             ),
             onLevelSelected = {},
             onOpenVsAi = {},
+            onOpenTaskCreation = {},
             onQuestionClick = {}
         )
     }

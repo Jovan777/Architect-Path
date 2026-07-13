@@ -1,0 +1,20 @@
+package com.example.pmuprojekat.di
+
+import com.example.pmuprojekat.data.repository.LocalTaskSubmissionRepository
+import com.example.pmuprojekat.data.repository.TaskSubmissionRepository
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class TaskSubmissionModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindTaskSubmissionRepository(
+        repository: LocalTaskSubmissionRepository
+    ): TaskSubmissionRepository
+}
