@@ -90,6 +90,23 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                "ALTER TABLE questions ADD COLUMN source TEXT NOT NULL DEFAULT 'LOCAL_SEED'"
+            )
+            database.execSQL(
+                "ALTER TABLE questions ADD COLUMN publicationMode TEXT NOT NULL DEFAULT 'MAIN_TASK_LIST'"
+            )
+            database.execSQL(
+                "ALTER TABLE questions ADD COLUMN remoteDocumentPath TEXT"
+            )
+            database.execSQL(
+                "ALTER TABLE questions ADD COLUMN remoteUpdatedAt INTEGER"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -104,7 +121,13 @@ object DatabaseModule {
              * Dok si u razvoju, ovo je praktično.
              * Kasnije, kada se model stabilizuje, zameni pravim migracijama.
              */
-            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7
+            )
             .fallbackToDestructiveMigration()
             .build()
     }

@@ -98,7 +98,7 @@ fun TaskCreationScreen(
                     TaskCreationFlowStep.TEMPLATE -> "Izaberi tip zadatka koji želiš da predložiš za pregled."
                     TaskCreationFlowStep.FORM -> "Popuni sve podatke potrebne da zadatak kasnije može postati igriv."
                     TaskCreationFlowStep.PREVIEW -> "Proveri predlog pre slanja na pregled."
-                    TaskCreationFlowStep.SUCCESS -> "Predlog je lokalno pripremljen za buduću internet bazu."
+                    TaskCreationFlowStep.SUCCESS -> "Status slanja i tvoji sačuvani predlozi."
                 },
                 onBack = {
                     if (!viewModel.goBack()) onExit()
@@ -862,7 +862,7 @@ private fun TaskCreationSuccessStep(
             fontWeight = FontWeight.ExtraBold
         )
         Text(
-            text = "Korisnički predlozi ostaju odvojeni od regularnih zadataka i ne pojavljuju se u listi dok ne postoji proces odobravanja.",
+            text = "Predlog ostaje odvojen od regularnih zadataka dok ga administrator ne odobri i objavi.",
             color = AppPalette.TextSecondary,
             fontSize = 13.sp,
             lineHeight = 19.sp

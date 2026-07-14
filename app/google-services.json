@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "932125158683",
+    "project_id": "pmu-projekat-fa83d",
+    "storage_bucket": "pmu-projekat-fa83d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:932125158683:android:d2df22cffcc691a4f7b7be",
+        "android_client_info": {
+          "package_name": "com.example.pmuprojekat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmzJNCRn8SklKSt122EAHZGX087FVAbEg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -22,17 +22,35 @@ interface QuestionDao {
 
     @Query("""
         SELECT * FROM questions
-        WHERE isActive = 1
+        WHERE isActive = 1 AND publicationMode != 'USER_TASKS'
         ORDER BY level ASC, wave ASC, orderIndex ASC
     """)
     fun observeAllQuestions(): Flow<List<QuestionEntity>>
 
     @Query("""
         SELECT * FROM questions
-        WHERE level = :level AND isActive = 1
+        WHERE level = :level AND isActive = 1 AND publicationMode != 'USER_TASKS'
         ORDER BY wave ASC, orderIndex ASC
     """)
     fun observeQuestionsByLevel(level: String): Flow<List<QuestionEntity>>
+
+    @Query("""
+        SELECT * FROM questions
+        WHERE isActive = 1
+          AND publicationMode = 'USER_TASKS'
+          AND source = 'REMOTE_USER_APPROVED'
+        ORDER BY level ASC, wave ASC, orderIndex ASC
+    """)
+    fun observeApprovedUserQuestions(): Flow<List<QuestionEntity>>
+
+    @Query("""
+        SELECT * FROM questions
+        WHERE remoteDocumentPath LIKE :pathPrefix || '%'
+    """)
+    suspend fun getRemoteQuestionsByPathPrefix(pathPrefix: String): List<QuestionEntity>
+
+    @Query("DELETE FROM questions WHERE questionId IN (:questionIds)")
+    suspend fun deleteQuestionsByIds(questionIds: List<String>)
 
     @Transaction
     @Query("SELECT * FROM questions WHERE questionId = :questionId LIMIT 1")

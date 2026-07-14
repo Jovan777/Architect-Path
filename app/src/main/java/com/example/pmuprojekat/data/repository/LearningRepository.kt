@@ -34,6 +34,10 @@ class LearningRepository @Inject constructor(
         return questionDao.observeQuestionsByLevel(level)
     }
 
+    fun observeApprovedUserQuestions(): Flow<List<QuestionEntity>> {
+        return questionDao.observeApprovedUserQuestions()
+    }
+
     fun observeQuestionWithSteps(questionId: String): Flow<QuestionWithSteps?> {
         return questionDao.observeQuestionWithSteps(questionId)
     }

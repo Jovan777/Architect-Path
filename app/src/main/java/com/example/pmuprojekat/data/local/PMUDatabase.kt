@@ -33,7 +33,7 @@ import com.example.pmuprojekat.data.local.entity.UserTaskSubmissionEntity
         UserTaskSubmissionEntity::class,
         SeedMetaEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 @TypeConverters(RoomConverters::class)

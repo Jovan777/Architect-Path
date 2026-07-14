@@ -9,6 +9,7 @@ import com.example.pmuprojekat.core.model.TaskPersonalizer
 import com.example.pmuprojekat.core.model.XpCalculator
 import com.example.pmuprojekat.data.local.entity.QuestionEntity
 import com.example.pmuprojekat.data.repository.LearningRepository
+import com.example.pmuprojekat.data.repository.RemoteTaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -21,14 +22,17 @@ import kotlin.math.roundToInt
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val repository: LearningRepository
+    private val repository: LearningRepository,
+    private val remoteTaskRepository: RemoteTaskRepository
 ) : ViewModel() {
 
     val uiState = combine(
         repository.observeActiveUser(),
         repository.observeAllQuestions(),
-        repository.observeLocalUserProgress()
-    ) { user, questions, progress ->
+        repository.observeApprovedUserQuestions(),
+        repository.observeLocalUserProgress(),
+        remoteTaskRepository.syncState
+    ) { user, questions, approvedUserQuestions, progress, remoteSyncState ->
 
         val selectedLevelId = user?.currentLevel ?: LearningLevel.BEGINNER.id
         val selectedLevel = LearningLevel.fromId(selectedLevelId)
@@ -160,6 +164,37 @@ class HomeViewModel @Inject constructor(
                     .thenBy { it.questionId }
             )
 
+        val approvedUserQuestionPreviews = approvedUserQuestions
+            .sortedWith(
+                compareBy<QuestionEntity> { levelOrder(it.level) }
+                    .thenBy { it.wave ?: 0 }
+                    .thenBy { it.orderIndex }
+            )
+            .map { question ->
+                val metadata = TaskPersonalizer.metadataFor(
+                    questionType = question.type,
+                    level = question.level
+                )
+                QuestionPreviewUi(
+                    questionId = question.questionId,
+                    levelId = question.level,
+                    title = question.title,
+                    typeLabel = questionTypeLabel(question.type),
+                    difficulty = difficultyLabel(question.difficulty),
+                    wave = question.wave,
+                    orderIndex = question.orderIndex,
+                    isCompleted = completedIds.contains(question.questionId),
+                    bestScorePercent = bestScoreByQuestionId[question.questionId] ?: 0,
+                    format = metadata.format.displayName,
+                    focus = metadata.focus.displayName,
+                    personalizationScore = TaskPersonalizer.score(
+                        metadata = metadata,
+                        preferredFormats = preferredFormats,
+                        learningFocus = learningFocus
+                    )
+                )
+            }
+
         val questionPreviews = allQuestionPreviews
             .filter { it.levelId == selectedLevelId }
             .filter { !it.isCompleted }
@@ -226,6 +261,9 @@ class HomeViewModel @Inject constructor(
             questionPreviews = questionPreviews,
             allQuestions = allQuestionPreviews,
             personalizedQuestions = personalizedQuestionPreviews,
+            approvedUserQuestions = approvedUserQuestionPreviews,
+            areRemoteTasksLoading = remoteSyncState.isLoading,
+            remoteTasksError = remoteSyncState.errorMessage,
             completedQuestionIds = completedIds,
             skillStats = skillStats,
             lastCompletedQuestion = lastCompletedQuestion,
@@ -246,6 +284,7 @@ class HomeViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             repository.initializeDatabaseIfNeeded()
+            remoteTaskRepository.refreshRemoteTasks()
         }
     }
 

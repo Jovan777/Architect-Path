@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.pmuprojekat.core.model.StepType
 import com.example.pmuprojekat.data.local.entity.UserTaskSubmissionEntity
 import com.example.pmuprojekat.data.repository.TaskSubmissionRepository
+import com.example.pmuprojekat.data.repository.SubmissionSyncResult
 import com.example.pmuprojekat.taskcreation.TaskCreationCorrectAnswerMode
 import com.example.pmuprojekat.taskcreation.TaskCreationStepBlueprint
 import com.example.pmuprojekat.taskcreation.TaskCreationTemplateDefinition
@@ -356,11 +357,16 @@ class TaskCreationViewModel @Inject constructor(
                 template = template,
                 draft = state.draft
             )
-            repository.submitForReview(submission)
+            val result = repository.submitForReview(submission)
             _uiState.value = _uiState.value.copy(
                 isSubmitting = false,
                 step = TaskCreationFlowStep.SUCCESS,
-                successMessage = "Zadatak je sačuvan kao predlog i biće poslat na pregled kada se poveže internet baza."
+                successMessage = when (result) {
+                    is SubmissionSyncResult.Uploaded -> "Zadatak je poslat na pregled."
+                    is SubmissionSyncResult.SavedLocally ->
+                        "Zadatak je sačuvan lokalno, ali slanje na internet bazu nije uspelo. " +
+                            "Pokušaj ponovo kasnije."
+                }
             )
         }
     }

@@ -34,5 +34,10 @@ data class QuestionEntity(
 
     val isActive: Boolean = true,
     val topic: String? = null,
-    val patternName: String? = null
+    val patternName: String? = null,
+
+    val source: String = "LOCAL_SEED",
+    val publicationMode: String = "MAIN_TASK_LIST",
+    val remoteDocumentPath: String? = null,
+    val remoteUpdatedAt: Long? = null
 )

@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlinCompose)
     alias(libs.plugins.kotlinKapt)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.googleServices)
 }
 
 val localProperties = Properties().apply {
@@ -112,6 +113,10 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     kapt(libs.androidx.room.compiler)
+
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
 
     testImplementation(libs.junit)
 

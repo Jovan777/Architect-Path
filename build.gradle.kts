@@ -7,4 +7,5 @@ plugins {
     alias(libs.plugins.kotlinCompose) apply false
     alias(libs.plugins.kotlinKapt) apply false
     alias(libs.plugins.hilt) apply false
+    alias(libs.plugins.googleServices) apply false
 }

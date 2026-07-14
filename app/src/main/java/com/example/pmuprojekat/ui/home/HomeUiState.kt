@@ -30,6 +30,9 @@ data class HomeUiState(
     val questionPreviews: List<QuestionPreviewUi> = emptyList(),
     val allQuestions: List<QuestionPreviewUi> = emptyList(),
     val personalizedQuestions: List<QuestionPreviewUi> = emptyList(),
+    val approvedUserQuestions: List<QuestionPreviewUi> = emptyList(),
+    val areRemoteTasksLoading: Boolean = false,
+    val remoteTasksError: String? = null,
 
     val completedQuestionIds: Set<String> = emptySet(),
     val skillStats: List<SkillProgressUi> = emptyList(),

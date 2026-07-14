@@ -1,0 +1,53 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isApprovedPublicSubmission() {
+      return resource.data.reviewStatus == 'APPROVED'
+        && resource.data.isPublic == true;
+    }
+
+    match /remote_tasks/{taskId} {
+      allow read: if isSignedIn() && resource.data.status == 'ACTIVE';
+      allow write: if false;
+    }
+
+    match /task_submissions/{submissionId} {
+      allow create: if isSignedIn()
+        && request.resource.data.id == submissionId
+        && request.resource.data.createdByRole == 'USER'
+        && request.resource.data.createdByUserId == request.auth.uid
+        && request.resource.data.reviewStatus == 'PENDING'
+        && request.resource.data.isPublic == false
+        && request.resource.data.publicationMode == 'USER_TASKS'
+        && request.resource.data.keys().hasAll([
+          'id',
+          'title',
+          'level',
+          'taskType',
+          'templateId',
+          'createdByRole',
+          'createdByUserId',
+          'reviewStatus',
+          'isPublic',
+          'publicationMode',
+          'schemaVersion',
+          'createdAt',
+          'updatedAt',
+          'payload'
+        ]);
+
+      allow read: if isSignedIn()
+        && (
+          resource.data.createdByUserId == request.auth.uid
+          || isApprovedPublicSubmission()
+        );
+
+      allow update, delete: if false;
+    }
+  }
+}

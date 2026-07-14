@@ -1,5 +1,6 @@
 package com.example.pmuprojekat.ui.home
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -89,6 +90,14 @@ fun LevelQuestionsScreen(
         mutableStateOf<Int?>(null)
     }
 
+    var showUserTasks by remember(levelId) {
+        mutableStateOf(false)
+    }
+
+    BackHandler(enabled = showUserTasks) {
+        showUserTasks = false
+    }
+
     val visibleQuestions by remember(levelQuestions, selectedWave) {
         derivedStateOf {
             if (selectedWave == null) {
@@ -96,6 +105,18 @@ fun LevelQuestionsScreen(
             } else {
                 levelQuestions.filter { it.wave == selectedWave }
             }
+        }
+    }
+
+    val approvedUserQuestions by remember(uiState.approvedUserQuestions, levelId) {
+        derivedStateOf {
+            uiState.approvedUserQuestions
+                .filter { it.levelId == levelId }
+                .sortedWith(
+                    compareBy<QuestionPreviewUi> { it.wave ?: 0 }
+                        .thenBy { it.orderIndex }
+                        .thenBy { it.questionId }
+                )
         }
     }
 
@@ -154,30 +175,271 @@ fun LevelQuestionsScreen(
                     typeProgressByLabel = typeProgressByLabel
                 )
 
-                if (availableWaves.isNotEmpty()) {
-                    WaveFilterRow(
-                        waves = availableWaves,
-                        selectedWave = selectedWave,
-                        onWaveSelected = { wave ->
-                            selectedWave = wave
-                        },
-                        onAllSelected = {
-                            selectedWave = null
-                        }
-                    )
-                }
+                OnlineTasksStatus(
+                    isLoading = uiState.areRemoteTasksLoading,
+                    hasError = uiState.remoteTasksError != null
+                )
 
-                if (visibleQuestions.isEmpty()) {
-                    EmptyLevelQuestionsCard()
-                } else {
-                    QuestionsByWaveList(
-                        questions = visibleQuestions,
-                        showWaveHeaders = selectedWave == null,
-                        typeProgressByLabel = typeProgressByLabel,
+                if (showUserTasks) {
+                    ApprovedUserTasksView(
+                        levelId = levelId,
+                        questions = approvedUserQuestions,
+                        isLoading = uiState.areRemoteTasksLoading,
+                        onBack = { showUserTasks = false },
                         onQuestionClick = onQuestionClick
                     )
+                } else {
+                    if (availableWaves.isNotEmpty()) {
+                        WaveFilterRow(
+                            waves = availableWaves,
+                            selectedWave = selectedWave,
+                            onWaveSelected = { wave ->
+                                selectedWave = wave
+                            },
+                            onAllSelected = {
+                                selectedWave = null
+                            }
+                        )
+                    }
+
+                    UserTasksEntryCard(
+                        levelId = levelId,
+                        count = approvedUserQuestions.size,
+                        isLoading = uiState.areRemoteTasksLoading,
+                        onClick = { showUserTasks = true }
+                    )
+
+                    if (visibleQuestions.isEmpty()) {
+                        EmptyLevelQuestionsCard()
+                    } else {
+                        QuestionsByWaveList(
+                            questions = visibleQuestions,
+                            showWaveHeaders = selectedWave == null,
+                            typeProgressByLabel = typeProgressByLabel,
+                            onQuestionClick = onQuestionClick
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun OnlineTasksStatus(
+    isLoading: Boolean,
+    hasError: Boolean
+) {
+    if (!isLoading && !hasError) return
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = if (hasError) Color(0xFFFFFBEB) else AppPalette.Blue.copy(alpha = 0.07f),
+        border = BorderStroke(
+            1.dp,
+            if (hasError) Color(0xFFFCD34D) else AppPalette.Blue.copy(alpha = 0.18f)
+        )
+    ) {
+        Text(
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
+            text = if (hasError) {
+                "Online zadaci trenutno nisu dostupni. Lokalni zadaci rade normalno."
+            } else {
+                "Učitavanje online zadataka..."
+            },
+            color = AppPalette.TextSecondary,
+            fontSize = 12.sp,
+            lineHeight = 17.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+private fun UserTasksEntryCard(
+    levelId: String,
+    count: Int,
+    isLoading: Boolean,
+    onClick: () -> Unit
+) {
+    val color = levelColor(levelId)
+    val countText = when {
+        isLoading && count == 0 -> "Učitavanje..."
+        count == 0 -> "Nema odobrenih"
+        else -> "$count ${userTaskCountLabel(count)}"
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(22.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, color.copy(alpha = 0.22f)),
+        shadowElevation = 5.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(color.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "K",
+                    color = color,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+
+            Spacer(modifier = Modifier.width(13.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Korisnički zadaci",
+                    color = AppPalette.TextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Text(
+                    text = if (count > 0) {
+                        "Pogledaj odobrene zadatke koje su dodali korisnici."
+                    } else {
+                        "Još nema odobrenih korisničkih zadataka za ovaj nivo."
+                    },
+                    color = AppPalette.TextSecondary,
+                    fontSize = 12.5.sp,
+                    lineHeight = 18.sp
+                )
+            }
+
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    text = countText,
+                    color = color,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Text(
+                    text = "›",
+                    color = color.copy(alpha = 0.75f),
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Light
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ApprovedUserTasksView(
+    levelId: String,
+    questions: List<QuestionPreviewUi>,
+    isLoading: Boolean,
+    onBack: () -> Unit,
+    onQuestionClick: (String) -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Korisnički zadaci",
+                    color = AppPalette.TextPrimary,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Text(
+                    text = "Zadaci koje su korisnici predložili i koji su odobreni za ovaj nivo.",
+                    color = AppPalette.TextSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp
+                )
+            }
+
+            Surface(
+                modifier = Modifier.clickable { onBack() },
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, AppPalette.Border),
+                shadowElevation = 3.dp
+            ) {
+                Text(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    text = "Talasi",
+                    color = levelColor(levelId),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+
+        if (questions.isEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, AppPalette.Border)
+            ) {
+                Text(
+                    modifier = Modifier.padding(16.dp),
+                    text = if (isLoading) {
+                        "Učitavanje odobrenih korisničkih zadataka..."
+                    } else {
+                        "Još nema odobrenih korisničkih zadataka za ovaj nivo."
+                    },
+                    color = AppPalette.TextSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp
+                )
+            }
+        } else {
+            UserTaskQuestionList(
+                questions = questions,
+                onQuestionClick = onQuestionClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun UserTaskQuestionList(
+    questions: List<QuestionPreviewUi>,
+    onQuestionClick: (String) -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        questions.forEachIndexed { index, question ->
+            LevelQuestionCard(
+                question = question,
+                typeProgress = null,
+                displayCode = "K${index + 1}",
+                showUserBadge = true,
+                onClick = { onQuestionClick(question.questionId) }
+            )
         }
     }
 }
@@ -523,6 +785,8 @@ private fun QuestionsByWaveList(
 private fun LevelQuestionCard(
     question: QuestionPreviewUi,
     typeProgress: TypeProgressUi?,
+    displayCode: String = question.questionId,
+    showUserBadge: Boolean = false,
     onClick: () -> Unit
 ) {
     val color = levelColor(question.levelId)
@@ -548,7 +812,7 @@ private fun LevelQuestionCard(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = question.questionId,
+                    text = displayCode,
                     color = color,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.ExtraBold
@@ -576,7 +840,7 @@ private fun LevelQuestionCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = question.typeLabel,
+                        text = if (showUserBadge) "Korisnički" else question.typeLabel,
                         color = AppPalette.TextSecondary,
                         fontSize = 11.5.sp,
                         maxLines = 1,
@@ -590,7 +854,11 @@ private fun LevelQuestionCard(
                     )
 
                     Text(
-                        text = question.difficulty,
+                        text = if (showUserBadge) {
+                            "${question.typeLabel} • ${question.difficulty}"
+                        } else {
+                            question.difficulty
+                        },
                         color = color,
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold
@@ -679,6 +947,17 @@ private fun levelColor(levelId: String): Color {
         LearningLevel.SENIOR.id -> AppPalette.Purple
         LearningLevel.ARCHITECT.id -> AppPalette.Indigo
         else -> AppPalette.Blue
+    }
+}
+
+private fun userTaskCountLabel(count: Int): String {
+    val lastTwoDigits = count % 100
+    if (lastTwoDigits in 11..14) return "zadataka"
+
+    return when (count % 10) {
+        1 -> "zadatak"
+        2, 3, 4 -> "zadatka"
+        else -> "zadataka"
     }
 }
 

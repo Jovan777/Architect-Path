@@ -8,7 +8,8 @@ import javax.inject.Singleton
 
 @Singleton
 class LocalTaskSubmissionRepository @Inject constructor(
-    private val userTaskSubmissionDao: UserTaskSubmissionDao
+    private val userTaskSubmissionDao: UserTaskSubmissionDao,
+    private val remoteRepository: TaskSubmissionRemoteRepository
 ) : TaskSubmissionRepository {
 
     override fun observeLocalSubmissions(): Flow<List<UserTaskSubmissionEntity>> {
@@ -29,15 +30,41 @@ class LocalTaskSubmissionRepository @Inject constructor(
         )
     }
 
-    override suspend fun submitForReview(submission: UserTaskSubmissionEntity) {
-        userTaskSubmissionDao.upsertSubmission(
-            submission.copy(
-                reviewStatus = "PENDING",
-                syncStatus = "READY_FOR_UPLOAD",
-                localOnly = true,
-                isPublic = false,
-                updatedAt = System.currentTimeMillis()
-            )
+    override suspend fun submitForReview(
+        submission: UserTaskSubmissionEntity
+    ): SubmissionSyncResult {
+        val pending = submission.copy(
+            reviewStatus = "PENDING",
+            syncStatus = "READY_FOR_UPLOAD",
+            localOnly = true,
+            isPublic = false,
+            updatedAt = System.currentTimeMillis()
+        )
+        userTaskSubmissionDao.upsertSubmission(pending)
+
+        val remoteResult = remoteRepository.submitForReview(pending)
+        return remoteResult.fold(
+            onSuccess = { remoteId ->
+                userTaskSubmissionDao.upsertSubmission(
+                    pending.copy(
+                        syncStatus = "UPLOADED",
+                        localOnly = false,
+                        remoteSubmissionId = remoteId,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                )
+                SubmissionSyncResult.Uploaded(remoteId)
+            },
+            onFailure = { error ->
+                userTaskSubmissionDao.upsertSubmission(
+                    pending.copy(
+                        syncStatus = "FAILED",
+                        localOnly = true,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                )
+                SubmissionSyncResult.SavedLocally(error)
+            }
         )
     }
 }

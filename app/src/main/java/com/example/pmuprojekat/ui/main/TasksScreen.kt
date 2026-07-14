@@ -1,6 +1,7 @@
 package com.example.pmuprojekat.ui.main
 
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -97,6 +98,14 @@ fun TasksScreen(
         mutableStateOf("")
     }
 
+    var showUserTasks by remember(selectedLevelId) {
+        mutableStateOf(false)
+    }
+
+    BackHandler(enabled = showUserTasks) {
+        showUserTasks = false
+    }
+
     val filteredQuestions by remember(
         uiState.personalizedQuestions,
         selectedLevelId,
@@ -170,6 +179,31 @@ fun TasksScreen(
                     selectedFormatLabels.contains(question.format)
                 }
             }
+        }
+    }
+
+    val approvedUserQuestionsForLevel by remember(
+        uiState.approvedUserQuestions,
+        selectedLevelId
+    ) {
+        derivedStateOf {
+            uiState.approvedUserQuestions
+                .filter { it.levelId == selectedLevelId }
+        }
+    }
+
+    val visibleApprovedUserQuestions by remember(
+        approvedUserQuestionsForLevel,
+        search
+    ) {
+        derivedStateOf {
+            approvedUserQuestionsForLevel
+                .filter { question ->
+                    search.isBlank() ||
+                        question.title.contains(search, ignoreCase = true) ||
+                        question.questionId.contains(search, ignoreCase = true) ||
+                        question.typeLabel.contains(search, ignoreCase = true)
+                }
         }
     }
 
@@ -272,23 +306,88 @@ fun TasksScreen(
                 }
             }
 
-            item(key = "count") {
-                Text(
-                text = "${filteredQuestions.size} zadataka",
-                color = AppPalette.TextPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.ExtraBold
+            item(key = "user-tasks-entry") {
+                UserTasksCatalogEntryCard(
+                    count = approvedUserQuestionsForLevel.size,
+                    isLoading = uiState.areRemoteTasksLoading,
+                    onClick = { showUserTasks = true }
                 )
             }
 
-            items(
-                items = filteredQuestions,
-                key = { it.questionId }
-            ) { question ->
-                TaskCatalogCard(
-                    question = question,
-                    onClick = { onQuestionClick(question.questionId) }
-                )
+            if (uiState.remoteTasksError != null) {
+                item(key = "remote-error") {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFFFFBEB),
+                        border = BorderStroke(1.dp, Color(0xFFFCD34D))
+                    ) {
+                        Text(
+                            modifier = Modifier.padding(13.dp),
+                            text = "Online zadaci trenutno nisu dostupni. Lokalni zadaci rade normalno.",
+                            color = AppPalette.TextSecondary,
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp
+                        )
+                    }
+                }
+            }
+
+            if (showUserTasks) {
+                item(key = "user-tasks-focused-title") {
+                    UserTasksCatalogHeader(
+                        onBack = { showUserTasks = false }
+                    )
+                }
+
+                if (visibleApprovedUserQuestions.isEmpty()) {
+                    item(key = "user-tasks-focused-empty") {
+                        Text(
+                            text = if (uiState.areRemoteTasksLoading) {
+                                "Učitavanje odobrenih korisničkih zadataka..."
+                            } else if (search.isNotBlank()) {
+                                "Nema odobrenih korisničkih zadataka za ovu pretragu."
+                            } else {
+                                "Još nema odobrenih korisničkih zadataka za ovaj nivo."
+                            },
+                            color = AppPalette.TextSecondary,
+                            fontSize = 13.sp
+                        )
+                    }
+                } else {
+                    items(
+                        items = visibleApprovedUserQuestions,
+                        key = { "user_focused_${it.questionId}" }
+                    ) { question ->
+                        val index = visibleApprovedUserQuestions.indexOf(question)
+                        TaskCatalogCard(
+                            question = question,
+                            displayCode = "K${index + 1}",
+                            showUserBadge = true,
+                            onClick = { onQuestionClick(question.questionId) }
+                        )
+                    }
+                }
+
+            } else {
+                item(key = "count") {
+                    Text(
+                    text = "${filteredQuestions.size} zadataka",
+                    color = AppPalette.TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold
+                    )
+                }
+
+                items(
+                    items = filteredQuestions,
+                    key = { it.questionId }
+                ) { question ->
+                    TaskCatalogCard(
+                        question = question,
+                        onClick = { onQuestionClick(question.questionId) }
+                    )
+                }
             }
         }
     }
@@ -472,8 +571,142 @@ private fun FilterChip(
 }
 
 @Composable
+private fun UserTasksCatalogEntryCard(
+    count: Int,
+    isLoading: Boolean,
+    onClick: () -> Unit
+) {
+    val countText = when {
+        isLoading && count == 0 -> "Učitavanje..."
+        count == 0 -> "Nema odobrenih"
+        else -> "$count ${userTaskCountLabel(count)}"
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(22.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, AppPalette.Blue.copy(alpha = 0.22f)),
+        shadowElevation = 5.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(AppPalette.Blue.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "K",
+                    color = AppPalette.Blue,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+
+            Spacer(modifier = Modifier.width(13.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Korisnički zadaci",
+                    color = AppPalette.TextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Text(
+                    text = if (count > 0) {
+                        "Pogledaj odobrene zadatke koje su dodali korisnici."
+                    } else {
+                        "Još nema odobrenih korisničkih zadataka za izabrani nivo."
+                    },
+                    color = AppPalette.TextSecondary,
+                    fontSize = 12.5.sp,
+                    lineHeight = 18.sp
+                )
+            }
+
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    text = countText,
+                    color = AppPalette.Blue,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Text(
+                    text = "›",
+                    color = AppPalette.Blue.copy(alpha = 0.75f),
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Light
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserTasksCatalogHeader(
+    onBack: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "Korisnički zadaci",
+                color = AppPalette.TextPrimary,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Text(
+                text = "Zadaci koje su korisnici predložili i koji su odobreni za ovaj nivo.",
+                color = AppPalette.TextSecondary,
+                fontSize = 13.sp,
+                lineHeight = 19.sp
+            )
+        }
+
+        Surface(
+            modifier = Modifier.clickable { onBack() },
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, AppPalette.Border),
+            shadowElevation = 3.dp
+        ) {
+            Text(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                text = "Zadaci",
+                color = AppPalette.Blue,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+    }
+}
+
+@Composable
 private fun TaskCatalogCard(
     question: QuestionPreviewUi,
+    displayCode: String = question.questionId,
+    showUserBadge: Boolean = false,
     onClick: () -> Unit
 ) {
     val color = when (question.difficulty.lowercase()) {
@@ -505,7 +738,7 @@ private fun TaskCatalogCard(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = question.questionId,
+                    text = displayCode,
                     color = color,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.ExtraBold
@@ -530,7 +763,11 @@ private fun TaskCatalogCard(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "${question.typeLabel} • ${question.difficulty}",
+                    text = if (showUserBadge) {
+                        "Korisnički • ${question.typeLabel} • ${question.difficulty}"
+                    } else {
+                        "${question.typeLabel} • ${question.difficulty}"
+                    },
                     color = AppPalette.TextSecondary,
                     fontSize = 11.5.sp,
                     maxLines = 1,
@@ -552,5 +789,16 @@ private fun TaskCatalogCard(
                 )
             }
         }
+    }
+}
+
+private fun userTaskCountLabel(count: Int): String {
+    val lastTwoDigits = count % 100
+    if (lastTwoDigits in 11..14) return "zadataka"
+
+    return when (count % 10) {
+        1 -> "zadatak"
+        2, 3, 4 -> "zadatka"
+        else -> "zadataka"
     }
 }
