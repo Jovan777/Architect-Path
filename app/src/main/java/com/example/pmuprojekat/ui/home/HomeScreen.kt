@@ -104,6 +104,7 @@ fun SoftwareDesignHomeScreen(
     onLevelSelected: (String) -> Unit,
     onOpenVsAi: () -> Unit,
     onOpenTaskCreation: () -> Unit,
+    onOpenEncyclopedia: () -> Unit,
     onQuestionClick: (String) -> Unit,
     selectedTab: MainTab = MainTab.HOME,
     onBottomTabSelected: (MainTab) -> Unit = {}
@@ -175,7 +176,8 @@ fun SoftwareDesignHomeScreen(
 
                 DashboardPreviewSection(
                     uiState = uiState,
-                    onOpenTaskCreation = onOpenTaskCreation
+                    onOpenTaskCreation = onOpenTaskCreation,
+                    onOpenEncyclopedia = onOpenEncyclopedia
                 )
 
                 RecommendedQuestionsSection(
@@ -610,7 +612,8 @@ private fun TaskFormatChip(format: TaskFormatUiModel) {
 @Composable
 private fun DashboardPreviewSection(
     uiState: HomeUiState,
-    onOpenTaskCreation: () -> Unit
+    onOpenTaskCreation: () -> Unit,
+    onOpenEncyclopedia: () -> Unit
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -667,7 +670,8 @@ private fun DashboardPreviewSection(
                 modifier = Modifier.weight(1f),
                 title = "Enciklopedija pojmova",
                 subtitle = "Kratka objašnjenja ključnih pojmova.",
-                accentColor = AppPalette.Indigo
+                accentColor = AppPalette.Indigo,
+                onClick = onOpenEncyclopedia
             ) {
                 FeatureCardImage(
                     imageResId = R.drawable.pmu_definitions,
@@ -956,10 +960,19 @@ private fun MiniPreviewCard(
     title: String,
     subtitle: String? = null,
     accentColor: Color,
+    onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     Card(
-        modifier = modifier.height(210.dp),
+        modifier = modifier
+            .height(210.dp)
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable { onClick() }
+                } else {
+                    Modifier
+                }
+            ),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 5.dp),
@@ -1401,6 +1414,7 @@ fun SoftwareDesignHomeScreenPreview() {
             onLevelSelected = {},
             onOpenVsAi = {},
             onOpenTaskCreation = {},
+            onOpenEncyclopedia = {},
             onQuestionClick = {}
         )
     }

@@ -31,6 +31,10 @@ import com.example.pmuprojekat.ui.vsai.VsAiPlaceholderScreen
 import dagger.hilt.android.AndroidEntryPoint
 import com.example.pmuprojekat.ui.main.SettingsScreen
 import com.example.pmuprojekat.ui.home.QuestionPreviewUi
+import com.example.pmuprojekat.ui.encyclopedia.EncyclopediaCategoriesScreen
+import com.example.pmuprojekat.ui.encyclopedia.EncyclopediaTermDetailScreen
+import com.example.pmuprojekat.ui.encyclopedia.EncyclopediaTermsScreen
+import com.example.pmuprojekat.ui.encyclopedia.EncyclopediaViewModel
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -38,6 +42,7 @@ class MainActivity : ComponentActivity() {
     private val homeViewModel: HomeViewModel by viewModels()
     private val questionViewModel: QuestionViewModel by viewModels()
     private val taskCreationViewModel: TaskCreationViewModel by viewModels()
+    private val encyclopediaViewModel: EncyclopediaViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_PMUProjekat)
@@ -49,6 +54,7 @@ class MainActivity : ComponentActivity() {
                 val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
                 val questionUiState by questionViewModel.uiState.collectAsStateWithLifecycle()
                 val taskCreationUiState by taskCreationViewModel.uiState.collectAsStateWithLifecycle()
+                val encyclopediaUiState by encyclopediaViewModel.uiState.collectAsStateWithLifecycle()
 
                 var routeBackStack by rememberSaveable {
                     mutableStateOf(listOf(tabRoute(MainTab.HOME)))
@@ -62,6 +68,9 @@ class MainActivity : ComponentActivity() {
                 val openedVsAi = currentRoute == vsAiRoute()
                 val openedVsAiLevelId = vsAiLevelIdFromRoute(currentRoute)
                 val openedTaskCreation = currentRoute == taskCreationRoute()
+                val openedEncyclopedia = currentRoute == encyclopediaRoute()
+                val openedEncyclopediaCategoryId = encyclopediaCategoryIdFromRoute(currentRoute)
+                val openedEncyclopediaTerm = encyclopediaTermIdsFromRoute(currentRoute)
 
                 fun popBackStack() {
                     if (routeBackStack.size > 1) {
@@ -231,6 +240,67 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    openedEncyclopediaTerm != null -> {
+                        val (categoryId, termId) = openedEncyclopediaTerm
+                        val category = encyclopediaUiState.categories
+                            .firstOrNull { it.id == categoryId }
+                        val term = category?.terms?.firstOrNull { it.id == termId }
+
+                        EncyclopediaTermDetailScreen(
+                            category = category,
+                            term = term,
+                            uiState = encyclopediaUiState,
+                            onBack = {
+                                popBackStack()
+                            },
+                            onExplain = { mode ->
+                                encyclopediaViewModel.explain(termId, mode)
+                            }
+                        )
+                    }
+
+                    openedEncyclopediaCategoryId != null -> {
+                        val category = encyclopediaUiState.categories
+                            .firstOrNull { it.id == openedEncyclopediaCategoryId }
+
+                        EncyclopediaTermsScreen(
+                            category = category,
+                            onBack = {
+                                popBackStack()
+                            },
+                            onTermClick = { termId ->
+                                encyclopediaViewModel.clearExplanation()
+                                navigateTo(
+                                    encyclopediaTermRoute(
+                                        categoryId = openedEncyclopediaCategoryId,
+                                        termId = termId
+                                    )
+                                )
+                            }
+                        )
+                    }
+
+                    openedEncyclopedia -> {
+                        EncyclopediaCategoriesScreen(
+                            categories = encyclopediaUiState.categories,
+                            onBack = {
+                                popBackStack()
+                            },
+                            onCategoryClick = { categoryId ->
+                                navigateTo(encyclopediaCategoryRoute(categoryId))
+                            },
+                            onTermClick = { categoryId, termId ->
+                                encyclopediaViewModel.clearExplanation()
+                                navigateTo(
+                                    encyclopediaTermRoute(
+                                        categoryId = categoryId,
+                                        termId = termId
+                                    )
+                                )
+                            }
+                        )
+                    }
+
                     openedLevelId != null -> {
                         LevelQuestionsScreen(
                             uiState = homeUiState,
@@ -252,6 +322,9 @@ class MainActivity : ComponentActivity() {
                             onOpenTaskCreation = {
                                 taskCreationViewModel.startNewFlow()
                                 navigateTo(taskCreationRoute())
+                            },
+                            onOpenEncyclopedia = {
+                                navigateTo(encyclopediaRoute())
                             },
                             onQuestionClick = ::openQuestion,
                             selectedTab = MainTab.HOME,
@@ -329,6 +402,18 @@ private fun taskCreationRoute(): String {
     return "task-creation"
 }
 
+private fun encyclopediaRoute(): String {
+    return "encyclopedia"
+}
+
+private fun encyclopediaCategoryRoute(categoryId: String): String {
+    return "encyclopedia-category:$categoryId"
+}
+
+private fun encyclopediaTermRoute(categoryId: String, termId: String): String {
+    return "encyclopedia-term:$categoryId:$termId"
+}
+
 private fun vsAiLevelRoute(levelId: String): String {
     return "vs-ai-level:$levelId"
 }
@@ -357,6 +442,21 @@ private fun vsAiLevelIdFromRoute(route: String): String? {
     return route
         .takeIf { it.startsWith("vs-ai-level:") }
         ?.substringAfter("vs-ai-level:")
+}
+
+private fun encyclopediaCategoryIdFromRoute(route: String): String? {
+    return route
+        .takeIf { it.startsWith("encyclopedia-category:") }
+        ?.substringAfter("encyclopedia-category:")
+}
+
+private fun encyclopediaTermIdsFromRoute(route: String): Pair<String, String>? {
+    if (!route.startsWith("encyclopedia-term:")) return null
+
+    val routeParts = route.substringAfter("encyclopedia-term:").split(':', limit = 2)
+    if (routeParts.size != 2) return null
+
+    return routeParts[0] to routeParts[1]
 }
 
 private fun nextQuestionIdAfter(
