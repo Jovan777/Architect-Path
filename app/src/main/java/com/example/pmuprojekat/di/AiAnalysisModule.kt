@@ -1,15 +1,19 @@
 package com.example.pmuprojekat.di
 
 import com.example.pmuprojekat.BuildConfig
+import com.example.pmuprojekat.ai.AiChatService
 import com.example.pmuprojekat.ai.AiAnalysisService
 import com.example.pmuprojekat.ai.AiSketchAnalysisService
 import com.example.pmuprojekat.ai.EncyclopediaAiService
+import com.example.pmuprojekat.ai.MockAiChatService
 import com.example.pmuprojekat.ai.MockAiAnalysisService
 import com.example.pmuprojekat.ai.MockAiSketchAnalysisService
 import com.example.pmuprojekat.ai.MockEncyclopediaAiService
+import com.example.pmuprojekat.ai.OpenAiCompatibleAiChatService
 import com.example.pmuprojekat.ai.OpenAiCompatibleAiAnalysisService
 import com.example.pmuprojekat.ai.OpenAiCompatibleEncyclopediaAiService
 import com.example.pmuprojekat.ai.OpenAiCompatibleSketchAnalysisService
+import com.example.pmuprojekat.ai.OpenAiChatCompletionsClient
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,48 +26,78 @@ object AiAnalysisModule {
 
     @Provides
     @Singleton
-    fun provideAiAnalysisService(): AiAnalysisService {
+    fun provideOpenAiChatCompletionsClient(): OpenAiChatCompletionsClient {
+        return OpenAiChatCompletionsClient(
+            apiKey = BuildConfig.OPENAI_API_KEY,
+            endpoint = BuildConfig.OPENAI_API_BASE_URL
+        )
+    }
+
+    @Provides
+    @Singleton
+    fun provideAiAnalysisService(
+        client: OpenAiChatCompletionsClient
+    ): AiAnalysisService {
         val apiKey = BuildConfig.OPENAI_API_KEY.trim()
 
         return if (apiKey.isBlank()) {
             MockAiAnalysisService()
         } else {
             OpenAiCompatibleAiAnalysisService(
-                apiKey = apiKey,
-                endpoint = BuildConfig.OPENAI_API_BASE_URL,
-                model = BuildConfig.OPENAI_MODEL
+                client = client,
+                model = BuildConfig.OPENAI_MODEL.trim()
             )
         }
     }
 
     @Provides
     @Singleton
-    fun provideAiSketchAnalysisService(): AiSketchAnalysisService {
+    fun provideAiSketchAnalysisService(
+        client: OpenAiChatCompletionsClient
+    ): AiSketchAnalysisService {
         val apiKey = BuildConfig.OPENAI_API_KEY.trim()
 
         return if (apiKey.isBlank()) {
             MockAiSketchAnalysisService()
         } else {
             OpenAiCompatibleSketchAnalysisService(
-                apiKey = apiKey,
-                endpoint = BuildConfig.OPENAI_API_BASE_URL,
-                model = BuildConfig.OPENAI_VISION_MODEL
+                client = client,
+                model = BuildConfig.OPENAI_VISION_MODEL.trim()
+                    .ifBlank { BuildConfig.OPENAI_MODEL.trim() }
             )
         }
     }
 
     @Provides
     @Singleton
-    fun provideEncyclopediaAiService(): EncyclopediaAiService {
+    fun provideEncyclopediaAiService(
+        client: OpenAiChatCompletionsClient
+    ): EncyclopediaAiService {
         val apiKey = BuildConfig.OPENAI_API_KEY.trim()
 
         return if (apiKey.isBlank()) {
             MockEncyclopediaAiService()
         } else {
             OpenAiCompatibleEncyclopediaAiService(
-                apiKey = apiKey,
-                endpoint = BuildConfig.OPENAI_API_BASE_URL,
-                model = BuildConfig.OPENAI_MODEL
+                client = client,
+                model = BuildConfig.OPENAI_MODEL.trim()
+            )
+        }
+    }
+
+    @Provides
+    @Singleton
+    fun provideAiChatService(
+        client: OpenAiChatCompletionsClient
+    ): AiChatService {
+        val apiKey = BuildConfig.OPENAI_API_KEY.trim()
+
+        return if (apiKey.isBlank()) {
+            MockAiChatService()
+        } else {
+            OpenAiCompatibleAiChatService(
+                client = client,
+                model = BuildConfig.OPENAI_MODEL.trim()
             )
         }
     }

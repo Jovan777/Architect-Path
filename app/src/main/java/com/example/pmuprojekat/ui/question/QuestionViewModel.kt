@@ -1,6 +1,7 @@
 package com.example.pmuprojekat.ui.question
 
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pmuprojekat.ai.AiAnalysisOptionContext
@@ -237,14 +238,9 @@ class QuestionViewModel @Inject constructor(
                     aiAnalysisText.value = analysis
                 }
                 .onFailure { error ->
-                    aiAnalysisError.value = buildString {
-                        append("AI analiza trenutno nije dostupna.")
-                        val message = error.message
-                        if (!message.isNullOrBlank()) {
-                            append(" ")
-                            append(message)
-                        }
-                    }
+                    Log.e(AI_LOG_TAG, "Completed-task AI analysis failed", error)
+                    aiAnalysisError.value =
+                        "AI analiza trenutno nije dostupna. Proveri podešavanja modela ili pokušaj ponovo kasnije."
                 }
 
             isAiAnalysisLoading.value = false
@@ -313,14 +309,9 @@ class QuestionViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    sketchAnalysisError.value = buildString {
-                        append("AI analiza skice trenutno nije dostupna.")
-                        val message = error.message
-                        if (!message.isNullOrBlank()) {
-                            append(" ")
-                            append(message)
-                        }
-                    }
+                    Log.e(AI_LOG_TAG, "AI sketch analysis failed", error)
+                    sketchAnalysisError.value =
+                        "AI analiza skice trenutno nije dostupna. Proveri podešavanja modela ili pokušaj ponovo kasnije."
                 }
 
             isSketchAnalysisLoading.value = false
@@ -1198,3 +1189,5 @@ class QuestionViewModel @Inject constructor(
         return shuffledIds.mapNotNull { optionById[it] }
     }
 }
+
+private const val AI_LOG_TAG = "QuestionViewModel"

@@ -2,19 +2,19 @@ package com.example.pmuprojekat.ai
 
 import javax.inject.Inject
 
-class OpenAiCompatibleEncyclopediaAiService @Inject constructor(
+class OpenAiCompatibleAiChatService @Inject constructor(
     private val client: OpenAiChatCompletionsClient,
     private val model: String
-) : EncyclopediaAiService {
+) : AiChatService {
 
-    override suspend fun explain(request: EncyclopediaAiRequest): Result<String> = runCatching {
-        val prompt = EncyclopediaPromptBuilder.build(request)
+    override suspend fun sendMessage(request: AiChatRequest): Result<String> = runCatching {
+        val prompt = AiChatPromptBuilder.build(request)
         client.createCompletion(
             model = model,
             instruction = prompt.systemPrompt,
             userContent = prompt.userPrompt,
-            maxCompletionTokens = 700,
-            requestedTemperature = 0.3,
+            maxCompletionTokens = 900,
+            requestedTemperature = 0.35,
             requestedReasoningEffort = OpenAiReasoningEffort.NONE
         )
     }

@@ -17,7 +17,10 @@ val localProperties = Properties().apply {
 }
 
 fun localProperty(name: String, defaultValue: String = ""): String {
-    return localProperties.getProperty(name, defaultValue)
+    return localProperties.getProperty(name)
+        ?.trim()
+        ?.takeIf(String::isNotEmpty)
+        ?: defaultValue
 }
 
 fun String.asBuildConfigString(): String {
@@ -54,12 +57,12 @@ android {
         buildConfigField(
             "String",
             "OPENAI_MODEL",
-            "\"${localProperty("OPENAI_MODEL", "gpt-4o-mini").asBuildConfigString()}\""
+            "\"${localProperty("OPENAI_MODEL", "gpt-5.6-luna").asBuildConfigString()}\""
         )
         buildConfigField(
             "String",
             "OPENAI_VISION_MODEL",
-            "\"${localProperty("OPENAI_VISION_MODEL", localProperty("OPENAI_MODEL", "gpt-4o-mini")).asBuildConfigString()}\""
+            "\"${localProperty("OPENAI_VISION_MODEL", localProperty("OPENAI_MODEL", "gpt-5.6-luna")).asBuildConfigString()}\""
         )
     }
 

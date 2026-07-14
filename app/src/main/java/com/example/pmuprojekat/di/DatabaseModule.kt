@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.pmuprojekat.data.local.PMUDatabase
+import com.example.pmuprojekat.data.local.dao.AiChatDao
 import com.example.pmuprojekat.data.local.dao.QuestionDao
 import com.example.pmuprojekat.data.local.dao.SeedMetaDao
 import com.example.pmuprojekat.data.local.dao.UserAnswerDao
@@ -107,6 +108,40 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS ai_chat_conversations (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    title TEXT,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS ai_chat_messages (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    conversationId TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    relatedTermIds TEXT
+                )
+                """.trimIndent()
+            )
+            database.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_ai_chat_messages_conversationId_createdAt
+                ON ai_chat_messages(conversationId, createdAt)
+                """.trimIndent()
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -126,7 +161,8 @@ object DatabaseModule {
                 MIGRATION_3_4,
                 MIGRATION_4_5,
                 MIGRATION_5_6,
-                MIGRATION_6_7
+                MIGRATION_6_7,
+                MIGRATION_7_8
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -156,5 +192,10 @@ object DatabaseModule {
     @Provides
     fun provideUserTaskSubmissionDao(database: PMUDatabase): UserTaskSubmissionDao {
         return database.userTaskSubmissionDao()
+    }
+
+    @Provides
+    fun provideAiChatDao(database: PMUDatabase): AiChatDao {
+        return database.aiChatDao()
     }
 }

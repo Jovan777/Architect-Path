@@ -105,6 +105,7 @@ fun SoftwareDesignHomeScreen(
     onOpenVsAi: () -> Unit,
     onOpenTaskCreation: () -> Unit,
     onOpenEncyclopedia: () -> Unit,
+    onOpenAiChat: () -> Unit,
     onQuestionClick: (String) -> Unit,
     selectedTab: MainTab = MainTab.HOME,
     onBottomTabSelected: (MainTab) -> Unit = {}
@@ -177,7 +178,8 @@ fun SoftwareDesignHomeScreen(
                 DashboardPreviewSection(
                     uiState = uiState,
                     onOpenTaskCreation = onOpenTaskCreation,
-                    onOpenEncyclopedia = onOpenEncyclopedia
+                    onOpenEncyclopedia = onOpenEncyclopedia,
+                    onOpenAiChat = onOpenAiChat
                 )
 
                 RecommendedQuestionsSection(
@@ -613,7 +615,8 @@ private fun TaskFormatChip(format: TaskFormatUiModel) {
 private fun DashboardPreviewSection(
     uiState: HomeUiState,
     onOpenTaskCreation: () -> Unit,
-    onOpenEncyclopedia: () -> Unit
+    onOpenEncyclopedia: () -> Unit,
+    onOpenAiChat: () -> Unit
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -683,7 +686,8 @@ private fun DashboardPreviewSection(
                 modifier = Modifier.weight(1f),
                 title = "Pričaj sa AI",
                 subtitle = "Postavi pitanje kada ti nešto nije jasno.",
-                accentColor = AppPalette.Blue
+                accentColor = AppPalette.Blue,
+                onClick = onOpenAiChat
             ) {
                 FeatureCardImage(
                     imageResId = R.drawable.pmu_chat_with_ai,
@@ -1415,6 +1419,7 @@ fun SoftwareDesignHomeScreenPreview() {
             onOpenVsAi = {},
             onOpenTaskCreation = {},
             onOpenEncyclopedia = {},
+            onOpenAiChat = {},
             onQuestionClick = {}
         )
     }

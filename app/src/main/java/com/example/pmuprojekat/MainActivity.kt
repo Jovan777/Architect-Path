@@ -26,6 +26,8 @@ import com.example.pmuprojekat.ui.question.QuestionViewModel
 import com.example.pmuprojekat.ui.taskcreation.TaskCreationScreen
 import com.example.pmuprojekat.ui.taskcreation.TaskCreationViewModel
 import com.example.pmuprojekat.ui.theme.PMUProjekatTheme
+import com.example.pmuprojekat.ui.aichat.AiChatScreen
+import com.example.pmuprojekat.ui.aichat.AiChatViewModel
 import com.example.pmuprojekat.ui.vsai.VsAiLevelSelectionScreen
 import com.example.pmuprojekat.ui.vsai.VsAiPlaceholderScreen
 import dagger.hilt.android.AndroidEntryPoint
@@ -43,6 +45,7 @@ class MainActivity : ComponentActivity() {
     private val questionViewModel: QuestionViewModel by viewModels()
     private val taskCreationViewModel: TaskCreationViewModel by viewModels()
     private val encyclopediaViewModel: EncyclopediaViewModel by viewModels()
+    private val aiChatViewModel: AiChatViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_PMUProjekat)
@@ -55,6 +58,7 @@ class MainActivity : ComponentActivity() {
                 val questionUiState by questionViewModel.uiState.collectAsStateWithLifecycle()
                 val taskCreationUiState by taskCreationViewModel.uiState.collectAsStateWithLifecycle()
                 val encyclopediaUiState by encyclopediaViewModel.uiState.collectAsStateWithLifecycle()
+                val aiChatUiState by aiChatViewModel.uiState.collectAsStateWithLifecycle()
 
                 var routeBackStack by rememberSaveable {
                     mutableStateOf(listOf(tabRoute(MainTab.HOME)))
@@ -71,6 +75,7 @@ class MainActivity : ComponentActivity() {
                 val openedEncyclopedia = currentRoute == encyclopediaRoute()
                 val openedEncyclopediaCategoryId = encyclopediaCategoryIdFromRoute(currentRoute)
                 val openedEncyclopediaTerm = encyclopediaTermIdsFromRoute(currentRoute)
+                val openedAiChat = currentRoute == aiChatRoute()
 
                 fun popBackStack() {
                     if (routeBackStack.size > 1) {
@@ -240,6 +245,20 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    openedAiChat -> {
+                        AiChatScreen(
+                            uiState = aiChatUiState,
+                            onBack = {
+                                popBackStack()
+                            },
+                            onInputChange = aiChatViewModel::updateInput,
+                            onSend = aiChatViewModel::sendCurrentMessage,
+                            onSuggestionClick = aiChatViewModel::sendSuggestion,
+                            onRetry = aiChatViewModel::retryLastFailed,
+                            onClearConversation = aiChatViewModel::clearConversation
+                        )
+                    }
+
                     openedEncyclopediaTerm != null -> {
                         val (categoryId, termId) = openedEncyclopediaTerm
                         val category = encyclopediaUiState.categories
@@ -326,6 +345,9 @@ class MainActivity : ComponentActivity() {
                             onOpenEncyclopedia = {
                                 navigateTo(encyclopediaRoute())
                             },
+                            onOpenAiChat = {
+                                navigateTo(aiChatRoute())
+                            },
                             onQuestionClick = ::openQuestion,
                             selectedTab = MainTab.HOME,
                             onBottomTabSelected = ::selectTab
@@ -400,6 +422,10 @@ private fun vsAiRoute(): String {
 
 private fun taskCreationRoute(): String {
     return "task-creation"
+}
+
+private fun aiChatRoute(): String {
+    return "ai-chat"
 }
 
 private fun encyclopediaRoute(): String {
