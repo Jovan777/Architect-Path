@@ -12,6 +12,7 @@ import com.example.pmuprojekat.data.local.dao.SeedMetaDao
 import com.example.pmuprojekat.data.local.dao.UserAnswerDao
 import com.example.pmuprojekat.data.local.dao.UserDao
 import com.example.pmuprojekat.data.local.dao.UserTaskSubmissionDao
+import com.example.pmuprojekat.data.local.dao.VsAiDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -142,6 +143,61 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS vs_ai_attempts (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    level TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL,
+                    completedAt INTEGER,
+                    finalScore INTEGER,
+                    finalSummary TEXT,
+                    targetConceptsJson TEXT NOT NULL,
+                    levelContextSnapshotJson TEXT NOT NULL,
+                    learnerContextSnapshotJson TEXT NOT NULL,
+                    relevantTermIdsJson TEXT NOT NULL,
+                    challengeJson TEXT,
+                    roundsCount INTEGER NOT NULL,
+                    completionReason TEXT
+                )
+                """.trimIndent()
+            )
+            database.execSQL(
+                "CREATE INDEX IF NOT EXISTS index_vs_ai_attempts_level ON vs_ai_attempts(level)"
+            )
+            database.execSQL(
+                "CREATE INDEX IF NOT EXISTS index_vs_ai_attempts_status ON vs_ai_attempts(status)"
+            )
+            database.execSQL(
+                "CREATE INDEX IF NOT EXISTS index_vs_ai_attempts_createdAt ON vs_ai_attempts(createdAt)"
+            )
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS vs_ai_messages (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    attemptId TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    roundNumber INTEGER NOT NULL,
+                    hiddenEvaluationJson TEXT,
+                    FOREIGN KEY(attemptId) REFERENCES vs_ai_attempts(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+                """.trimIndent()
+            )
+            database.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_vs_ai_messages_attemptId_createdAt
+                ON vs_ai_messages(attemptId, createdAt)
+                """.trimIndent()
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -162,7 +218,8 @@ object DatabaseModule {
                 MIGRATION_4_5,
                 MIGRATION_5_6,
                 MIGRATION_6_7,
-                MIGRATION_7_8
+                MIGRATION_7_8,
+                MIGRATION_8_9
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -197,5 +254,10 @@ object DatabaseModule {
     @Provides
     fun provideAiChatDao(database: PMUDatabase): AiChatDao {
         return database.aiChatDao()
+    }
+
+    @Provides
+    fun provideVsAiDao(database: PMUDatabase): VsAiDao {
+        return database.vsAiDao()
     }
 }

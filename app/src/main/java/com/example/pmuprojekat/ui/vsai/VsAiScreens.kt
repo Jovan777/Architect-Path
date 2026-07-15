@@ -57,8 +57,10 @@ private data class VsAiLevelOptionUi(
 @Composable
 fun VsAiLevelSelectionScreen(
     uiState: HomeUiState,
+    historyCount: Int,
     onBack: () -> Unit,
-    onLevelSelected: (String) -> Unit
+    onLevelSelected: (String) -> Unit,
+    onOpenHistory: () -> Unit
 ) {
     val options = remember(uiState.levelXpProgress) {
         vsAiLevelOptions(uiState.levelXpProgress)
@@ -97,6 +99,11 @@ fun VsAiLevelSelectionScreen(
 
             VsAiHeroPanel()
 
+            VsAiHistoryEntryCard(
+                historyCount = historyCount,
+                onClick = onOpenHistory
+            )
+
             options.forEach { option ->
                 VsAiLevelCard(
                     option = option,
@@ -108,89 +115,62 @@ fun VsAiLevelSelectionScreen(
 }
 
 @Composable
-fun VsAiPlaceholderScreen(
-    levelId: String,
-    onBack: () -> Unit
+private fun VsAiHistoryEntryCard(
+    historyCount: Int,
+    onClick: () -> Unit
 ) {
-    val option = remember(levelId) {
-        vsAiLevelOptions(emptyList()).firstOrNull { it.levelId == levelId }
-            ?: vsAiLevelOptions(emptyList()).first()
-    }
-
-    Scaffold(
-        containerColor = AppPalette.Background
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color(0xFFF8FAFC),
-                            Color(0xFFF1F5F9),
-                            Color.White
-                        )
-                    )
-                )
-                .padding(innerPadding)
-                .padding(
-                    top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
-                    bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                )
-                .padding(horizontal = 18.dp)
-                .padding(top = 12.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(22.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, AppPalette.Indigo.copy(alpha = 0.22f)),
+        shadowElevation = 4.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            VsAiTopBar(
-                title = option.title,
-                subtitle = "Priprema posebnog AI izazova za izabrani nivo.",
-                onBack = onBack
-            )
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(30.dp),
-                colors = CardDefaults.cardColors(containerColor = AppPalette.Navy),
-                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(AppPalette.Indigo.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            Brush.linearGradient(
-                                listOf(
-                                    AppPalette.Navy,
-                                    option.accentColor.copy(alpha = 0.72f),
-                                    Color(0xFF111827)
-                                )
-                            )
-                        )
-                        .padding(22.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(
-                            text = option.icon,
-                            color = Color.White,
-                            fontSize = 34.sp,
-                            fontWeight = FontWeight.Black
-                        )
-                        Text(
-                            text = option.title,
-                            color = Color.White,
-                            fontSize = 24.sp,
-                            lineHeight = 29.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                        Text(
-                            text = "VS AI mod za ovaj nivo biće implementiran uskoro.",
-                            color = Color(0xFFE2E8F0),
-                            fontSize = 14.sp,
-                            lineHeight = 21.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
+                Text(
+                    text = historyCount.toString(),
+                    color = AppPalette.Indigo,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
             }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Istorija izazova",
+                    color = AppPalette.TextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    text = if (historyCount == 0) {
+                        "Još nema završenih VS AI pokušaja."
+                    } else {
+                        "Pogledaj rezultate i razloge završetka prethodnih pokušaja."
+                    },
+                    color = AppPalette.TextSecondary,
+                    fontSize = 12.5.sp,
+                    lineHeight = 17.sp
+                )
+            }
+            Text(
+                text = ">",
+                color = AppPalette.Indigo,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

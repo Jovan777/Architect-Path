@@ -14,6 +14,9 @@ import com.example.pmuprojekat.ai.OpenAiCompatibleAiAnalysisService
 import com.example.pmuprojekat.ai.OpenAiCompatibleEncyclopediaAiService
 import com.example.pmuprojekat.ai.OpenAiCompatibleSketchAnalysisService
 import com.example.pmuprojekat.ai.OpenAiChatCompletionsClient
+import com.example.pmuprojekat.ai.MockVsAiService
+import com.example.pmuprojekat.ai.OpenAiCompatibleVsAiService
+import com.example.pmuprojekat.ai.VsAiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -96,6 +99,23 @@ object AiAnalysisModule {
             MockAiChatService()
         } else {
             OpenAiCompatibleAiChatService(
+                client = client,
+                model = BuildConfig.OPENAI_MODEL.trim()
+            )
+        }
+    }
+
+    @Provides
+    @Singleton
+    fun provideVsAiService(
+        client: OpenAiChatCompletionsClient
+    ): VsAiService {
+        val apiKey = BuildConfig.OPENAI_API_KEY.trim()
+
+        return if (apiKey.isBlank()) {
+            MockVsAiService()
+        } else {
+            OpenAiCompatibleVsAiService(
                 client = client,
                 model = BuildConfig.OPENAI_MODEL.trim()
             )

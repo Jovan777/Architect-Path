@@ -28,8 +28,10 @@ import com.example.pmuprojekat.ui.taskcreation.TaskCreationViewModel
 import com.example.pmuprojekat.ui.theme.PMUProjekatTheme
 import com.example.pmuprojekat.ui.aichat.AiChatScreen
 import com.example.pmuprojekat.ui.aichat.AiChatViewModel
+import com.example.pmuprojekat.ui.vsai.VsAiChallengeScreen
+import com.example.pmuprojekat.ui.vsai.VsAiHistoryScreen
 import com.example.pmuprojekat.ui.vsai.VsAiLevelSelectionScreen
-import com.example.pmuprojekat.ui.vsai.VsAiPlaceholderScreen
+import com.example.pmuprojekat.ui.vsai.VsAiViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import com.example.pmuprojekat.ui.main.SettingsScreen
 import com.example.pmuprojekat.ui.home.QuestionPreviewUi
@@ -46,6 +48,7 @@ class MainActivity : ComponentActivity() {
     private val taskCreationViewModel: TaskCreationViewModel by viewModels()
     private val encyclopediaViewModel: EncyclopediaViewModel by viewModels()
     private val aiChatViewModel: AiChatViewModel by viewModels()
+    private val vsAiViewModel: VsAiViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_PMUProjekat)
@@ -59,6 +62,7 @@ class MainActivity : ComponentActivity() {
                 val taskCreationUiState by taskCreationViewModel.uiState.collectAsStateWithLifecycle()
                 val encyclopediaUiState by encyclopediaViewModel.uiState.collectAsStateWithLifecycle()
                 val aiChatUiState by aiChatViewModel.uiState.collectAsStateWithLifecycle()
+                val vsAiUiState by vsAiViewModel.uiState.collectAsStateWithLifecycle()
 
                 var routeBackStack by rememberSaveable {
                     mutableStateOf(listOf(tabRoute(MainTab.HOME)))
@@ -71,6 +75,7 @@ class MainActivity : ComponentActivity() {
                 val openedSettings = currentRoute == settingsRoute()
                 val openedVsAi = currentRoute == vsAiRoute()
                 val openedVsAiLevelId = vsAiLevelIdFromRoute(currentRoute)
+                val openedVsAiHistory = currentRoute == vsAiHistoryRoute()
                 val openedTaskCreation = currentRoute == taskCreationRoute()
                 val openedEncyclopedia = currentRoute == encyclopediaRoute()
                 val openedEncyclopediaCategoryId = encyclopediaCategoryIdFromRoute(currentRoute)
@@ -140,6 +145,15 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                fun goBackToVsAiLevels() {
+                    val existingIndex = routeBackStack.indexOfLast { it == vsAiRoute() }
+                    routeBackStack = if (existingIndex >= 0) {
+                        routeBackStack.take(existingIndex + 1)
+                    } else {
+                        listOf(tabRoute(MainTab.HOME), vsAiRoute())
+                    }
+                }
+
                 BackHandler(enabled = routeBackStack.size > 1) {
                     popBackStack()
                 }
@@ -148,6 +162,10 @@ class MainActivity : ComponentActivity() {
                     openedQuestionId?.let { questionId ->
                         questionViewModel.ensureQuestionLoaded(questionId)
                     }
+                }
+
+                LaunchedEffect(openedVsAiLevelId) {
+                    openedVsAiLevelId?.let(vsAiViewModel::ensureChallenge)
                 }
 
                 when {
@@ -217,21 +235,43 @@ class MainActivity : ComponentActivity() {
                     openedVsAi -> {
                         VsAiLevelSelectionScreen(
                             uiState = homeUiState,
+                            historyCount = vsAiUiState.completedHistoryCount,
                             onBack = {
                                 popBackStack()
                             },
                             onLevelSelected = { levelId ->
                                 navigateTo(vsAiLevelRoute(levelId))
+                            },
+                            onOpenHistory = {
+                                navigateTo(vsAiHistoryRoute())
                             }
                         )
                     }
 
                     openedVsAiLevelId != null -> {
-                        VsAiPlaceholderScreen(
-                            levelId = openedVsAiLevelId,
+                        VsAiChallengeScreen(
+                            uiState = vsAiUiState,
                             onBack = {
                                 popBackStack()
+                            },
+                            onInputChange = vsAiViewModel::updateInput,
+                            onSendAnswer = vsAiViewModel::submitAnswer,
+                            onStopChallenge = vsAiViewModel::stopChallenge,
+                            onRetry = vsAiViewModel::retry,
+                            onNewChallenge = {
+                                vsAiViewModel.startNewChallenge(openedVsAiLevelId)
+                            },
+                            onBackToLevels = ::goBackToVsAiLevels,
+                            onOpenHistory = {
+                                navigateTo(vsAiHistoryRoute())
                             }
+                        )
+                    }
+
+                    openedVsAiHistory -> {
+                        VsAiHistoryScreen(
+                            uiState = vsAiUiState,
+                            onBack = ::popBackStack
                         )
                     }
 
@@ -442,6 +482,10 @@ private fun encyclopediaTermRoute(categoryId: String, termId: String): String {
 
 private fun vsAiLevelRoute(levelId: String): String {
     return "vs-ai-level:$levelId"
+}
+
+private fun vsAiHistoryRoute(): String {
+    return "vs-ai-history"
 }
 
 private fun tabFromRoute(route: String): MainTab? {
