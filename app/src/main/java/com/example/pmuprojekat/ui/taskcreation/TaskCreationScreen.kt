@@ -1,6 +1,10 @@
 package com.example.pmuprojekat.ui.taskcreation
 
+import android.graphics.BitmapFactory
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,6 +29,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -35,13 +40,21 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +68,9 @@ import com.example.pmuprojekat.taskcreation.TaskCreationStepBlueprint
 import com.example.pmuprojekat.taskcreation.TaskCreationTemplateDefinition
 import com.example.pmuprojekat.taskcreation.TaskCreationTemplateRegistry
 import com.example.pmuprojekat.ui.home.AppPalette
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun TaskCreationScreen(
@@ -205,14 +221,17 @@ private fun TaskCreationFormStep(
     TaskCreationCard {
         SectionTitle("Osnovni podaci")
         FormTextField("Naslov zadatka", draft.title, viewModel::updateTitle)
-        FormTextField("Scenario / opis sistema", draft.scenario, viewModel::updateScenario, minLines = 5)
+        ScenarioTextFieldWithTxtImport(
+            label = "Scenario / opis sistema",
+            value = draft.scenario,
+            onValueChange = viewModel::updateScenario
+        )
 
         if (template.requiresDiagramReference) {
-            FormTextField(
-                label = "Referenca dijagrama / slike",
-                value = draft.diagramReference,
-                onValueChange = viewModel::updateDiagramReference,
-                minLines = 2
+            DiagramImagePickerField(
+                attachment = draft.diagramImage,
+                onImageSelected = viewModel::updateDiagramImage,
+                onRemoveImage = viewModel::removeDiagramImage
             )
         }
 
@@ -722,7 +741,7 @@ private fun TaskCreationPreviewStep(
         PreviewLine("Tip", "${template.questionIdPattern} • ${template.displayName}")
         PreviewLine("Naslov", draft.title)
         PreviewBlock("Scenario", draft.scenario)
-        if (draft.diagramReference.isNotBlank()) PreviewLine("Dijagram", draft.diagramReference)
+        draft.diagramImage?.let { PreviewDiagramImage(it) }
         if (draft.checklistItems.any { it.isNotBlank() }) PreviewList("Checklista", draft.checklistItems.filter { it.isNotBlank() })
         if (draft.internalRubric.isNotBlank()) PreviewBlock("Smernica za AI analizu", draft.internalRubric)
 
@@ -918,6 +937,247 @@ private fun TaskCreationSuccessStep(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ScenarioTextFieldWithTxtImport(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var pendingImportedText by remember { mutableStateOf<String?>(null) }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+    var isErrorMessage by remember { mutableStateOf(false) }
+
+    fun showStatus(message: String, isError: Boolean) {
+        statusMessage = message
+        isErrorMessage = isError
+    }
+
+    fun applyImportedText(importedText: String, replace: Boolean) {
+        val updatedText = if (replace || value.isBlank()) {
+            importedText
+        } else {
+            value.trimEnd() + "\n\n" + importedText.trimStart()
+        }
+        onValueChange(updatedText)
+        pendingImportedText = null
+        showStatus("Tekst je učitan iz fajla.", isError = false)
+    }
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            when (val result = withContext(Dispatchers.IO) { readScenarioTxtFile(context, uri) }) {
+                is TxtScenarioImportResult.Success -> {
+                    if (value.isBlank()) {
+                        applyImportedText(result.text, replace = true)
+                    } else {
+                        pendingImportedText = result.text
+                        statusMessage = null
+                    }
+                }
+                is TxtScenarioImportResult.Error -> showStatus(result.message, isError = true)
+            }
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FormTextField(
+            label = label,
+            value = value,
+            onValueChange = onValueChange,
+            minLines = 5
+        )
+        OutlinedButton(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { launcher.launch(arrayOf("text/plain")) },
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Text("Učitaj scenario iz .txt fajla", fontWeight = FontWeight.ExtraBold)
+        }
+        statusMessage?.let { message ->
+            ImportStatusMessage(message = message, isError = isErrorMessage)
+        }
+    }
+
+    pendingImportedText?.let { importedText ->
+        AlertDialog(
+            onDismissRequest = { pendingImportedText = null },
+            title = { Text("Polje već sadrži tekst") },
+            text = { Text("Šta želiš da uradiš?") },
+            confirmButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { applyImportedText(importedText, replace = true) }) {
+                        Text("Zameni")
+                    }
+                    TextButton(onClick = { applyImportedText(importedText, replace = false) }) {
+                        Text("Dodaj na kraj")
+                    }
+                    TextButton(onClick = { pendingImportedText = null }) {
+                        Text("Otkaži")
+                    }
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun DiagramImagePickerField(
+    attachment: TaskCreationDiagramImageDraft?,
+    onImageSelected: (TaskCreationDiagramImageDraft) -> Unit,
+    onRemoveImage: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            when (val result = withContext(Dispatchers.IO) { copyDiagramImageToInternalStorage(context, uri) }) {
+                is DiagramImageImportResult.Success -> {
+                    onImageSelected(result.attachment)
+                    statusMessage = null
+                }
+                is DiagramImageImportResult.Error -> statusMessage = result.message
+            }
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionTitle("Dijagram / slika")
+        if (attachment == null) {
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { launcher.launch(arrayOf("image/png", "image/jpeg", "image/webp")) },
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("Dodaj sliku dijagrama", fontWeight = FontWeight.ExtraBold)
+            }
+        } else {
+            DiagramImagePreview(attachment = attachment)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = { launcher.launch(arrayOf("image/png", "image/jpeg", "image/webp")) },
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Promeni sliku", fontWeight = FontWeight.ExtraBold)
+                }
+                OutlinedButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        onRemoveImage()
+                        statusMessage = null
+                    },
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Ukloni sliku", fontWeight = FontWeight.ExtraBold)
+                }
+            }
+        }
+        statusMessage?.let { message ->
+            ImportStatusMessage(message = message, isError = true)
+        }
+    }
+}
+
+@Composable
+private fun PreviewDiagramImage(attachment: TaskCreationDiagramImageDraft) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        PreviewLine("Dijagram", attachment.originalFileName)
+        DiagramImagePreview(attachment = attachment)
+    }
+}
+
+@Composable
+private fun DiagramImagePreview(attachment: TaskCreationDiagramImageDraft) {
+    val imageBitmap = remember(attachment.localPath) {
+        runCatching { BitmapFactory.decodeFile(attachment.localPath)?.asImageBitmap() }.getOrNull()
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFFF8FAFC),
+        border = BorderStroke(1.dp, AppPalette.Border)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (imageBitmap == null) {
+                Text(
+                    text = "Slika nije mogla da se učita.",
+                    color = Color(0xFFB91C1C),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            } else {
+                Image(
+                    bitmap = imageBitmap,
+                    contentDescription = "Pregled dijagrama",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(190.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.White),
+                    contentScale = ContentScale.Fit
+                )
+            }
+            Text(
+                text = attachment.originalFileName,
+                color = AppPalette.TextPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                text = "${attachment.mimeType} • ${formatFileSize(attachment.sizeBytes)}",
+                color = AppPalette.TextSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
+private fun ImportStatusMessage(
+    message: String,
+    isError: Boolean
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = if (isError) Color(0xFFFEF2F2) else Color(0xFFECFDF5),
+        border = BorderStroke(1.dp, if (isError) Color(0xFFFECACA) else Color(0xFFA7F3D0))
+    ) {
+        Text(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+            text = message,
+            color = if (isError) Color(0xFFB91C1C) else Color(0xFF047857),
+            fontSize = 12.5.sp,
+            lineHeight = 17.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+private fun formatFileSize(sizeBytes: Long): String {
+    if (sizeBytes <= 0L) return "nepoznata veličina"
+    val kb = sizeBytes / 1024.0
+    return if (kb < 1024) {
+        "${"%.1f".format(kb)} KB"
+    } else {
+        "${"%.1f".format(kb / 1024.0)} MB"
     }
 }
 

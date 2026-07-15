@@ -47,6 +47,15 @@ data class TaskCreationBlankDraft(
     val expectedAnswer: String = ""
 )
 
+data class TaskCreationDiagramImageDraft(
+    val originalFileName: String,
+    val mimeType: String,
+    val sizeBytes: Long,
+    val localFileName: String,
+    val localUri: String,
+    val localPath: String
+)
+
 data class TaskCreationStepDraft(
     val blueprintKey: String,
     val type: String,
@@ -65,6 +74,7 @@ data class TaskCreationDraft(
     val title: String = "",
     val scenario: String = "",
     val diagramReference: String = "",
+    val diagramImage: TaskCreationDiagramImageDraft? = null,
     val aiFollowUp: String = "",
     val internalRubric: String = "",
     val checklistItems: List<String> = listOf("", ""),
@@ -166,6 +176,13 @@ class TaskCreationViewModel @Inject constructor(
     fun updateTitle(value: String) = updateDraft { it.copy(title = value) }
     fun updateScenario(value: String) = updateDraft { it.copy(scenario = value) }
     fun updateDiagramReference(value: String) = updateDraft { it.copy(diagramReference = value) }
+    fun updateDiagramImage(value: TaskCreationDiagramImageDraft) = updateDraft {
+        it.copy(
+            diagramImage = value,
+            diagramReference = value.localFileName
+        )
+    }
+    fun removeDiagramImage() = updateDraft { it.copy(diagramImage = null, diagramReference = "") }
     fun updateAiFollowUp(value: String) = updateDraft { it.copy(aiFollowUp = value) }
     fun updateInternalRubric(value: String) = updateDraft { it.copy(internalRubric = value) }
 
@@ -488,8 +505,8 @@ class TaskCreationViewModel @Inject constructor(
 
         if (draft.title.isBlank()) errors += "Naslov je obavezan."
         if (draft.scenario.isBlank()) errors += "Scenario ili opis zadatka je obavezan."
-        if (template.requiresDiagramReference && draft.diagramReference.isBlank()) {
-            errors += "Za ovaj tip zadatka dodaj referencu ili opis dijagrama."
+        if (template.requiresDiagramReference && draft.diagramImage == null) {
+            errors += "Dodaj sliku dijagrama za ovaj tip zadatka."
         }
         if (template.requiresSketchChecklist && draft.checklistItems.count { it.isNotBlank() } < 2) {
             errors += "Dodaj najmanje dve stavke za checklistu crteža."
@@ -658,7 +675,8 @@ class TaskCreationViewModel @Inject constructor(
             .put("type", template.taskType)
             .put("title", draft.title.trim())
             .put("prompt", draft.scenario.trim())
-            .put("diagramImageName", draft.diagramReference.trim())
+            .put("diagramImageName", draft.diagramImage?.localFileName ?: draft.diagramReference.trim())
+            .put("diagramImage", draft.diagramImage?.toPayloadJson() ?: JSONObject.NULL)
             .put("aiFollowUp", draft.aiFollowUp.trim())
             .put("internalAiRubric", draft.internalRubric.trim())
             .put("drawingChecklist", JSONArray(draft.checklistItems.mapNotBlank()))
@@ -779,6 +797,19 @@ class TaskCreationViewModel @Inject constructor(
 
     private fun optionLabel(index: Int): String {
         return ('A'.code + index).toChar().toString()
+    }
+
+    private fun TaskCreationDiagramImageDraft.toPayloadJson(): JSONObject {
+        return JSONObject()
+            .put("type", "USER_SELECTED_IMAGE")
+            .put("originalFileName", originalFileName)
+            .put("mimeType", mimeType)
+            .put("sizeBytes", sizeBytes)
+            .put("localFileName", localFileName)
+            .put("localUri", localUri)
+            .put("localPath", localPath)
+            .put("remoteStoragePath", JSONObject.NULL)
+            .put("downloadUrl", JSONObject.NULL)
     }
 
     private fun List<String>.mapNotBlank(): List<String> {
