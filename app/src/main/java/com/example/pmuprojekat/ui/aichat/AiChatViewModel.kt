@@ -25,7 +25,7 @@ data class AiChatUiState(
     val errorMessage: String? = null,
     val canRetry: Boolean = false,
     val relatedTermsForLastQuestion: List<AiChatRelevantTerm> = emptyList(),
-    val suggestedPrompts: List<String> = DEFAULT_SUGGESTED_PROMPTS
+    val suggestedPrompts: List<String> = emptyList()
 ) {
     val canSend: Boolean
         get() = inputText.trim().isNotBlank() && !isLoading
@@ -37,7 +37,11 @@ class AiChatViewModel @Inject constructor(
     private val chatService: AiChatService,
     private val termRetriever: EncyclopediaTermRetriever
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(AiChatUiState())
+    private val _uiState = MutableStateFlow(
+        AiChatUiState(
+            suggestedPrompts = AiChatSuggestedQuestions.randomSelection()
+        )
+    )
     val uiState: StateFlow<AiChatUiState> = _uiState.asStateFlow()
 
     private var sendJob: Job? = null
@@ -92,7 +96,8 @@ class AiChatViewModel @Inject constructor(
                     isLoading = false,
                     errorMessage = null,
                     canRetry = false,
-                    relatedTermsForLastQuestion = emptyList()
+                    relatedTermsForLastQuestion = emptyList(),
+                    suggestedPrompts = AiChatSuggestedQuestions.randomSelection()
                 )
             }
         }
@@ -211,13 +216,3 @@ class AiChatViewModel @Inject constructor(
 }
 
 private const val AiChatPromptHistoryLimit = 8
-
-private val DEFAULT_SUGGESTED_PROMPTS = listOf(
-    "Objasni mi Strategy obrazac",
-    "Šta znači source of truth?",
-    "Koja je razlika između cache-a i read modela?",
-    "Kako da razmišljam o mikroservisima?",
-    "Šta je RAG?",
-    "Objasni mi arhitektonski kompromis",
-    "Kako da nacrtam osnovnu arhitekturu sistema?"
-)
