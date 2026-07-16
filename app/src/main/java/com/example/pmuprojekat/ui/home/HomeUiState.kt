@@ -73,7 +73,9 @@ data class QuestionPreviewUi(
     val bestScorePercent: Int = 0,
     val format: String = "",
     val focus: String = "",
-    val personalizationScore: Int = 0
+    val personalizationScore: Int = 0,
+    val source: String = "LOCAL_SEED",
+    val publicationMode: String = "MAIN_TASK_LIST"
 )
 
 @Immutable

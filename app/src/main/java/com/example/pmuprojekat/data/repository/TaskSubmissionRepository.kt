@@ -12,5 +12,11 @@ interface TaskSubmissionRepository {
 
 sealed interface SubmissionSyncResult {
     data class Uploaded(val remoteSubmissionId: String) : SubmissionSyncResult
+    data class AttachmentUploadFailed(val cause: Throwable?) : SubmissionSyncResult
     data class SavedLocally(val cause: Throwable?) : SubmissionSyncResult
 }
+
+class TaskAttachmentUploadException(
+    message: String,
+    cause: Throwable? = null
+) : Exception(message, cause)

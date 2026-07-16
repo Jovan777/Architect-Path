@@ -23,6 +23,10 @@ data class QuestionEntity(
     val title: String,
     val prompt: String,
     val diagramImageName: String? = null,
+    val diagramImageLocalUri: String? = null,
+    val diagramImageLocalPath: String? = null,
+    val diagramImageRemoteStoragePath: String? = null,
+    val diagramImageDownloadUrl: String? = null,
 
     val aiFollowUp: String? = null,
 

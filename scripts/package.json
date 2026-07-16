@@ -1,0 +1,13 @@
+{
+  "name": "pmu-firebase-admin-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local Firebase admin utilities for PMUProjekat.",
+  "main": "promoteTaskSubmission.js",
+  "scripts": {
+    "promote": "node promoteTaskSubmission.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

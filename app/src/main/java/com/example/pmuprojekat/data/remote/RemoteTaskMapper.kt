@@ -46,6 +46,7 @@ class RemoteTaskMapper @Inject constructor() {
         }
         val questionId = remoteQuestionId(document, source)
         val stepPayloads = questionPayload.mapList("steps")
+        val diagramImagePayload = questionPayload.mapValue("diagramImage")
 
         require(stepPayloads.isNotEmpty()) {
             "Udaljeni zadatak nema nijedan korak."
@@ -69,6 +70,14 @@ class RemoteTaskMapper @Inject constructor() {
                     ?: document.title,
                 prompt = questionPayload.stringValue("prompt").orEmpty(),
                 diagramImageName = questionPayload.stringValue("diagramImageName")
+                    ?.takeIf(String::isNotBlank),
+                diagramImageLocalUri = diagramImagePayload?.stringValue("localUri")
+                    ?.takeIf(String::isNotBlank),
+                diagramImageLocalPath = diagramImagePayload?.stringValue("localPath")
+                    ?.takeIf(String::isNotBlank),
+                diagramImageRemoteStoragePath = diagramImagePayload?.stringValue("remoteStoragePath")
+                    ?.takeIf(String::isNotBlank),
+                diagramImageDownloadUrl = diagramImagePayload?.stringValue("downloadUrl")
                     ?.takeIf(String::isNotBlank),
                 aiFollowUp = questionPayload.stringValue("aiFollowUp")
                     ?.takeIf(String::isNotBlank),

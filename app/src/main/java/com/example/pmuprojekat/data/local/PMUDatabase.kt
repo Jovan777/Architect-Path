@@ -43,7 +43,7 @@ import com.example.pmuprojekat.data.local.entity.VsAiMessageEntity
         VsAiMessageEntity::class,
         SeedMetaEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true
 )
 @TypeConverters(RoomConverters::class)

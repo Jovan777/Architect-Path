@@ -54,7 +54,8 @@ class FirestoreRemoteTaskRepository @Inject constructor(
                 .get()
                 .awaitResult()
             val mapped = snapshot.documents.mapNotNull { document ->
-                val result = mapper.toPlayableQuestion(document.toRemoteTaskDocument())
+                val remoteDocument = document.toRemoteTaskDocument().resolveDiagramDownloadUrl()
+                val result = mapper.toPlayableQuestion(remoteDocument)
                 result.exceptionOrNull()?.let { error ->
                     skippedDocuments += 1
                     Log.w(TAG, "Preskačem ${document.reference.path}: ${error.message}")
@@ -74,7 +75,8 @@ class FirestoreRemoteTaskRepository @Inject constructor(
                 .get()
                 .awaitResult()
             val mapped = snapshot.documents.mapNotNull { document ->
-                val result = mapper.toPlayableQuestion(document.toApprovedSubmissionDocument())
+                val remoteDocument = document.toApprovedSubmissionDocument().resolveDiagramDownloadUrl()
+                val result = mapper.toPlayableQuestion(remoteDocument)
                 result.exceptionOrNull()?.let { error ->
                     skippedDocuments += 1
                     Log.w(TAG, "Preskačem ${document.reference.path}: ${error.message}")
@@ -125,7 +127,12 @@ class FirestoreRemoteTaskRepository @Inject constructor(
                 cached == null ||
                     cached.remoteUpdatedAt != incoming.question.remoteUpdatedAt ||
                     cached.title != incoming.question.title ||
-                    cached.prompt != incoming.question.prompt
+                    cached.prompt != incoming.question.prompt ||
+                    cached.diagramImageName != incoming.question.diagramImageName ||
+                    cached.diagramImageLocalUri != incoming.question.diagramImageLocalUri ||
+                    cached.diagramImageLocalPath != incoming.question.diagramImageLocalPath ||
+                    cached.diagramImageRemoteStoragePath != incoming.question.diagramImageRemoteStoragePath ||
+                    cached.diagramImageDownloadUrl != incoming.question.diagramImageDownloadUrl
             }
             if (changed.isEmpty()) return@withTransaction
 
@@ -181,6 +188,37 @@ class FirestoreRemoteTaskRepository @Inject constructor(
                 ?: (data["payloadJson"] as? String)?.toJsonMap()
                 ?: emptyMap()
         )
+    }
+
+    private suspend fun RemoteTaskDocument.resolveDiagramDownloadUrl(): RemoteTaskDocument {
+        val hasQuestionWrapper = payload["question"] is Map<*, *>
+        val questionPayload = payload["question"].asStringMap() ?: payload
+        val diagramImage = questionPayload["diagramImage"].asStringMap() ?: return this
+        if ((diagramImage["downloadUrl"] as? String).isNullOrBlank().not()) return this
+
+        val storagePath = (diagramImage["remoteStoragePath"] as? String)
+            ?.trim()
+            ?.takeIf(String::isNotBlank)
+            ?: return this
+        val downloadUrl = runCatching {
+            clients.storage().getOrThrow()
+                .reference
+                .child(storagePath)
+                .downloadUrl
+                .awaitResult()
+                .toString()
+        }.onFailure { error ->
+            Log.w(TAG, "Nije moguće razrešiti Storage URL za $storagePath.", error)
+        }.getOrNull() ?: return this
+
+        val updatedDiagram = diagramImage + ("downloadUrl" to downloadUrl)
+        val updatedQuestion = questionPayload + ("diagramImage" to updatedDiagram)
+        val updatedPayload = if (hasQuestionWrapper) {
+            payload + ("question" to updatedQuestion)
+        } else {
+            updatedQuestion
+        }
+        return copy(payload = updatedPayload)
     }
 
     @Suppress("UNCHECKED_CAST")

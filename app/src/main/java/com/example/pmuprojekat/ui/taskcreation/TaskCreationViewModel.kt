@@ -97,6 +97,7 @@ data class TaskCreationUiState(
     val draft: TaskCreationDraft = TaskCreationDraft(),
     val validationErrors: List<String> = emptyList(),
     val isSubmitting: Boolean = false,
+    val submissionErrorMessage: String? = null,
     val successMessage: String? = null,
     val localSubmissions: List<UserTaskSubmissionSummaryUi> = emptyList()
 ) {
@@ -108,6 +109,8 @@ data class TaskCreationUiState(
 class TaskCreationViewModel @Inject constructor(
     private val repository: TaskSubmissionRepository
 ) : ViewModel() {
+
+    private var pendingSubmissionForRetry: UserTaskSubmissionEntity? = null
 
     private val _uiState = MutableStateFlow(TaskCreationUiState())
     val uiState: StateFlow<TaskCreationUiState> = _uiState.asStateFlow()
@@ -123,33 +126,39 @@ class TaskCreationViewModel @Inject constructor(
     }
 
     fun startNewFlow() {
+        pendingSubmissionForRetry = null
         _uiState.value = _uiState.value.copy(
             step = TaskCreationFlowStep.LEVEL,
             selectedLevelId = null,
             selectedTemplateId = null,
             draft = TaskCreationDraft(),
             validationErrors = emptyList(),
+            submissionErrorMessage = null,
             successMessage = null
         )
     }
 
     fun selectLevel(levelId: String) {
+        pendingSubmissionForRetry = null
         _uiState.value = _uiState.value.copy(
             selectedLevelId = levelId,
             selectedTemplateId = null,
             draft = TaskCreationDraft(),
             validationErrors = emptyList(),
+            submissionErrorMessage = null,
             step = TaskCreationFlowStep.TEMPLATE
         )
     }
 
     fun selectTemplate(templateId: String) {
         val template = TaskCreationTemplateRegistry.templateById(templateId) ?: return
+        pendingSubmissionForRetry = null
         _uiState.value = _uiState.value.copy(
             selectedLevelId = template.level,
             selectedTemplateId = templateId,
             draft = initialDraftForTemplate(template),
             validationErrors = emptyList(),
+            submissionErrorMessage = null,
             step = TaskCreationFlowStep.FORM
         )
     }
@@ -169,7 +178,8 @@ class TaskCreationViewModel @Inject constructor(
     fun editFromPreview() {
         _uiState.value = _uiState.value.copy(
             step = TaskCreationFlowStep.FORM,
-            validationErrors = emptyList()
+            validationErrors = emptyList(),
+            submissionErrorMessage = null
         )
     }
 
@@ -353,6 +363,7 @@ class TaskCreationViewModel @Inject constructor(
         val errors = validateCurrentDraft()
         _uiState.value = _uiState.value.copy(
             validationErrors = errors,
+            submissionErrorMessage = null,
             step = if (errors.isEmpty()) TaskCreationFlowStep.PREVIEW else TaskCreationFlowStep.FORM
         )
     }
@@ -368,23 +379,49 @@ class TaskCreationViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isSubmitting = true, validationErrors = emptyList())
-            val submission = buildSubmissionEntity(
+            _uiState.value = _uiState.value.copy(
+                isSubmitting = true,
+                validationErrors = emptyList(),
+                submissionErrorMessage = null
+            )
+            val submission = pendingSubmissionForRetry ?: buildSubmissionEntity(
                 levelId = state.selectedLevelId,
                 template = template,
                 draft = state.draft
-            )
+            ).also { pendingSubmissionForRetry = it }
             val result = repository.submitForReview(submission)
-            _uiState.value = _uiState.value.copy(
-                isSubmitting = false,
-                step = TaskCreationFlowStep.SUCCESS,
-                successMessage = when (result) {
-                    is SubmissionSyncResult.Uploaded -> "Zadatak je poslat na pregled."
-                    is SubmissionSyncResult.SavedLocally ->
-                        "Zadatak je sačuvan lokalno, ali slanje na internet bazu nije uspelo. " +
-                            "Pokušaj ponovo kasnije."
+            when (result) {
+                is SubmissionSyncResult.Uploaded -> {
+                    pendingSubmissionForRetry = null
+                    _uiState.value = _uiState.value.copy(
+                        isSubmitting = false,
+                        step = TaskCreationFlowStep.SUCCESS,
+                        submissionErrorMessage = null,
+                        successMessage = "Zadatak je poslat na pregled."
+                    )
                 }
-            )
+
+                is SubmissionSyncResult.AttachmentUploadFailed -> {
+                    _uiState.value = _uiState.value.copy(
+                        isSubmitting = false,
+                        step = TaskCreationFlowStep.PREVIEW,
+                        submissionErrorMessage = result.cause?.message
+                            ?: "Slika dijagrama nije uspešno otpremljena. Proveri internet vezu i pokušaj ponovo."
+                    )
+                }
+
+                is SubmissionSyncResult.SavedLocally -> {
+                    pendingSubmissionForRetry = null
+                    _uiState.value = _uiState.value.copy(
+                        isSubmitting = false,
+                        step = TaskCreationFlowStep.SUCCESS,
+                        submissionErrorMessage = null,
+                        successMessage =
+                            "Zadatak je sačuvan lokalno, ali slanje na internet bazu nije uspelo. " +
+                                "Pokušaj ponovo kasnije."
+                    )
+                }
+            }
         }
     }
 
@@ -442,9 +479,11 @@ class TaskCreationViewModel @Inject constructor(
     }
 
     private fun updateDraft(transform: (TaskCreationDraft) -> TaskCreationDraft) {
+        pendingSubmissionForRetry = null
         _uiState.value = _uiState.value.copy(
             draft = transform(_uiState.value.draft),
-            validationErrors = emptyList()
+            validationErrors = emptyList(),
+            submissionErrorMessage = null
         )
     }
 

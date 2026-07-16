@@ -13,3 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+node_modules/
+scripts/serviceAccountKey.json
+**/serviceAccountKey.json
+*.serviceAccount.json

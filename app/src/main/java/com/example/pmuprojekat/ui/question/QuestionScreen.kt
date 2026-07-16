@@ -106,6 +106,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
+import coil.request.ImageRequest
 import com.example.pmuprojekat.core.model.QuestionType
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
@@ -200,7 +203,11 @@ fun QuestionScreen(
                     PromptCard(
                         title = uiState.title,
                         prompt = uiState.prompt,
-                        diagramImageName = uiState.diagramImageName
+                        diagramImageName = uiState.diagramImageName,
+                        diagramImageLocalUri = uiState.diagramImageLocalUri,
+                        diagramImageLocalPath = uiState.diagramImageLocalPath,
+                        diagramImageRemoteStoragePath = uiState.diagramImageRemoteStoragePath,
+                        diagramImageDownloadUrl = uiState.diagramImageDownloadUrl
                     )
 
                     val step = uiState.currentStep
@@ -897,21 +904,35 @@ private fun QuestionProgress(uiState: QuestionUiState) {
 private fun PromptCard(
     title: String,
     prompt: String,
-    diagramImageName: String?
+    diagramImageName: String?,
+    diagramImageLocalUri: String? = null,
+    diagramImageLocalPath: String? = null,
+    diagramImageRemoteStoragePath: String? = null,
+    diagramImageDownloadUrl: String? = null
 ) {
     val context = LocalContext.current
-    val diagramImageResId = remember(diagramImageName, context) {
-        diagramImageName
-            ?.takeIf { it.isNotBlank() }
-            ?.let { imageName ->
-                context.resources.getIdentifier(
-                    imageName,
-                    "drawable",
-                    context.packageName
-                )
-            }
-            ?: 0
+    val imageCandidates = remember(
+        diagramImageName,
+        diagramImageLocalUri,
+        diagramImageLocalPath,
+        diagramImageDownloadUrl,
+        context
+    ) {
+        buildDiagramImageCandidates(
+            context = context,
+            drawableName = diagramImageName,
+            localUri = diagramImageLocalUri,
+            localPath = diagramImageLocalPath,
+            downloadUrl = diagramImageDownloadUrl
+        )
     }
+    val hasImageReference = listOf(
+        diagramImageName,
+        diagramImageLocalUri,
+        diagramImageLocalPath,
+        diagramImageRemoteStoragePath,
+        diagramImageDownloadUrl
+    ).any { !it.isNullOrBlank() }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -938,18 +959,68 @@ private fun PromptCard(
                 lineHeight = 21.sp
             )
 
-            if (diagramImageResId != 0) {
-                DiagramImagePreview(imageResId = diagramImageResId)
+            if (imageCandidates.isNotEmpty()) {
+                DiagramImagePreview(candidates = imageCandidates)
+            } else if (hasImageReference) {
+                MissingDiagramImageMessage()
             }
         }
     }
 }
 
+private data class DiagramImageCandidate(
+    val key: String,
+    val model: Any
+)
+
+private fun buildDiagramImageCandidates(
+    context: Context,
+    drawableName: String?,
+    localUri: String?,
+    localPath: String?,
+    downloadUrl: String?
+): List<DiagramImageCandidate> {
+    val candidates = linkedMapOf<String, Any>()
+
+    downloadUrl?.trim()?.takeIf(String::isNotBlank)?.let { url ->
+        candidates["remote:$url"] = url
+    }
+
+    localUri?.trim()?.takeIf(String::isNotBlank)?.let { value ->
+        runCatching { Uri.parse(value) }.getOrNull()?.let { uri ->
+            val isAvailable = when (uri.scheme?.lowercase()) {
+                "file" -> uri.path?.let(::File)?.isFile == true
+                "content" -> true
+                else -> false
+            }
+            if (isAvailable) candidates["uri:$uri"] = uri
+        }
+    }
+
+    localPath?.trim()?.takeIf(String::isNotBlank)?.let { value ->
+        File(value).takeIf(File::isFile)?.let { file ->
+            candidates.putIfAbsent("file:${file.absolutePath}", file)
+        }
+    }
+
+    drawableName?.trim()?.takeIf(String::isNotBlank)?.let { imageName ->
+        val resourceId = context.resources.getIdentifier(
+            imageName,
+            "drawable",
+            context.packageName
+        )
+        if (resourceId != 0) candidates["drawable:$resourceId"] = resourceId
+    }
+
+    return candidates.map { (key, model) -> DiagramImageCandidate(key, model) }
+}
+
 @Composable
 private fun DiagramImagePreview(
-    imageResId: Int
+    candidates: List<DiagramImageCandidate>
 ) {
-    var showFullScreenViewer by remember(imageResId) {
+    val candidateKey = candidates.joinToString("|") { it.key }
+    var showFullScreenViewer by remember(candidateKey) {
         mutableStateOf(false)
     }
 
@@ -965,13 +1036,11 @@ private fun DiagramImagePreview(
             modifier = Modifier.padding(10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Image(
-                painter = painterResource(id = imageResId),
-                contentDescription = "Dijagram sistema",
+            DiagramImageContent(
+                candidates = candidates,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 160.dp, max = 360.dp),
-                contentScale = ContentScale.Fit
+                    .heightIn(min = 160.dp, max = 360.dp)
             )
 
             Text(
@@ -985,7 +1054,7 @@ private fun DiagramImagePreview(
 
     if (showFullScreenViewer) {
         FullScreenZoomableImageDialog(
-            imageResId = imageResId,
+            candidates = candidates,
             onDismiss = { showFullScreenViewer = false }
         )
     }
@@ -993,7 +1062,7 @@ private fun DiagramImagePreview(
 
 @Composable
 private fun FullScreenZoomableImageDialog(
-    imageResId: Int,
+    candidates: List<DiagramImageCandidate>,
     onDismiss: () -> Unit
 ) {
     Dialog(
@@ -1054,7 +1123,7 @@ private fun FullScreenZoomableImageDialog(
             }
 
             ZoomableDiagramImage(
-                imageResId = imageResId,
+                candidates = candidates,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp, vertical = 86.dp)
@@ -1065,13 +1134,14 @@ private fun FullScreenZoomableImageDialog(
 
 @Composable
 private fun ZoomableDiagramImage(
-    imageResId: Int,
+    candidates: List<DiagramImageCandidate>,
     modifier: Modifier = Modifier
 ) {
-    var scale by remember(imageResId) {
+    val candidateKey = candidates.joinToString("|") { it.key }
+    var scale by remember(candidateKey) {
         mutableStateOf(1f)
     }
-    var offset by remember(imageResId) {
+    var offset by remember(candidateKey) {
         mutableStateOf(Offset.Zero)
     }
 
@@ -1090,9 +1160,8 @@ private fun ZoomableDiagramImage(
         modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
-        Image(
-            painter = painterResource(id = imageResId),
-            contentDescription = "Dijagram sistema",
+        DiagramImageContent(
+            candidates = candidates,
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
@@ -1101,8 +1170,81 @@ private fun ZoomableDiagramImage(
                     translationX = offset.x
                     translationY = offset.y
                 }
-                .transformable(transformState),
-            contentScale = ContentScale.Fit
+                .transformable(transformState)
+        )
+    }
+}
+
+@Composable
+private fun DiagramImageContent(
+    candidates: List<DiagramImageCandidate>,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val candidateKey = candidates.joinToString("|") { it.key }
+    var candidateIndex by remember(candidateKey) { mutableStateOf(0) }
+    val candidate = candidates.getOrNull(candidateIndex)
+
+    if (candidate == null) {
+        MissingDiagramImageMessage(modifier = modifier)
+        return
+    }
+
+    SubcomposeAsyncImage(
+        model = ImageRequest.Builder(context)
+            .data(candidate.model)
+            .crossfade(true)
+            .build(),
+        contentDescription = "Dijagram sistema",
+        modifier = modifier,
+        contentScale = ContentScale.Fit,
+        loading = {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(28.dp),
+                    strokeWidth = 2.5.dp,
+                    color = AppPalette.Blue
+                )
+            }
+        },
+        error = {
+            if (candidateIndex < candidates.lastIndex) {
+                LaunchedEffect(candidate.key) {
+                    candidateIndex += 1
+                }
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(28.dp),
+                        strokeWidth = 2.5.dp,
+                        color = AppPalette.Blue
+                    )
+                }
+            } else {
+                MissingDiagramImageMessage(modifier = Modifier.fillMaxSize())
+            }
+        },
+        success = { SubcomposeAsyncImageContent() }
+    )
+}
+
+@Composable
+private fun MissingDiagramImageMessage(
+    modifier: Modifier = Modifier.fillMaxWidth()
+) {
+    Box(
+        modifier = modifier
+            .heightIn(min = 96.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFF8FAFC))
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "Slika dijagrama nije dostupna.",
+            color = AppPalette.TextSecondary,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }

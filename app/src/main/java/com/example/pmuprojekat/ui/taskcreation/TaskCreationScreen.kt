@@ -736,6 +736,10 @@ private fun TaskCreationPreviewStep(
     val level = uiState.selectedLevelId?.let(TaskCreationTemplateRegistry::levelById)
     val draft = uiState.draft
 
+    uiState.submissionErrorMessage?.let { message ->
+        ImportStatusMessage(message = message, isError = true)
+    }
+
     TaskCreationCard {
         PreviewLine("Nivo", level?.title ?: uiState.selectedLevelId.orEmpty())
         PreviewLine("Tip", "${template.questionIdPattern} • ${template.displayName}")

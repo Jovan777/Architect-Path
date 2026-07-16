@@ -198,6 +198,15 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("ALTER TABLE questions ADD COLUMN diagramImageLocalUri TEXT")
+            database.execSQL("ALTER TABLE questions ADD COLUMN diagramImageLocalPath TEXT")
+            database.execSQL("ALTER TABLE questions ADD COLUMN diagramImageRemoteStoragePath TEXT")
+            database.execSQL("ALTER TABLE questions ADD COLUMN diagramImageDownloadUrl TEXT")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -219,7 +228,8 @@ object DatabaseModule {
                 MIGRATION_5_6,
                 MIGRATION_6_7,
                 MIGRATION_7_8,
-                MIGRATION_8_9
+                MIGRATION_8_9,
+                MIGRATION_9_10
             )
             .fallbackToDestructiveMigration()
             .build()

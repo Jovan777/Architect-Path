@@ -65,7 +65,7 @@ fun LevelQuestionsScreen(
         }
     }
 
-    val levelQuestions by remember(uiState.allQuestions, levelId) {
+    val allLevelQuestions by remember(uiState.allQuestions, levelId) {
         derivedStateOf {
             uiState.allQuestions
                 .filter { it.levelId == levelId }
@@ -77,9 +77,26 @@ fun LevelQuestionsScreen(
         }
     }
 
-    val availableWaves by remember(levelQuestions) {
+    val regularLevelQuestions by remember(allLevelQuestions) {
         derivedStateOf {
-            levelQuestions
+            allLevelQuestions.filterNot { it.isRemoteAdminTask() }
+        }
+    }
+
+    val remoteAdminQuestions by remember(allLevelQuestions) {
+        derivedStateOf {
+            allLevelQuestions
+                .filter { it.isRemoteAdminTask() }
+                .sortedWith(
+                    compareBy<QuestionPreviewUi> { it.orderIndex }
+                        .thenBy { it.questionId }
+                )
+        }
+    }
+
+    val availableWaves by remember(regularLevelQuestions) {
+        derivedStateOf {
+            regularLevelQuestions
                 .mapNotNull { it.wave }
                 .distinct()
                 .sorted()
@@ -98,12 +115,12 @@ fun LevelQuestionsScreen(
         showUserTasks = false
     }
 
-    val visibleQuestions by remember(levelQuestions, selectedWave) {
+    val visibleQuestions by remember(regularLevelQuestions, selectedWave) {
         derivedStateOf {
             if (selectedWave == null) {
-                levelQuestions
+                regularLevelQuestions
             } else {
-                levelQuestions.filter { it.wave == selectedWave }
+                regularLevelQuestions.filter { it.wave == selectedWave }
             }
         }
     }
@@ -120,9 +137,9 @@ fun LevelQuestionsScreen(
         }
     }
 
-    val typeProgressByLabel by remember(levelQuestions) {
+    val typeProgressByLabel by remember(allLevelQuestions) {
         derivedStateOf {
-            levelQuestions
+            allLevelQuestions
                 .groupBy { it.typeLabel }
                 .mapValues { (_, questionsOfType) ->
                     TypeProgressUi(
@@ -171,7 +188,7 @@ fun LevelQuestionsScreen(
 
                 LevelOverviewCard(
                     level = level,
-                    totalQuestions = levelQuestions.size,
+                    totalQuestions = allLevelQuestions.size,
                     typeProgressByLabel = typeProgressByLabel
                 )
 
@@ -209,13 +226,22 @@ fun LevelQuestionsScreen(
                         onClick = { showUserTasks = true }
                     )
 
-                    if (visibleQuestions.isEmpty()) {
+                    if (visibleQuestions.isEmpty() && (selectedWave != null || remoteAdminQuestions.isEmpty())) {
                         EmptyLevelQuestionsCard()
-                    } else {
+                    }
+
+                    if (visibleQuestions.isNotEmpty()) {
                         QuestionsByWaveList(
                             questions = visibleQuestions,
                             showWaveHeaders = selectedWave == null,
                             typeProgressByLabel = typeProgressByLabel,
+                            onQuestionClick = onQuestionClick
+                        )
+                    }
+
+                    if (selectedWave == null && remoteAdminQuestions.isNotEmpty()) {
+                        NewRemoteAdminTasksSection(
+                            questions = remoteAdminQuestions,
                             onQuestionClick = onQuestionClick
                         )
                     }
@@ -782,6 +808,32 @@ private fun QuestionsByWaveList(
 }
 
 @Composable
+private fun NewRemoteAdminTasksSection(
+    questions: List<QuestionPreviewUi>,
+    onQuestionClick: (String) -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = "Novi zadaci",
+            color = AppPalette.TextPrimary,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+
+        questions.forEach { question ->
+            LevelQuestionCard(
+                question = question,
+                typeProgress = null,
+                displayCode = "NOVO",
+                onClick = { onQuestionClick(question.questionId) }
+            )
+        }
+    }
+}
+
+@Composable
 private fun LevelQuestionCard(
     question: QuestionPreviewUi,
     typeProgress: TypeProgressUi?,
@@ -959,5 +1011,12 @@ private fun userTaskCountLabel(count: Int): String {
         2, 3, 4 -> "zadatka"
         else -> "zadataka"
     }
+}
+
+private fun QuestionPreviewUi.isRemoteAdminTask(): Boolean {
+    val isAdminSource = source.equals("REMOTE_ADMIN", ignoreCase = true) ||
+        source.equals("ADMIN", ignoreCase = true)
+    return isAdminSource &&
+        publicationMode.equals("MAIN_TASK_LIST", ignoreCase = true)
 }
 

@@ -1,0 +1,29 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSupportedDiagram() {
+      return request.resource != null
+        && request.resource.size > 0
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/(png|jpeg|webp)')
+        && request.resource.metadata.ownerUid == request.auth.uid;
+    }
+
+    match /task_submission_attachments/{submissionId}/diagram/{fileName} {
+      allow create: if isSignedIn() && isSupportedDiagram();
+      allow update: if isSignedIn()
+        && resource.metadata.ownerUid == request.auth.uid
+        && isSupportedDiagram();
+
+      // Diploma prototype: every app client is anonymously authenticated.
+      // The Firestore document still controls whether a task is listed publicly.
+      allow read: if isSignedIn();
+      allow delete: if false;
+    }
+  }
+}

@@ -151,7 +151,9 @@ class HomeViewModel @Inject constructor(
                         metadata = metadata,
                         preferredFormats = preferredFormats,
                         learningFocus = learningFocus
-                    )
+                    ),
+                    source = question.source,
+                    publicationMode = question.publicationMode
                 )
             }
 
@@ -191,7 +193,9 @@ class HomeViewModel @Inject constructor(
                         metadata = metadata,
                         preferredFormats = preferredFormats,
                         learningFocus = learningFocus
-                    )
+                    ),
+                    source = question.source,
+                    publicationMode = question.publicationMode
                 )
             }
 

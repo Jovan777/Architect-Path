@@ -13,7 +13,28 @@ with the app's Kotlin `2.0.21` toolchain. The latest Firebase BoM requires a new
 1. Keep `google-services.json` in `app/google-services.json`.
 2. In Firebase Console, open **Authentication > Sign-in method** and enable **Anonymous**.
 3. Open **Firestore Database > Rules**, paste the contents of `firestore.rules`, and publish them.
-4. Add the sample below as `remote_tasks/admin_beginner_001`.
+4. Open **Storage**, create/enable the default bucket, then paste `storage.rules` under
+   **Storage > Rules** and publish them.
+5. Add the sample below as `remote_tasks/admin_beginner_001`.
+
+## A3 diagram attachments
+
+User-selected A3 diagrams are uploaded before the Firestore submission is created. Files are
+stored under:
+
+```text
+task_submission_attachments/{submissionId}/diagram/{localFileName}
+```
+
+The app writes both `remoteStoragePath` and `downloadUrl` into
+`payload.question.diagramImage`. Raw image bytes are never stored in Firestore. If Storage is not
+enabled or the rules are not published, an A3 submission is kept locally and is not sent as an
+incomplete remote task.
+
+The supplied Storage rules allow only authenticated uploads whose metadata owner matches the
+Firebase anonymous user and limit files to PNG/JPEG/WEBP up to 10 MB. Reads are allowed to
+authenticated app clients for this diploma prototype. A production setup should tighten reads by
+checking the related approved/public Firestore document through a trusted publishing pipeline.
 
 Normal Android clients cannot write `remote_tasks` or approve submissions. Approval remains an
 administrator action in Firebase Console.

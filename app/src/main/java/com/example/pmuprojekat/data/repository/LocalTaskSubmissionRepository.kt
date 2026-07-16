@@ -63,7 +63,11 @@ class LocalTaskSubmissionRepository @Inject constructor(
                         updatedAt = System.currentTimeMillis()
                     )
                 )
-                SubmissionSyncResult.SavedLocally(error)
+                if (error is TaskAttachmentUploadException) {
+                    SubmissionSyncResult.AttachmentUploadFailed(error)
+                } else {
+                    SubmissionSyncResult.SavedLocally(error)
+                }
             }
         )
     }
