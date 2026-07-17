@@ -23,4 +23,15 @@ class MockEncyclopediaAiService @Inject constructor() : EncyclopediaAiService {
             "Ovo je lokalni primer odgovora jer API ključ nije podešen.\n\n$content"
         )
     }
+
+    override suspend fun answerCustomQuestion(
+        request: EncyclopediaCustomQuestionRequest
+    ): Result<String> {
+        val term = request.term
+        return Result.success(
+            "Ovo je lokalni primer odgovora jer API ključ nije podešen.\n\n" +
+                "Pokušaj da pitanje povežeš sa osnovnim objašnjenjem pojma " +
+                "\"${term.titleSr}\": ${term.shortExplanation}"
+        )
+    }
 }

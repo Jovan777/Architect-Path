@@ -67,6 +67,7 @@ import com.example.pmuprojekat.taskcreation.TaskCreationCorrectAnswerMode
 import com.example.pmuprojekat.taskcreation.TaskCreationStepBlueprint
 import com.example.pmuprojekat.taskcreation.TaskCreationTemplateDefinition
 import com.example.pmuprojekat.taskcreation.TaskCreationTemplateRegistry
+import com.example.pmuprojekat.ui.common.readableOutlinedTextFieldColors
 import com.example.pmuprojekat.ui.home.AppPalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -433,7 +434,8 @@ private fun ChoiceStepEditor(
                             value = option.label,
                             onValueChange = { viewModel.updateOptionLabel(stepIndex, optionIndex, it) },
                             label = { Text("Labela") },
-                            singleLine = true
+                            singleLine = true,
+                            colors = readableOutlinedTextFieldColors()
                         )
                     }
                     OutlinedTextField(
@@ -442,7 +444,8 @@ private fun ChoiceStepEditor(
                         onValueChange = { viewModel.updateOptionText(stepIndex, optionIndex, it) },
                         label = { Text("Tekst opcije ${optionIndex + 1}") },
                         singleLine = false,
-                        minLines = 1
+                        minLines = 1,
+                        colors = readableOutlinedTextFieldColors()
                     )
                 }
                 Row(
@@ -525,7 +528,8 @@ private fun OrderedStepEditor(
                         onValueChange = { viewModel.updateOptionCorrectOrder(stepIndex, optionIndex, it) },
                         label = { Text("Red") },
                         singleLine = true,
-                        enabled = !option.isDistractor
+                        enabled = !option.isDistractor,
+                        colors = readableOutlinedTextFieldColors()
                     )
                     OutlinedTextField(
                         modifier = Modifier.weight(1f),
@@ -533,7 +537,8 @@ private fun OrderedStepEditor(
                         onValueChange = { viewModel.updateOptionText(stepIndex, optionIndex, it) },
                         label = { Text("Tekst kartice") },
                         singleLine = false,
-                        minLines = 1
+                        minLines = 1,
+                        colors = readableOutlinedTextFieldColors()
                     )
                 }
                 if (blueprint?.supportsDistractors == true) {
@@ -677,14 +682,16 @@ private fun CodeCompletionStepEditor(
                 value = blank.placeholder,
                 onValueChange = { viewModel.updateBlankPlaceholder(stepIndex, blankIndex, it) },
                 label = { Text("Placeholder") },
-                singleLine = true
+                singleLine = true,
+                colors = readableOutlinedTextFieldColors()
             )
             OutlinedTextField(
                 modifier = Modifier.weight(1f),
                 value = blank.expectedAnswer,
                 onValueChange = { viewModel.updateBlankExpectedAnswer(stepIndex, blankIndex, it) },
                 label = { Text("Tačna dopuna") },
-                singleLine = true
+                singleLine = true,
+                colors = readableOutlinedTextFieldColors()
             )
         }
     }
@@ -1390,7 +1397,12 @@ private fun FormTextField(
         minLines = minLines,
         singleLine = minLines == 1,
         enabled = enabled,
-        textStyle = if (monospace) TextStyle(fontFamily = FontFamily.Monospace) else TextStyle.Default
+        textStyle = if (monospace) {
+            TextStyle(fontFamily = FontFamily.Monospace, color = AppPalette.TextPrimary)
+        } else {
+            TextStyle(color = AppPalette.TextPrimary)
+        },
+        colors = readableOutlinedTextFieldColors()
     )
 }
 

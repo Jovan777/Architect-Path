@@ -26,6 +26,12 @@ data class EncyclopediaAiRequest(
     val mode: EncyclopediaExplanationMode
 )
 
+data class EncyclopediaCustomQuestionRequest(
+    val categoryTitle: String,
+    val term: EncyclopediaTerm,
+    val question: String
+)
+
 data class EncyclopediaAiPrompt(
     val systemPrompt: String,
     val userPrompt: String

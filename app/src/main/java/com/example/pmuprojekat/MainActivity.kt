@@ -314,6 +314,10 @@ class MainActivity : ComponentActivity() {
                             },
                             onExplain = { mode ->
                                 encyclopediaViewModel.explain(termId, mode)
+                            },
+                            onCustomQuestionChange = encyclopediaViewModel::updateCustomQuestionText,
+                            onAskCustomQuestion = {
+                                encyclopediaViewModel.askCustomQuestion(termId)
                             }
                         )
                     }

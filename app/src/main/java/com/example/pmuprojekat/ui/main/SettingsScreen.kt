@@ -52,6 +52,7 @@ import com.example.pmuprojekat.core.model.LearningLevel
 import com.example.pmuprojekat.core.model.TaskFocusPreference
 import com.example.pmuprojekat.core.model.TaskFormatPreference
 import com.example.pmuprojekat.core.model.TaskPersonalizer
+import com.example.pmuprojekat.ui.common.readableOutlinedTextFieldColors
 import com.example.pmuprojekat.ui.home.AppPalette
 import com.example.pmuprojekat.ui.home.HomeUiState
 
@@ -378,7 +379,8 @@ private fun SettingsProfileCard(
                     Text("Ime korisnika")
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(18.dp)
+                shape = RoundedCornerShape(18.dp),
+                colors = readableOutlinedTextFieldColors()
             )
         }
     }

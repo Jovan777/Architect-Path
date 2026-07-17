@@ -48,6 +48,7 @@ import com.example.pmuprojekat.core.model.LearningLevel
 import com.example.pmuprojekat.core.model.TaskFocusPreference
 import com.example.pmuprojekat.core.model.TaskFormatPreference
 import com.example.pmuprojekat.core.model.TaskPersonalizer
+import com.example.pmuprojekat.ui.common.readableOutlinedTextFieldColors
 import com.example.pmuprojekat.ui.home.AppPalette
 import com.example.pmuprojekat.ui.home.HomeUiState
 
@@ -120,7 +121,8 @@ fun OnboardingScreen(
                     label = { Text("Kako želiš da te zovemo?") },
                     singleLine = true,
                     shape = RoundedCornerShape(18.dp),
-                    isError = attemptedSubmit && !nameIsValid
+                    isError = attemptedSubmit && !nameIsValid,
+                    colors = readableOutlinedTextFieldColors()
                 )
 
                 if (attemptedSubmit && !nameIsValid) {

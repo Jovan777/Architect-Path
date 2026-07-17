@@ -48,4 +48,33 @@ object EncyclopediaPromptBuilder {
             userPrompt = userPrompt
         )
     }
+
+    fun buildCustomQuestion(request: EncyclopediaCustomQuestionRequest): EncyclopediaAiPrompt {
+        val userPrompt = """
+            Oblast: ${request.categoryTitle}
+            Pojam na srpskom: ${request.term.titleSr}
+            Engleski naziv: ${request.term.titleEn}
+
+            Osnovno objašnjenje:
+            ${request.term.shortExplanation}
+
+            Korisnikovo pitanje:
+            ${request.question}
+
+            Zahtev:
+            Odgovori direktno na korisnikovo pitanje koristeći samo ovaj pojam i dato objašnjenje kao
+            glavni kontekst. Odgovor napiši na srpskom latinicom, jasno i praktično, bez dugog eseja.
+            Ako je korisno, dodaj kratak primer iz softverskog inženjerstva, arhitekture, Android aplikacije,
+            AI sistema ili platforme za učenje.
+
+            Ako pitanje nije direktno vezano za pojam koji je korisnik otvorio, nemoj širiti temu.
+            Reci: "Ovo pitanje nije direktno vezano za pojam koji trenutno gledaš. Mogu da ti pomognem ako ga povežeš sa ovim pojmom."
+            Ne izmišljaj izvore, linkove, pretragu interneta ili reference.
+        """.trimIndent()
+
+        return EncyclopediaAiPrompt(
+            systemPrompt = systemPrompt,
+            userPrompt = userPrompt
+        )
+    }
 }

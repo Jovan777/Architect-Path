@@ -27,7 +27,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -48,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import com.example.pmuprojekat.ai.EncyclopediaExplanationMode
 import com.example.pmuprojekat.data.encyclopedia.EncyclopediaCategory
 import com.example.pmuprojekat.data.encyclopedia.EncyclopediaTerm
+import com.example.pmuprojekat.ui.common.readableOutlinedTextFieldColors
 import com.example.pmuprojekat.ui.home.AppPalette
 
 @Composable
@@ -91,7 +91,7 @@ fun EncyclopediaCategoriesScreen(
                     placeholder = { Text("Pretraži pojmove") },
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
+                    colors = readableOutlinedTextFieldColors(
                         focusedBorderColor = AppPalette.Indigo,
                         unfocusedBorderColor = AppPalette.Border,
                         focusedContainerColor = Color.White,
@@ -261,7 +261,7 @@ fun EncyclopediaTermsScreen(
                         placeholder = { Text("Pretraži pojmove") },
                         singleLine = true,
                         shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
+                        colors = readableOutlinedTextFieldColors(
                             focusedBorderColor = AppPalette.Indigo,
                             unfocusedBorderColor = AppPalette.Border,
                             focusedContainerColor = Color.White,
@@ -302,7 +302,9 @@ fun EncyclopediaTermDetailScreen(
     term: EncyclopediaTerm?,
     uiState: EncyclopediaUiState,
     onBack: () -> Unit,
-    onExplain: (EncyclopediaExplanationMode) -> Unit
+    onExplain: (EncyclopediaExplanationMode) -> Unit,
+    onCustomQuestionChange: (String) -> Unit,
+    onAskCustomQuestion: () -> Unit
 ) {
     EncyclopediaScaffold {
         Column(
@@ -400,6 +402,15 @@ fun EncyclopediaTermDetailScreen(
                         response = uiState.aiResponseText
                     )
                 }
+
+                CustomTermQuestionSection(
+                    questionText = uiState.customQuestionText,
+                    isLoading = uiState.isCustomQuestionLoading,
+                    error = uiState.customQuestionError,
+                    answer = uiState.customQuestionAnswer,
+                    onQuestionChange = onCustomQuestionChange,
+                    onAsk = onAskCustomQuestion
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
             }
@@ -659,7 +670,117 @@ private fun EncyclopediaActionButton(
 }
 
 @Composable
-private fun AiLoadingCard() {
+private fun CustomTermQuestionSection(
+    questionText: String,
+    isLoading: Boolean,
+    error: String?,
+    answer: String?,
+    onQuestionChange: (String) -> Unit,
+    onAsk: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = "Pitaj o ovom pojmu",
+            color = AppPalette.TextPrimary,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, AppPalette.Border),
+            shadowElevation = 2.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = questionText,
+                    onValueChange = onQuestionChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Šta ti nije jasno o ovom pojmu?") },
+                    minLines = 2,
+                    maxLines = 4,
+                    isError = error != null && answer == null,
+                    enabled = !isLoading,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = readableOutlinedTextFieldColors(
+                        focusedBorderColor = AppPalette.Indigo,
+                        unfocusedBorderColor = AppPalette.Border,
+                        errorBorderColor = Color(0xFFDC2626),
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        disabledContainerColor = Color(0xFFF8FAFC)
+                    )
+                )
+
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .clickable(enabled = !isLoading) { onAsk() },
+                    shape = RoundedCornerShape(14.dp),
+                    color = AppPalette.Indigo.copy(alpha = if (isLoading) 0.45f else 1f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        }
+                        Text(
+                            text = "Pitaj",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                }
+            }
+        }
+
+        error?.let { message ->
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFFFFF7ED),
+                border = BorderStroke(1.dp, Color(0xFFFDBA74))
+            ) {
+                Text(
+                    text = message,
+                    modifier = Modifier.padding(14.dp),
+                    color = Color(0xFF9A3412),
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        if (isLoading) {
+            AiLoadingCard(message = "AI priprema odgovor...")
+        } else if (answer != null) {
+            AiResponseCard(
+                title = "Odgovor AI mentora",
+                response = answer
+            )
+        }
+    }
+}
+
+@Composable
+private fun AiLoadingCard(message: String = "AI priprema objašnjenje...") {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -678,7 +799,7 @@ private fun AiLoadingCard() {
                 strokeWidth = 2.5.dp
             )
             Text(
-                text = "AI priprema objašnjenje...",
+                text = message,
                 color = AppPalette.TextSecondary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold

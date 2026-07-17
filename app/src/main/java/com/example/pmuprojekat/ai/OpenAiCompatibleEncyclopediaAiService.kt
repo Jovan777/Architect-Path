@@ -18,4 +18,18 @@ class OpenAiCompatibleEncyclopediaAiService @Inject constructor(
             requestedReasoningEffort = OpenAiReasoningEffort.NONE
         )
     }
+
+    override suspend fun answerCustomQuestion(
+        request: EncyclopediaCustomQuestionRequest
+    ): Result<String> = runCatching {
+        val prompt = EncyclopediaPromptBuilder.buildCustomQuestion(request)
+        client.createCompletion(
+            model = model,
+            instruction = prompt.systemPrompt,
+            userContent = prompt.userPrompt,
+            maxCompletionTokens = 650,
+            requestedTemperature = 0.3,
+            requestedReasoningEffort = OpenAiReasoningEffort.NONE
+        )
+    }
 }

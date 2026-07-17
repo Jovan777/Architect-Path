@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pmuprojekat.core.model.TaskFormatPreference
 import com.example.pmuprojekat.core.model.TaskPersonalizer
+import com.example.pmuprojekat.ui.common.readableOutlinedTextFieldColors
 import com.example.pmuprojekat.ui.home.AppPalette
 import com.example.pmuprojekat.ui.home.HomeUiState
 import com.example.pmuprojekat.ui.home.QuestionPreviewUi
@@ -266,7 +267,8 @@ fun TasksScreen(
                 onValueChange = { search = it },
                 label = { Text("Pretraži po ID-u, nazivu ili tipu") },
                 singleLine = true,
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(20.dp),
+                colors = readableOutlinedTextFieldColors()
                 )
             }
 

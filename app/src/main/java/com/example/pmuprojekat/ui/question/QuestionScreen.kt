@@ -81,6 +81,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pmuprojekat.core.model.StepType
+import com.example.pmuprojekat.ui.common.readableOutlinedTextFieldColors
 import com.example.pmuprojekat.ui.home.AppPalette
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -7449,7 +7450,7 @@ private fun QuestionResultScreen(
                         },
                         enabled = !uiState.isAiAnalysisLoading,
                         minLines = 4,
-                        colors = OutlinedTextFieldDefaults.colors(
+                        colors = readableOutlinedTextFieldColors(
                             focusedBorderColor = AppPalette.Blue,
                             unfocusedBorderColor = AppPalette.Border,
                             focusedLabelColor = AppPalette.Blue,

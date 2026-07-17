@@ -30,7 +30,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -47,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import com.example.pmuprojekat.ai.AiChatRole
 import com.example.pmuprojekat.ai.AiChatRelevantTerm
 import com.example.pmuprojekat.data.repository.AiChatMessage
+import com.example.pmuprojekat.ui.common.readableOutlinedTextFieldColors
 import com.example.pmuprojekat.ui.home.AppPalette
 
 @Composable
@@ -474,7 +474,7 @@ private fun AiChatInputBar(
                 minLines = 1,
                 maxLines = 4,
                 shape = RoundedCornerShape(18.dp),
-                colors = OutlinedTextFieldDefaults.colors(
+                colors = readableOutlinedTextFieldColors(
                     focusedBorderColor = AppPalette.Blue,
                     unfocusedBorderColor = AppPalette.Border,
                     focusedContainerColor = Color.White,
