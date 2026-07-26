@@ -9,6 +9,7 @@ import com.example.pmuprojekat.data.local.PMUDatabase
 import com.example.pmuprojekat.data.local.dao.AiChatDao
 import com.example.pmuprojekat.data.local.dao.QuestionDao
 import com.example.pmuprojekat.data.local.dao.SeedMetaDao
+import com.example.pmuprojekat.data.local.dao.TaskAttemptSyncDao
 import com.example.pmuprojekat.data.local.dao.UserAnswerDao
 import com.example.pmuprojekat.data.local.dao.UserDao
 import com.example.pmuprojekat.data.local.dao.UserTaskSubmissionDao
@@ -207,6 +208,40 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS task_attempt_sync (
+                    attemptId TEXT NOT NULL PRIMARY KEY,
+                    taskId TEXT NOT NULL,
+                    taskTitle TEXT NOT NULL,
+                    level TEXT NOT NULL,
+                    taskType TEXT NOT NULL,
+                    taskSource TEXT NOT NULL,
+                    percentage INTEGER NOT NULL,
+                    pointsAwarded INTEGER NOT NULL,
+                    attemptNumber INTEGER NOT NULL,
+                    completedAt INTEGER NOT NULL,
+                    ownerUid TEXT,
+                    syncStatus TEXT NOT NULL,
+                    lastSyncAttemptAt INTEGER,
+                    syncError TEXT
+                )
+                """.trimIndent()
+            )
+            database.execSQL(
+                "CREATE INDEX IF NOT EXISTS index_task_attempt_sync_syncStatus ON task_attempt_sync(syncStatus)"
+            )
+            database.execSQL(
+                "CREATE INDEX IF NOT EXISTS index_task_attempt_sync_ownerUid ON task_attempt_sync(ownerUid)"
+            )
+            database.execSQL(
+                "CREATE INDEX IF NOT EXISTS index_task_attempt_sync_completedAt ON task_attempt_sync(completedAt)"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -229,7 +264,8 @@ object DatabaseModule {
                 MIGRATION_6_7,
                 MIGRATION_7_8,
                 MIGRATION_8_9,
-                MIGRATION_9_10
+                MIGRATION_9_10,
+                MIGRATION_10_11
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -269,5 +305,10 @@ object DatabaseModule {
     @Provides
     fun provideVsAiDao(database: PMUDatabase): VsAiDao {
         return database.vsAiDao()
+    }
+
+    @Provides
+    fun provideTaskAttemptSyncDao(database: PMUDatabase): TaskAttemptSyncDao {
+        return database.taskAttemptSyncDao()
     }
 }

@@ -50,7 +50,9 @@ fun ProfileScreen(
     uiState: HomeUiState,
     selectedTab: MainTab,
     onBottomTabSelected: (MainTab) -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onOpenLeaderboard: () -> Unit,
+    onOpenAdminAccess: () -> Unit
 ) {
     Scaffold(
         containerColor = AppPalette.Background,
@@ -97,6 +99,30 @@ fun ProfileScreen(
                 uiState = uiState,
                 onOpenSettings = onOpenSettings
             )
+
+            TextButton(
+                onClick = onOpenLeaderboard,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Rang-lista",
+                    color = AppPalette.Blue,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            TextButton(
+                onClick = onOpenAdminAccess,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Admin pristup",
+                    color = AppPalette.TextSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
     }
 }

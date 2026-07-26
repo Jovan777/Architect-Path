@@ -7,6 +7,7 @@ import com.example.pmuprojekat.data.local.converters.RoomConverters
 import com.example.pmuprojekat.data.local.dao.AiChatDao
 import com.example.pmuprojekat.data.local.dao.QuestionDao
 import com.example.pmuprojekat.data.local.dao.SeedMetaDao
+import com.example.pmuprojekat.data.local.dao.TaskAttemptSyncDao
 import com.example.pmuprojekat.data.local.dao.UserAnswerDao
 import com.example.pmuprojekat.data.local.dao.UserDao
 import com.example.pmuprojekat.data.local.dao.UserTaskSubmissionDao
@@ -19,6 +20,7 @@ import com.example.pmuprojekat.data.local.entity.QuestionStepEntity
 import com.example.pmuprojekat.data.local.entity.SeedMetaEntity
 import com.example.pmuprojekat.data.local.entity.StepOptionEntity
 import com.example.pmuprojekat.data.local.entity.StepZoneEntity
+import com.example.pmuprojekat.data.local.entity.TaskAttemptSyncEntity
 import com.example.pmuprojekat.data.local.entity.UserEntity
 import com.example.pmuprojekat.data.local.entity.UserQuestionProgressEntity
 import com.example.pmuprojekat.data.local.entity.UserStepAnswerEntity
@@ -41,9 +43,10 @@ import com.example.pmuprojekat.data.local.entity.VsAiMessageEntity
         AiChatMessageEntity::class,
         VsAiAttemptEntity::class,
         VsAiMessageEntity::class,
+        TaskAttemptSyncEntity::class,
         SeedMetaEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = true
 )
 @TypeConverters(RoomConverters::class)
@@ -55,4 +58,5 @@ abstract class PMUDatabase : RoomDatabase() {
     abstract fun userTaskSubmissionDao(): UserTaskSubmissionDao
     abstract fun aiChatDao(): AiChatDao
     abstract fun vsAiDao(): VsAiDao
+    abstract fun taskAttemptSyncDao(): TaskAttemptSyncDao
 }

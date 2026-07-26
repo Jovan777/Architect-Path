@@ -43,6 +43,18 @@ interface QuestionDao {
     """)
     fun observeApprovedUserQuestions(): Flow<List<QuestionEntity>>
 
+    @Query("SELECT * FROM questions WHERE questionId = :questionId LIMIT 1")
+    suspend fun getQuestion(questionId: String): QuestionEntity?
+
+    @Query("SELECT * FROM questions")
+    suspend fun getAllQuestions(): List<QuestionEntity>
+
+    @Query("""
+        SELECT * FROM questions
+        WHERE isActive = 1 AND publicationMode != 'USER_TASKS'
+    """)
+    suspend fun getAllMainQuestions(): List<QuestionEntity>
+
     @Query("""
         SELECT * FROM questions
         WHERE remoteDocumentPath LIKE :pathPrefix || '%'

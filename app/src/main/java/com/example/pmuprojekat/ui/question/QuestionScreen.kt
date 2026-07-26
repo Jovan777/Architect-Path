@@ -162,6 +162,16 @@ fun QuestionScreen(
         ) {
             if (uiState.isLoading) {
                 LoadingQuestionState()
+            } else if (uiState.isCompleted && uiState.isAdminTest) {
+                QuestionResultScreen(
+                    uiState = uiState,
+                    hasNextQuestion = false,
+                    onNextQuestion = {},
+                    onBack = onBackToQuestionList,
+                    onRetryQuestion = onRetryQuestion,
+                    onUpdateAiFollowUpAnswer = {},
+                    onRequestAiAnalysis = {}
+                )
             } else if (isArchitectSketchQuestion(uiState)) {
                 ArchitectSketchQuestionScreen(
                     uiState = uiState,
@@ -199,6 +209,8 @@ fun QuestionScreen(
                         onBack = onBack
                     )
 
+                    AdminQuestionModeBanner(uiState.sessionMode)
+
                     QuestionProgress(uiState = uiState)
 
                     PromptCard(
@@ -218,7 +230,8 @@ fun QuestionScreen(
                             step = step,
                             draft = uiState.draft,
                             feedback = uiState.feedback,
-                            isLocked = uiState.answeredStepIds.contains(step.stepId),
+                            isLocked = uiState.isAdminPreview ||
+                                uiState.answeredStepIds.contains(step.stepId),
                             onToggleOption = onToggleOption,
                             onMoveOrderedOption = onMoveOrderedOption,
                             onUpdateOrderedOptions = onUpdateOrderedOptions,
@@ -316,6 +329,8 @@ private fun ArchitectSketchQuestionScreen(
             onBack = onBack
         )
 
+        AdminQuestionModeBanner(uiState.sessionMode)
+
         PromptCard(
             title = "Opis sistema",
             prompt = uiState.prompt,
@@ -326,35 +341,101 @@ private fun ArchitectSketchQuestionScreen(
             ArchitectSketchInstructionCard(step = step)
         }
 
-        ArchitectSketchCameraCard(
-            capturedPhotoUri = capturedPhotoUri,
-            cameraMessage = cameraMessage,
-            isLoading = uiState.isSketchAnalysisLoading,
-            analysisText = uiState.sketchAnalysisText,
-            analysisError = uiState.sketchAnalysisError,
-            onCaptureClick = {
-                if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-                    PackageManager.PERMISSION_GRANTED
-                ) {
-                    launchCameraCapture()
-                } else {
-                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                }
-            },
-            onSubmitClick = { uri ->
-                coroutineScope.launch {
-                    cameraMessage = null
-                    val imageBytes = withContext(Dispatchers.IO) {
-                        readSketchImageBytes(context, uri)
-                    }
-
-                    if (imageBytes == null) {
-                        cameraMessage = "Fotografija nije dostupna. Probaj ponovo da fotografišeš crtež."
+        if (uiState.isAdminPreview) {
+            AdminPreviewInteractionCard(
+                message = "Kamera je isključena u pregledu. Izaberi „Probno reši zadatak“ da proveriš ceo tok slanja skice."
+            )
+        } else {
+            ArchitectSketchCameraCard(
+                capturedPhotoUri = capturedPhotoUri,
+                cameraMessage = cameraMessage,
+                isLoading = uiState.isSketchAnalysisLoading,
+                analysisText = uiState.sketchAnalysisText,
+                analysisError = uiState.sketchAnalysisError,
+                onCaptureClick = {
+                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                        PackageManager.PERMISSION_GRANTED
+                    ) {
+                        launchCameraCapture()
                     } else {
-                        onRequestSketchAnalysis(imageBytes, "image/jpeg")
+                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                    }
+                },
+                onSubmitClick = { uri ->
+                    coroutineScope.launch {
+                        cameraMessage = null
+                        val imageBytes = withContext(Dispatchers.IO) {
+                            readSketchImageBytes(context, uri)
+                        }
+
+                        if (imageBytes == null) {
+                            cameraMessage = "Fotografija nije dostupna. Probaj ponovo da fotografišeš crtež."
+                        } else {
+                            onRequestSketchAnalysis(imageBytes, "image/jpeg")
+                        }
                     }
                 }
-            }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AdminQuestionModeBanner(mode: QuestionSessionMode) {
+    if (mode == QuestionSessionMode.NORMAL) return
+
+    val title = if (mode == QuestionSessionMode.ADMIN_PREVIEW) {
+        "Admin pregled"
+    } else {
+        "Probno rešavanje"
+    }
+    val message = if (mode == QuestionSessionMode.ADMIN_PREVIEW) {
+        "Interakcije i provera odgovora su isključene. Možeš pregledati sve korake zadatka."
+    } else {
+        "Rezultat je samo probni. Napredak, XP, rang-lista i istorija pokušaja neće biti promenjeni."
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFFEFF6FF),
+        border = BorderStroke(1.dp, Color(0xFFBFDBFE))
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = title,
+                color = AppPalette.Blue,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                text = message,
+                color = AppPalette.TextPrimary,
+                fontSize = 13.sp,
+                lineHeight = 18.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun AdminPreviewInteractionCard(message: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, AppPalette.Border)
+    ) {
+        Text(
+            text = message,
+            modifier = Modifier.padding(16.dp),
+            color = AppPalette.TextSecondary,
+            fontSize = 13.sp,
+            lineHeight = 19.sp,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }
@@ -881,7 +962,11 @@ private fun QuestionProgress(uiState: QuestionUiState) {
             Spacer(modifier = Modifier.weight(1f))
 
             Text(
-                text = "${uiState.scorePercent}%",
+                text = if (uiState.isAdminPreview) {
+                    "Pregled"
+                } else {
+                    "${uiState.scorePercent}%"
+                },
                 color = AppPalette.Blue,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.ExtraBold
@@ -7260,6 +7345,41 @@ private fun QuestionActionBar(
     val hasAnsweredCurrent = currentStep != null &&
             uiState.answeredStepIds.contains(currentStep.stepId)
 
+    if (uiState.isAdminPreview) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            OutlinedButton(
+                onClick = onPreviousStep,
+                enabled = uiState.canGoPrevious,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Text(
+                    text = "Prethodni korak",
+                    color = AppPalette.TextPrimary
+                )
+            }
+            Button(
+                onClick = onNextStep,
+                enabled = !uiState.isLastStep,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppPalette.Navy,
+                    contentColor = Color.White
+                )
+            ) {
+                Text(
+                    text = if (uiState.isLastStep) "Poslednji korak" else "Sledeći korak",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        return
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -7352,6 +7472,8 @@ private fun QuestionResultScreen(
             Text("‹ Nazad")
         }
 
+        AdminQuestionModeBanner(uiState.sessionMode)
+
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(30.dp),
@@ -7402,14 +7524,14 @@ private fun QuestionResultScreen(
 
                     ResultStatCard(
                         modifier = Modifier.weight(1f),
-                        title = "+${uiState.xpReward}",
-                        subtitle = "novih XP"
+                        title = if (uiState.isAdminTest) "0" else "+${uiState.xpReward}",
+                        subtitle = if (uiState.isAdminTest) "XP u probnom režimu" else "novih XP"
                     )
                 }
             }
         }
 
-        if (!uiState.aiFollowUp.isNullOrBlank()) {
+        if (!uiState.isAdminTest && !uiState.aiFollowUp.isNullOrBlank()) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(26.dp),
@@ -7525,23 +7647,25 @@ private fun QuestionResultScreen(
             }
         }
 
-        Button(
-            onClick = onNextQuestion,
-            enabled = hasNextQuestion,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = AppPalette.Navy,
-                contentColor = Color.White,
-                disabledContainerColor = Color(0xFFCBD5E1),
-                disabledContentColor = Color.White
-            )
-        ) {
-            Text(
-                text = "Pređi na sledeći zadatak",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
+        if (!uiState.isAdminTest) {
+            Button(
+                onClick = onNextQuestion,
+                enabled = hasNextQuestion,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppPalette.Navy,
+                    contentColor = Color.White,
+                    disabledContainerColor = Color(0xFFCBD5E1),
+                    disabledContentColor = Color.White
+                )
+            ) {
+                Text(
+                    text = "Pređi na sledeći zadatak",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
         Button(
@@ -7554,7 +7678,11 @@ private fun QuestionResultScreen(
             )
         ) {
             Text(
-                text = "Vrati se na listu zadataka",
+                text = if (uiState.isAdminTest) {
+                    "Vrati se na pregled predloga"
+                } else {
+                    "Vrati se na listu zadataka"
+                },
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -7587,7 +7715,11 @@ private fun QuestionResultScreen(
             }
 
             Text(
-                text = "Ponovi zadatak",
+                text = if (uiState.isAdminTest) {
+                    "Ponovi probno rešavanje"
+                } else {
+                    "Ponovi zadatak"
+                },
                 color = AppPalette.TextSecondary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold

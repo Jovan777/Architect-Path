@@ -16,7 +16,9 @@ import com.example.pmuprojekat.core.model.XpCalculator
 import com.example.pmuprojekat.data.local.entity.UserStepAnswerEntity
 import com.example.pmuprojekat.data.local.relation.QuestionWithSteps
 import com.example.pmuprojekat.data.repository.LearningRepository
+import com.example.pmuprojekat.data.repository.UserProgressSyncRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -31,11 +33,14 @@ import kotlin.math.roundToInt
 @HiltViewModel
 class QuestionViewModel @Inject constructor(
     private val repository: LearningRepository,
+    private val userProgressSyncRepository: UserProgressSyncRepository,
     private val aiAnalysisService: AiAnalysisService,
     private val aiSketchAnalysisService: AiSketchAnalysisService
 ) : ViewModel() {
 
     private val selectedQuestionId = MutableStateFlow<String?>(null)
+    private val inMemoryQuestion = MutableStateFlow<QuestionWithSteps?>(null)
+    private val sessionMode = MutableStateFlow(QuestionSessionMode.NORMAL)
     private val currentStepIndex = MutableStateFlow(0)
     private val draftsByStepId = MutableStateFlow<Map<String, StepAnswerDraft>>(emptyMap())
     private val feedbackByStepId = MutableStateFlow<Map<String, StepFeedbackUi>>(emptyMap())
@@ -51,9 +56,11 @@ class QuestionViewModel @Inject constructor(
     private val isSketchAnalysisLoading = MutableStateFlow(false)
     private val sketchAnalysisText = MutableStateFlow<String?>(null)
     private val sketchAnalysisError = MutableStateFlow<String?>(null)
+    private val completingQuestionIds = mutableSetOf<String>()
 
     private data class QuestionRuntimeState(
         val questionWithSteps: QuestionWithSteps?,
+        val sessionMode: QuestionSessionMode,
         val stepIndex: Int,
         val drafts: Map<String, StepAnswerDraft>,
         val feedbacks: Map<String, StepFeedbackUi>,
@@ -83,11 +90,50 @@ class QuestionViewModel @Inject constructor(
         val error: String?
     )
 
-    private val questionFlow = selectedQuestionId.flatMapLatest { questionId ->
-        if (questionId == null) {
-            flowOf(null)
-        } else {
-            repository.observeQuestionWithSteps(questionId)
+    private data class QuestionSource(
+        val questionId: String?,
+        val inMemoryQuestion: QuestionWithSteps?,
+        val sessionMode: QuestionSessionMode
+    )
+
+    private data class LoadedQuestion(
+        val questionWithSteps: QuestionWithSteps?,
+        val sessionMode: QuestionSessionMode
+    )
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val questionFlow = combine(
+        selectedQuestionId,
+        inMemoryQuestion,
+        sessionMode
+    ) { questionId, memoryQuestion, mode ->
+        QuestionSource(
+            questionId = questionId,
+            inMemoryQuestion = memoryQuestion,
+            sessionMode = mode
+        )
+    }.flatMapLatest { source ->
+        when {
+            source.questionId == null -> {
+                flowOf(LoadedQuestion(null, source.sessionMode))
+            }
+            source.sessionMode != QuestionSessionMode.NORMAL &&
+                source.inMemoryQuestion?.question?.questionId == source.questionId -> {
+                flowOf(
+                    LoadedQuestion(
+                        questionWithSteps = source.inMemoryQuestion,
+                        sessionMode = source.sessionMode
+                    )
+                )
+            }
+            else -> {
+                repository.observeQuestionWithSteps(source.questionId).map { question ->
+                    LoadedQuestion(
+                        questionWithSteps = question,
+                        sessionMode = QuestionSessionMode.NORMAL
+                    )
+                }
+            }
         }
     }
 
@@ -97,14 +143,15 @@ class QuestionViewModel @Inject constructor(
         draftsByStepId,
         feedbackByStepId,
         answeredStepIds
-    ) { questionWithSteps,
+    ) { loadedQuestion,
         stepIndex,
         drafts,
         feedbacks,
         answered ->
 
         QuestionRuntimeState(
-            questionWithSteps = questionWithSteps,
+            questionWithSteps = loadedQuestion.questionWithSteps,
+            sessionMode = loadedQuestion.sessionMode,
             stepIndex = stepIndex,
             drafts = drafts,
             feedbacks = feedbacks,
@@ -171,6 +218,7 @@ class QuestionViewModel @Inject constructor(
             QuestionUiState()
         } else {
             questionWithSteps.toQuestionUiState(
+                sessionMode = runtime.sessionMode,
                 currentStepIndex = runtime.stepIndex,
                 drafts = runtime.drafts,
                 feedbacks = runtime.feedbacks,
@@ -191,14 +239,52 @@ class QuestionViewModel @Inject constructor(
         loadQuestion(questionId = questionId, restartAttempt = true)
     }
 
+    fun startAdminPreview(question: QuestionWithSteps) {
+        loadAdminQuestion(
+            question = question,
+            mode = QuestionSessionMode.ADMIN_PREVIEW
+        )
+    }
+
+    fun startAdminTest(question: QuestionWithSteps) {
+        loadAdminQuestion(
+            question = question,
+            mode = QuestionSessionMode.ADMIN_TEST
+        )
+    }
+
     fun ensureQuestionLoaded(questionId: String) {
         loadQuestion(questionId = questionId, restartAttempt = false)
     }
 
     private fun loadQuestion(questionId: String, restartAttempt: Boolean) {
-        if (!restartAttempt && selectedQuestionId.value == questionId) return
+        if (
+            !restartAttempt &&
+            selectedQuestionId.value == questionId &&
+            sessionMode.value == QuestionSessionMode.NORMAL
+        ) {
+            return
+        }
 
+        inMemoryQuestion.value = null
+        sessionMode.value = QuestionSessionMode.NORMAL
         selectedQuestionId.value = questionId
+        resetAttemptState(questionId, restartAttempt)
+    }
+
+    private fun loadAdminQuestion(
+        question: QuestionWithSteps,
+        mode: QuestionSessionMode
+    ) {
+        require(mode != QuestionSessionMode.NORMAL)
+        val questionId = question.question.questionId
+        inMemoryQuestion.value = question
+        sessionMode.value = mode
+        selectedQuestionId.value = questionId
+        resetAttemptState(questionId, restartAttempt = true)
+    }
+
+    private fun resetAttemptState(questionId: String, restartAttempt: Boolean) {
         currentStepIndex.value = 0
         draftsByStepId.value = emptyMap()
         feedbackByStepId.value = emptyMap()
@@ -215,6 +301,8 @@ class QuestionViewModel @Inject constructor(
 
         if (restartAttempt) {
             completedQuestionIds.value = completedQuestionIds.value - questionId
+            newlyAwardedXpByQuestionId.value =
+                newlyAwardedXpByQuestionId.value - questionId
         }
     }
 
@@ -225,7 +313,13 @@ class QuestionViewModel @Inject constructor(
 
     fun requestAiAnalysis() {
         val state = uiState.value
-        if (!state.isCompleted || isAiAnalysisLoading.value) return
+        if (
+            !state.isCompleted ||
+            state.sessionMode != QuestionSessionMode.NORMAL ||
+            isAiAnalysisLoading.value
+        ) {
+            return
+        }
 
         val request = buildAiAnalysisRequest(state)
 
@@ -254,6 +348,7 @@ class QuestionViewModel @Inject constructor(
 
     fun requestSketchAnalysis(imageBytes: ByteArray, imageMimeType: String) {
         val state = uiState.value
+        if (state.isAdminPreview) return
         val questionId = state.questionId ?: return
         val step = state.steps.firstOrNull() ?: return
 
@@ -287,25 +382,35 @@ class QuestionViewModel @Inject constructor(
                         )
                     )
 
-                    repository.saveStepAnswer(
-                        UserStepAnswerEntity(
-                            userId = LearningRepository.LOCAL_USER_ID,
-                            questionId = questionId,
-                            stepId = step.stepId,
-                            freeTextAnswer = "Fotografija skice je poslata na AI analizu.",
-                            isCorrect = true
-                        )
-                    )
-
-                    if (!state.isCompleted) {
-                        val reward = repository.completeQuestion(
-                            questionId = questionId,
-                            scorePercent = 100
-                        )
-
+                    if (!state.sessionMode.persistsUserProgress) {
                         newlyAwardedXpByQuestionId.value =
-                            newlyAwardedXpByQuestionId.value + (questionId to reward.newlyAwardedXp)
+                            newlyAwardedXpByQuestionId.value + (questionId to 0)
                         completedQuestionIds.value = completedQuestionIds.value + questionId
+                    } else {
+                        repository.saveStepAnswer(
+                            UserStepAnswerEntity(
+                                userId = LearningRepository.LOCAL_USER_ID,
+                                questionId = questionId,
+                                stepId = step.stepId,
+                                freeTextAnswer = "Fotografija skice je poslata na AI analizu.",
+                                isCorrect = true
+                            )
+                        )
+
+                        if (!state.isCompleted) {
+                            val reward = repository.completeQuestion(
+                                questionId = questionId,
+                                scorePercent = 100
+                            )
+
+                            newlyAwardedXpByQuestionId.value =
+                                newlyAwardedXpByQuestionId.value + (
+                                    questionId to reward.newlyAwardedXp
+                                )
+                            completedQuestionIds.value =
+                                completedQuestionIds.value + questionId
+                            syncProgressInBackground()
+                        }
                     }
                 }
                 .onFailure { error ->
@@ -511,20 +616,22 @@ class QuestionViewModel @Inject constructor(
             correctStepIds.value = correctStepIds.value - step.stepId
         }
 
-        viewModelScope.launch {
-            repository.saveStepAnswer(
-                UserStepAnswerEntity(
-                    userId = LearningRepository.LOCAL_USER_ID,
-                    questionId = questionId,
-                    stepId = step.stepId,
-                    selectedOptionIds = draft.selectedOptionIds.toList(),
-                    orderedOptionIds = draft.orderedOptionIds,
-                    mappedZoneByOptionId = draft.mappedZoneByOptionId,
-                    blankAnswersByBlankId = draft.blankAnswersByBlankId,
-                    freeTextAnswer = draft.freeTextAnswer,
-                    isCorrect = result.isCorrect
+        if (state.sessionMode.persistsUserProgress) {
+            viewModelScope.launch {
+                repository.saveStepAnswer(
+                    UserStepAnswerEntity(
+                        userId = LearningRepository.LOCAL_USER_ID,
+                        questionId = questionId,
+                        stepId = step.stepId,
+                        selectedOptionIds = draft.selectedOptionIds.toList(),
+                        orderedOptionIds = draft.orderedOptionIds,
+                        mappedZoneByOptionId = draft.mappedZoneByOptionId,
+                        blankAnswersByBlankId = draft.blankAnswersByBlankId,
+                        freeTextAnswer = draft.freeTextAnswer,
+                        isCorrect = result.isCorrect
+                    )
                 )
-            )
+            }
         }
     }
 
@@ -544,6 +651,8 @@ class QuestionViewModel @Inject constructor(
     fun finishQuestion() {
         val state = uiState.value
         val questionId = state.questionId ?: return
+        if (state.isAdminPreview) return
+        if (!completingQuestionIds.add(questionId)) return
 
         val autoEvaluatedSteps = collectAutoEvaluatedSteps(state)
 
@@ -559,15 +668,34 @@ class QuestionViewModel @Inject constructor(
                 .coerceIn(0, 100)
         }
 
-        viewModelScope.launch {
-            val reward = repository.completeQuestion(
-                questionId = questionId,
-                scorePercent = scorePercent
-            )
-
+        if (!state.sessionMode.persistsUserProgress) {
             newlyAwardedXpByQuestionId.value =
-                newlyAwardedXpByQuestionId.value + (questionId to reward.newlyAwardedXp)
+                newlyAwardedXpByQuestionId.value + (questionId to 0)
             completedQuestionIds.value = completedQuestionIds.value + questionId
+            completingQuestionIds.remove(questionId)
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val reward = repository.completeQuestion(
+                    questionId = questionId,
+                    scorePercent = scorePercent
+                )
+
+                newlyAwardedXpByQuestionId.value =
+                    newlyAwardedXpByQuestionId.value + (questionId to reward.newlyAwardedXp)
+                completedQuestionIds.value = completedQuestionIds.value + questionId
+                syncProgressInBackground()
+            } finally {
+                completingQuestionIds.remove(questionId)
+            }
+        }
+    }
+
+    private fun syncProgressInBackground() {
+        viewModelScope.launch {
+            userProgressSyncRepository.syncPendingProgress()
         }
     }
 
@@ -1046,6 +1174,7 @@ class QuestionViewModel @Inject constructor(
     }
 
     private fun QuestionWithSteps.toQuestionUiState(
+        sessionMode: QuestionSessionMode,
         currentStepIndex: Int,
         drafts: Map<String, StepAnswerDraft>,
         feedbacks: Map<String, StepFeedbackUi>,
@@ -1125,7 +1254,9 @@ class QuestionViewModel @Inject constructor(
                 .coerceIn(0, 100)
         }
 
-        val xpReward = if (completedQuestionIds.contains(questionId)) {
+        val xpReward = if (!sessionMode.persistsUserProgress) {
+            0
+        } else if (completedQuestionIds.contains(questionId)) {
             newlyAwardedXpByQuestionId[questionId] ?: XpCalculator.xpForScore(score)
         } else {
             XpCalculator.xpForScore(score)
@@ -1133,6 +1264,7 @@ class QuestionViewModel @Inject constructor(
 
         return QuestionUiState(
             isLoading = false,
+            sessionMode = sessionMode,
             questionId = questionId,
             title = question.title,
             prompt = question.prompt,

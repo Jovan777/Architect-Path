@@ -47,6 +47,10 @@ class RemoteTaskMapper @Inject constructor() {
         val questionId = remoteQuestionId(document, source)
         val stepPayloads = questionPayload.mapList("steps")
         val diagramImagePayload = questionPayload.mapValue("diagramImage")
+        val rendererStepPrefix = rendererStepPrefix(
+            questionPayload.stringValue("questionIdPattern")
+                ?: document.payload.stringValue("questionIdPattern")
+        )
 
         require(stepPayloads.isNotEmpty()) {
             "Udaljeni zadatak nema nijedan korak."
@@ -56,7 +60,8 @@ class RemoteTaskMapper @Inject constructor() {
             mapStep(
                 questionId = questionId,
                 stepIndex = stepIndex,
-                payload = stepPayload
+                payload = stepPayload,
+                rendererStepPrefix = rendererStepPrefix
             )
         }
 
@@ -100,10 +105,15 @@ class RemoteTaskMapper @Inject constructor() {
     private fun mapStep(
         questionId: String,
         stepIndex: Int,
-        payload: Map<String, Any?>
+        payload: Map<String, Any?>,
+        rendererStepPrefix: String?
     ): StepWithContent {
         val stepType = normalizeStepType(payload.stringValue("type"))
-        val stepId = "${questionId}_s${stepIndex + 1}"
+        val stepId = if (rendererStepPrefix == null) {
+            "${questionId}_s${stepIndex + 1}"
+        } else {
+            "$rendererStepPrefix${questionId}_s${stepIndex + 1}"
+        }
         val zonePayloads = payload.mapList("zones")
         val zoneIdsByRemoteId = mutableMapOf<String, String>()
         val zones = zonePayloads.mapIndexed { zoneIndex, zonePayload ->
@@ -253,6 +263,12 @@ class RemoteTaskMapper @Inject constructor() {
         }
     }
 
+    private fun rendererStepPrefix(questionIdPattern: String?): String? {
+        val match = RENDERER_PREFIX.find(questionIdPattern.orEmpty().trim().uppercase())
+            ?: return null
+        return "${match.groupValues[1]}."
+    }
+
     private fun Any?.toMetadataString(): String? = when (this) {
         null -> null
         is String -> takeIf(String::isNotBlank)
@@ -282,5 +298,6 @@ class RemoteTaskMapper @Inject constructor() {
         const val PUBLICATION_MAIN_TASK_LIST = "MAIN_TASK_LIST"
         const val PUBLICATION_USER_TASKS = "USER_TASKS"
         private const val REMOTE_ORDER_INDEX = 10_000
+        private val RENDERER_PREFIX = Regex("^([PJMSA][1-7])\\.")
     }
 }

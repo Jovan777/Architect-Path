@@ -10,6 +10,7 @@ import com.example.pmuprojekat.core.model.XpCalculator
 import com.example.pmuprojekat.data.local.entity.QuestionEntity
 import com.example.pmuprojekat.data.repository.LearningRepository
 import com.example.pmuprojekat.data.repository.RemoteTaskRepository
+import com.example.pmuprojekat.data.repository.UserProgressSyncRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -23,7 +24,8 @@ import kotlin.math.roundToInt
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: LearningRepository,
-    private val remoteTaskRepository: RemoteTaskRepository
+    private val remoteTaskRepository: RemoteTaskRepository,
+    private val userProgressSyncRepository: UserProgressSyncRepository
 ) : ViewModel() {
 
     val uiState = combine(
@@ -288,7 +290,12 @@ class HomeViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             repository.initializeDatabaseIfNeeded()
-            remoteTaskRepository.refreshRemoteTasks()
+            launch {
+                remoteTaskRepository.refreshRemoteTasks()
+            }
+            launch {
+                userProgressSyncRepository.syncPendingProgress()
+            }
         }
     }
 
@@ -315,6 +322,7 @@ class HomeViewModel @Inject constructor(
                 learningFocus = learningFocus,
                 aiFollowUpEnabled = aiFollowUpEnabled
             )
+            userProgressSyncRepository.syncPendingProgress()
         }
     }
 
@@ -331,12 +339,14 @@ class HomeViewModel @Inject constructor(
                 preferredTaskFormat = preferredTaskFormat,
                 learningFocus = learningFocus
             )
+            userProgressSyncRepository.syncPendingProgress()
         }
     }
 
     fun resetProgress() {
         viewModelScope.launch {
             repository.resetProgress()
+            userProgressSyncRepository.syncPendingProgress()
         }
     }
 

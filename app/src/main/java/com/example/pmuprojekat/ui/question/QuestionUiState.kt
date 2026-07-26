@@ -2,9 +2,19 @@ package com.example.pmuprojekat.ui.question
 
 import androidx.compose.runtime.Immutable
 
+enum class QuestionSessionMode {
+    NORMAL,
+    ADMIN_PREVIEW,
+    ADMIN_TEST;
+
+    val persistsUserProgress: Boolean
+        get() = this == NORMAL
+}
+
 @Immutable
 data class QuestionUiState(
     val isLoading: Boolean = true,
+    val sessionMode: QuestionSessionMode = QuestionSessionMode.NORMAL,
     val questionId: String? = null,
     val title: String = "",
     val prompt: String = "",
@@ -43,6 +53,12 @@ data class QuestionUiState(
     val sketchAnalysisText: String? = null,
     val sketchAnalysisError: String? = null
 ) {
+    val isAdminPreview: Boolean
+        get() = sessionMode == QuestionSessionMode.ADMIN_PREVIEW
+
+    val isAdminTest: Boolean
+        get() = sessionMode == QuestionSessionMode.ADMIN_TEST
+
     val canGoPrevious: Boolean
         get() = currentStepIndex > 0 && !isCompleted
 

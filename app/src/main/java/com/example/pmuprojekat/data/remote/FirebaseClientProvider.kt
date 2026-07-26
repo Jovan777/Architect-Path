@@ -20,7 +20,8 @@ class FirebaseClientProvider @Inject constructor(
     fun storage(): Result<FirebaseStorage> = firebaseApp().map(FirebaseStorage::getInstance)
 
     private fun firebaseApp(): Result<FirebaseApp> = runCatching {
-        FirebaseApp.getApps(context).firstOrNull()
+        FirebaseApp.getApps(context)
+            .firstOrNull { it.name == FirebaseApp.DEFAULT_APP_NAME }
             ?: FirebaseApp.initializeApp(context)
             ?: error(
                 "Firebase nije konfigurisan. Proveri da li se google-services.json nalazi u app modulu."

@@ -1,9 +1,13 @@
 package com.example.pmuprojekat.data.repository
 
+import androidx.room.withTransaction
+import com.example.pmuprojekat.data.local.PMUDatabase
 import com.example.pmuprojekat.data.local.dao.QuestionDao
+import com.example.pmuprojekat.data.local.dao.TaskAttemptSyncDao
 import com.example.pmuprojekat.data.local.dao.UserAnswerDao
 import com.example.pmuprojekat.data.local.dao.UserDao
 import com.example.pmuprojekat.data.local.entity.QuestionEntity
+import com.example.pmuprojekat.data.local.entity.TaskAttemptSyncEntity
 import com.example.pmuprojekat.data.local.entity.UserEntity
 import com.example.pmuprojekat.data.local.entity.UserQuestionProgressEntity
 import com.example.pmuprojekat.data.local.entity.UserStepAnswerEntity
@@ -11,14 +15,17 @@ import com.example.pmuprojekat.data.local.relation.QuestionWithSteps
 import com.example.pmuprojekat.data.seed.SeedInserter
 import com.example.pmuprojekat.core.model.XpCalculator
 import kotlinx.coroutines.flow.Flow
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class LearningRepository @Inject constructor(
+    private val database: PMUDatabase,
     private val userDao: UserDao,
     private val questionDao: QuestionDao,
     private val userAnswerDao: UserAnswerDao,
+    private val taskAttemptSyncDao: TaskAttemptSyncDao,
     private val seedInserter: SeedInserter
 ) {
 
@@ -120,52 +127,84 @@ class LearningRepository @Inject constructor(
         questionId: String,
         scorePercent: Int
     ): QuestionCompletionReward {
-        val existingProgress = userAnswerDao.getQuestionProgress(
-            userId = LOCAL_USER_ID,
-            questionId = questionId
-        )
+        val now = System.currentTimeMillis()
+        val attemptId = "attempt_${UUID.randomUUID()}"
 
-        val alreadyCompleted = existingProgress?.status == "completed"
-        val earnedXpForAttempt = XpCalculator.xpForScore(scorePercent)
-        val previousBestXp = existingProgress?.bestEarnedXp ?: 0
-        val bestEarnedXp = maxOf(previousBestXp, earnedXpForAttempt)
-        val newlyAwardedXp = bestEarnedXp - previousBestXp
-
-        val updatedProgress = UserQuestionProgressEntity(
-            userId = LOCAL_USER_ID,
-            questionId = questionId,
-            status = "completed",
-            attempts = (existingProgress?.attempts ?: 0) + 1,
-            bestScorePercent = maxOf(existingProgress?.bestScorePercent ?: 0, scorePercent),
-            bestEarnedXp = bestEarnedXp,
-            startedAt = existingProgress?.startedAt ?: System.currentTimeMillis(),
-            completedAt = System.currentTimeMillis(),
-            updatedAt = System.currentTimeMillis()
-        )
-
-        userAnswerDao.upsertQuestionProgress(updatedProgress)
-
-        if (!alreadyCompleted || newlyAwardedXp > 0) {
-            userDao.increaseLearningStats(
+        return database.withTransaction {
+            val existingProgress = userAnswerDao.getQuestionProgress(
                 userId = LOCAL_USER_ID,
-                completedDelta = if (alreadyCompleted) 0 else 1,
-                xpDelta = newlyAwardedXp
+                questionId = questionId
+            )
+
+            val alreadyCompleted = existingProgress?.status == "completed"
+            val earnedXpForAttempt = XpCalculator.xpForScore(scorePercent)
+            val previousBestXp = existingProgress?.bestEarnedXp ?: 0
+            val bestEarnedXp = maxOf(previousBestXp, earnedXpForAttempt)
+            val newlyAwardedXp = bestEarnedXp - previousBestXp
+            val attemptNumber = (existingProgress?.attempts ?: 0) + 1
+
+            userAnswerDao.upsertQuestionProgress(
+                UserQuestionProgressEntity(
+                    userId = LOCAL_USER_ID,
+                    questionId = questionId,
+                    status = "completed",
+                    attempts = attemptNumber,
+                    bestScorePercent = maxOf(
+                        existingProgress?.bestScorePercent ?: 0,
+                        scorePercent
+                    ),
+                    bestEarnedXp = bestEarnedXp,
+                    startedAt = existingProgress?.startedAt ?: now,
+                    completedAt = now,
+                    updatedAt = now
+                )
+            )
+
+            if (!alreadyCompleted || newlyAwardedXp > 0) {
+                userDao.increaseLearningStats(
+                    userId = LOCAL_USER_ID,
+                    completedDelta = if (alreadyCompleted) 0 else 1,
+                    xpDelta = newlyAwardedXp,
+                    updatedAt = now
+                )
+            }
+
+            val question = questionDao.getQuestion(questionId)
+            taskAttemptSyncDao.insert(
+                TaskAttemptSyncEntity(
+                    attemptId = attemptId,
+                    taskId = questionId,
+                    taskTitle = question?.title?.take(MAX_SYNC_TITLE_LENGTH)
+                        ?: questionId.take(MAX_SYNC_TITLE_LENGTH),
+                    level = question?.level.orEmpty(),
+                    taskType = question?.type.orEmpty(),
+                    taskSource = question?.source ?: "LOCAL_SEED",
+                    percentage = scorePercent.coerceIn(0, 100),
+                    pointsAwarded = newlyAwardedXp.coerceAtLeast(0),
+                    attemptNumber = attemptNumber,
+                    completedAt = now
+                )
+            )
+
+            QuestionCompletionReward(
+                attemptId = attemptId,
+                attemptNumber = attemptNumber,
+                earnedXpForAttempt = earnedXpForAttempt,
+                newlyAwardedXp = newlyAwardedXp,
+                bestEarnedXp = bestEarnedXp
             )
         }
-
-        return QuestionCompletionReward(
-            earnedXpForAttempt = earnedXpForAttempt,
-            newlyAwardedXp = newlyAwardedXp,
-            bestEarnedXp = bestEarnedXp
-        )
     }
 
     companion object {
         const val LOCAL_USER_ID = "local_user"
+        private const val MAX_SYNC_TITLE_LENGTH = 240
     }
 }
 
 data class QuestionCompletionReward(
+    val attemptId: String,
+    val attemptNumber: Int,
     val earnedXpForAttempt: Int,
     val newlyAwardedXp: Int,
     val bestEarnedXp: Int

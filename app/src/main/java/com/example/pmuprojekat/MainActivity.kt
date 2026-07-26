@@ -1,5 +1,6 @@
 package com.example.pmuprojekat
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.activity.ComponentActivity
@@ -22,12 +23,25 @@ import com.example.pmuprojekat.ui.main.TasksScreen
 import com.example.pmuprojekat.ui.main.WavesScreen
 import com.example.pmuprojekat.ui.onboarding.OnboardingScreen
 import com.example.pmuprojekat.ui.question.QuestionScreen
+import com.example.pmuprojekat.ui.question.QuestionSessionMode
 import com.example.pmuprojekat.ui.question.QuestionViewModel
 import com.example.pmuprojekat.ui.taskcreation.TaskCreationScreen
 import com.example.pmuprojekat.ui.taskcreation.TaskCreationViewModel
 import com.example.pmuprojekat.ui.theme.PMUProjekatTheme
 import com.example.pmuprojekat.ui.aichat.AiChatScreen
 import com.example.pmuprojekat.ui.aichat.AiChatViewModel
+import com.example.pmuprojekat.ui.admin.AdminAccessScreen
+import com.example.pmuprojekat.ui.admin.AdminAuthViewModel
+import com.example.pmuprojekat.ui.admin.AdminTaskAttemptHistoryScreen
+import com.example.pmuprojekat.ui.admin.AdminTaskPreviewLoadingScreen
+import com.example.pmuprojekat.ui.admin.AdminTaskSubmissionDetailScreen
+import com.example.pmuprojekat.ui.admin.AdminTaskSubmissionsScreen
+import com.example.pmuprojekat.ui.admin.AdminTaskSubmissionsViewModel
+import com.example.pmuprojekat.ui.admin.AdminUserDetailScreen
+import com.example.pmuprojekat.ui.admin.AdminUsersScreen
+import com.example.pmuprojekat.ui.admin.AdminUsersViewModel
+import com.example.pmuprojekat.ui.leaderboard.LeaderboardScreen
+import com.example.pmuprojekat.ui.leaderboard.LeaderboardViewModel
 import com.example.pmuprojekat.ui.vsai.VsAiChallengeScreen
 import com.example.pmuprojekat.ui.vsai.VsAiHistoryScreen
 import com.example.pmuprojekat.ui.vsai.VsAiLevelSelectionScreen
@@ -49,6 +63,10 @@ class MainActivity : ComponentActivity() {
     private val encyclopediaViewModel: EncyclopediaViewModel by viewModels()
     private val aiChatViewModel: AiChatViewModel by viewModels()
     private val vsAiViewModel: VsAiViewModel by viewModels()
+    private val adminAuthViewModel: AdminAuthViewModel by viewModels()
+    private val adminUsersViewModel: AdminUsersViewModel by viewModels()
+    private val adminTaskSubmissionsViewModel: AdminTaskSubmissionsViewModel by viewModels()
+    private val leaderboardViewModel: LeaderboardViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_PMUProjekat)
@@ -63,6 +81,11 @@ class MainActivity : ComponentActivity() {
                 val encyclopediaUiState by encyclopediaViewModel.uiState.collectAsStateWithLifecycle()
                 val aiChatUiState by aiChatViewModel.uiState.collectAsStateWithLifecycle()
                 val vsAiUiState by vsAiViewModel.uiState.collectAsStateWithLifecycle()
+                val adminAuthUiState by adminAuthViewModel.uiState.collectAsStateWithLifecycle()
+                val adminUsersUiState by adminUsersViewModel.uiState.collectAsStateWithLifecycle()
+                val adminTaskSubmissionsUiState by
+                    adminTaskSubmissionsViewModel.uiState.collectAsStateWithLifecycle()
+                val leaderboardUiState by leaderboardViewModel.uiState.collectAsStateWithLifecycle()
 
                 var routeBackStack by rememberSaveable {
                     mutableStateOf(listOf(tabRoute(MainTab.HOME)))
@@ -81,6 +104,16 @@ class MainActivity : ComponentActivity() {
                 val openedEncyclopediaCategoryId = encyclopediaCategoryIdFromRoute(currentRoute)
                 val openedEncyclopediaTerm = encyclopediaTermIdsFromRoute(currentRoute)
                 val openedAiChat = currentRoute == aiChatRoute()
+                val openedAdminAccess = currentRoute == adminAccessRoute()
+                val openedAdminUsers = currentRoute == adminUsersRoute()
+                val openedAdminUserId = adminUserIdFromRoute(currentRoute)
+                val openedAdminTask = adminUserTaskFromRoute(currentRoute)
+                val openedAdminTaskSubmissions =
+                    currentRoute == adminTaskSubmissionsRoute()
+                val openedAdminTaskSubmissionId =
+                    adminTaskSubmissionIdFromRoute(currentRoute)
+                val openedAdminTaskPlay = adminTaskPlayFromRoute(currentRoute)
+                val openedLeaderboard = currentRoute == leaderboardRoute()
 
                 fun popBackStack() {
                     if (routeBackStack.size > 1) {
@@ -168,11 +201,305 @@ class MainActivity : ComponentActivity() {
                     openedVsAiLevelId?.let(vsAiViewModel::ensureChallenge)
                 }
 
+                LaunchedEffect(openedAdminAccess) {
+                    if (openedAdminAccess) {
+                        adminAuthViewModel.verifySession()
+                    }
+                }
+
+                LaunchedEffect(openedLeaderboard) {
+                    if (openedLeaderboard) {
+                        leaderboardViewModel.load()
+                    }
+                }
+
+                LaunchedEffect(openedAdminUsers) {
+                    if (openedAdminUsers) {
+                        adminUsersViewModel.loadUsers()
+                    }
+                }
+
+                LaunchedEffect(openedAdminUserId) {
+                    openedAdminUserId?.let(adminUsersViewModel::loadUserDetails)
+                }
+
+                LaunchedEffect(openedAdminTask) {
+                    openedAdminTask?.let { route ->
+                        adminUsersViewModel.loadUserDetails(route.userId)
+                    }
+                }
+
+                LaunchedEffect(openedAdminTaskSubmissions) {
+                    if (openedAdminTaskSubmissions) {
+                        adminTaskSubmissionsViewModel.loadSubmissions()
+                    }
+                }
+
+                LaunchedEffect(openedAdminTaskSubmissionId) {
+                    openedAdminTaskSubmissionId?.let(
+                        adminTaskSubmissionsViewModel::loadSubmission
+                    )
+                }
+
+                LaunchedEffect(openedAdminTaskPlay) {
+                    openedAdminTaskPlay?.let { route ->
+                        if (
+                            adminTaskSubmissionsUiState.detail
+                                ?.summary
+                                ?.submissionId != route.submissionId
+                        ) {
+                            adminTaskSubmissionsViewModel.loadSubmission(route.submissionId)
+                        }
+                    }
+                }
+
+                LaunchedEffect(
+                    openedAdminTaskPlay,
+                    adminTaskSubmissionsUiState.detail
+                ) {
+                    val playRoute = openedAdminTaskPlay
+                    val detail = adminTaskSubmissionsUiState.detail
+                    if (
+                        playRoute != null &&
+                        detail?.summary?.submissionId == playRoute.submissionId
+                    ) {
+                        detail.playableQuestion?.let { question ->
+                            when (playRoute.mode) {
+                                QuestionSessionMode.ADMIN_PREVIEW ->
+                                    questionViewModel.startAdminPreview(question)
+                                QuestionSessionMode.ADMIN_TEST ->
+                                    questionViewModel.startAdminTest(question)
+                                QuestionSessionMode.NORMAL -> Unit
+                            }
+                        }
+                    }
+                }
+
+                LaunchedEffect(adminUsersUiState.requiresAdminLogin) {
+                    if (adminUsersUiState.requiresAdminLogin) {
+                        val adminAccessIndex = routeBackStack.indexOfLast {
+                            it == adminAccessRoute()
+                        }
+                        routeBackStack = if (adminAccessIndex >= 0) {
+                            routeBackStack.take(adminAccessIndex + 1)
+                        } else {
+                            listOf(
+                                tabRoute(MainTab.PROFILE),
+                                adminAccessRoute()
+                            )
+                        }
+                        adminUsersViewModel.consumeAuthorizationRedirect()
+                        adminAuthViewModel.verifySession()
+                    }
+                }
+
+                LaunchedEffect(adminTaskSubmissionsUiState.requiresAdminLogin) {
+                    if (adminTaskSubmissionsUiState.requiresAdminLogin) {
+                        val adminAccessIndex = routeBackStack.indexOfLast {
+                            it == adminAccessRoute()
+                        }
+                        routeBackStack = if (adminAccessIndex >= 0) {
+                            routeBackStack.take(adminAccessIndex + 1)
+                        } else {
+                            listOf(
+                                tabRoute(MainTab.PROFILE),
+                                adminAccessRoute()
+                            )
+                        }
+                        adminTaskSubmissionsViewModel.consumeAuthorizationRedirect()
+                        adminAuthViewModel.verifySession()
+                    }
+                }
+
                 when {
                     !homeUiState.isLoading && !homeUiState.hasCompletedOnboarding -> {
                         OnboardingScreen(
                             uiState = homeUiState,
                             onComplete = homeViewModel::completeOnboarding
+                        )
+                    }
+
+                    openedAdminTaskPlay != null -> {
+                        val playableQuestion = adminTaskSubmissionsUiState.detail
+                            ?.takeIf {
+                                it.summary.submissionId ==
+                                    openedAdminTaskPlay.submissionId
+                            }
+                            ?.playableQuestion
+                        val isQuestionReady =
+                            playableQuestion != null &&
+                                questionUiState.questionId ==
+                                    playableQuestion.question.questionId &&
+                                questionUiState.sessionMode ==
+                                    openedAdminTaskPlay.mode
+
+                        if (!isQuestionReady) {
+                            AdminTaskPreviewLoadingScreen(onBack = ::popBackStack)
+                        } else {
+                            QuestionScreen(
+                                uiState = questionUiState,
+                                onBack = ::popBackStack,
+                                onBackToQuestionList = ::popBackStack,
+                                hasNextQuestion = false,
+                                onNextQuestion = {},
+                                onRetryQuestion = {
+                                    when (openedAdminTaskPlay.mode) {
+                                        QuestionSessionMode.ADMIN_PREVIEW ->
+                                            questionViewModel.startAdminPreview(playableQuestion)
+                                        QuestionSessionMode.ADMIN_TEST ->
+                                            questionViewModel.startAdminTest(playableQuestion)
+                                        QuestionSessionMode.NORMAL -> Unit
+                                    }
+                                },
+                                onToggleOption = questionViewModel::toggleOption,
+                                onMoveOrderedOption = questionViewModel::moveOrderedOption,
+                                onUpdateOrderedOptions =
+                                    questionViewModel::updateOrderedOptions,
+                                onExcludeOrderedOption =
+                                    questionViewModel::excludeOrderedOption,
+                                onRestoreOrderedOption =
+                                    questionViewModel::restoreOrderedOption,
+                                onMapOptionToZone =
+                                    questionViewModel::mapOptionToZone,
+                                onRemoveOptionZone =
+                                    questionViewModel::removeOptionZone,
+                                onUpdateBlankAnswer =
+                                    questionViewModel::updateBlankAnswer,
+                                onUpdateFreeText = questionViewModel::updateFreeText,
+                                onUpdateAiFollowUpAnswer =
+                                    questionViewModel::updateAiFollowUpAnswer,
+                                onRequestAiAnalysis =
+                                    questionViewModel::requestAiAnalysis,
+                                onRequestSketchAnalysis =
+                                    questionViewModel::requestSketchAnalysis,
+                                onClearSketchAnalysis =
+                                    questionViewModel::clearSketchAnalysis,
+                                onCheckStep = questionViewModel::checkCurrentStep,
+                                onPreviousStep = questionViewModel::goToPreviousStep,
+                                onNextStep = questionViewModel::goToNextStep,
+                                onFinishQuestion = questionViewModel::finishQuestion
+                            )
+                        }
+                    }
+
+                    openedAdminTaskSubmissionId != null -> {
+                        AdminTaskSubmissionDetailScreen(
+                            uiState = adminTaskSubmissionsUiState,
+                            onBack = ::popBackStack,
+                            onRetry = {
+                                adminTaskSubmissionsViewModel.loadSubmission(
+                                    openedAdminTaskSubmissionId
+                                )
+                            },
+                            onPreview = {
+                                navigateTo(
+                                    adminTaskPlayRoute(
+                                        submissionId = openedAdminTaskSubmissionId,
+                                        mode = QuestionSessionMode.ADMIN_PREVIEW
+                                    )
+                                )
+                            },
+                            onTestSolve = {
+                                navigateTo(
+                                    adminTaskPlayRoute(
+                                        submissionId = openedAdminTaskSubmissionId,
+                                        mode = QuestionSessionMode.ADMIN_TEST
+                                    )
+                                )
+                            },
+                            onRequestAction =
+                                adminTaskSubmissionsViewModel::requestAction,
+                            onDismissConfirmation =
+                                adminTaskSubmissionsViewModel::dismissConfirmation,
+                            onConfirmAction =
+                                adminTaskSubmissionsViewModel::confirmAction,
+                            onRejectionReasonChange =
+                                adminTaskSubmissionsViewModel::updateRejectionReason
+                        )
+                    }
+
+                    openedAdminTaskSubmissions -> {
+                        AdminTaskSubmissionsScreen(
+                            uiState = adminTaskSubmissionsUiState,
+                            onBack = ::popBackStack,
+                            onRetry =
+                                adminTaskSubmissionsViewModel::loadSubmissions,
+                            onFilterSelected =
+                                adminTaskSubmissionsViewModel::selectFilter,
+                            onSubmissionClick = { submissionId ->
+                                navigateTo(
+                                    adminTaskSubmissionRoute(submissionId)
+                                )
+                            }
+                        )
+                    }
+
+                    openedAdminTask != null -> {
+                        AdminTaskAttemptHistoryScreen(
+                            uiState = adminUsersUiState,
+                            taskId = openedAdminTask.taskId,
+                            onBack = ::popBackStack,
+                            onRetry = {
+                                adminUsersViewModel.loadUserDetails(openedAdminTask.userId)
+                            }
+                        )
+                    }
+
+                    openedAdminUserId != null -> {
+                        AdminUserDetailScreen(
+                            uiState = adminUsersUiState,
+                            onBack = ::popBackStack,
+                            onRetry = {
+                                adminUsersViewModel.loadUserDetails(openedAdminUserId)
+                            },
+                            onTaskClick = { taskId ->
+                                navigateTo(
+                                    adminUserTaskRoute(
+                                        userId = openedAdminUserId,
+                                        taskId = taskId
+                                    )
+                                )
+                            }
+                        )
+                    }
+
+                    openedAdminUsers -> {
+                        AdminUsersScreen(
+                            uiState = adminUsersUiState,
+                            onBack = ::popBackStack,
+                            onRetry = adminUsersViewModel::loadUsers,
+                            onUserClick = { uid ->
+                                navigateTo(adminUserRoute(uid))
+                            }
+                        )
+                    }
+
+                    openedAdminAccess -> {
+                        AdminAccessScreen(
+                            uiState = adminAuthUiState,
+                            onBack = ::popBackStack,
+                            onEmailChange = adminAuthViewModel::updateEmail,
+                            onPasswordChange = adminAuthViewModel::updatePassword,
+                            onSignIn = adminAuthViewModel::signIn,
+                            onSignOut = {
+                                adminUsersViewModel.clearProtectedData()
+                                adminTaskSubmissionsViewModel.clearProtectedData()
+                                adminAuthViewModel.signOut()
+                            },
+                            onOpenUsers = {
+                                navigateTo(adminUsersRoute())
+                            },
+                            onOpenTaskSubmissions = {
+                                navigateTo(adminTaskSubmissionsRoute())
+                            }
+                        )
+                    }
+
+                    openedLeaderboard -> {
+                        LeaderboardScreen(
+                            uiState = leaderboardUiState,
+                            onBack = ::popBackStack,
+                            onRetry = leaderboardViewModel::load
                         )
                     }
 
@@ -435,6 +762,12 @@ class MainActivity : ComponentActivity() {
                             onBottomTabSelected = ::selectTab,
                             onOpenSettings = {
                                 navigateTo(settingsRoute())
+                            },
+                            onOpenLeaderboard = {
+                                navigateTo(leaderboardRoute())
+                            },
+                            onOpenAdminAccess = {
+                                navigateTo(adminAccessRoute())
                             }
                         )
                     }
@@ -458,6 +791,46 @@ private fun questionRoute(questionId: String): String {
 
 private fun settingsRoute(): String {
     return "settings"
+}
+
+private fun adminAccessRoute(): String {
+    return "admin-access"
+}
+
+private fun adminUsersRoute(): String {
+    return "admin-users"
+}
+
+private fun adminTaskSubmissionsRoute(): String {
+    return "admin-task-submissions"
+}
+
+private fun adminTaskSubmissionRoute(submissionId: String): String {
+    return "admin-task-submission:${Uri.encode(submissionId)}"
+}
+
+private fun adminTaskPlayRoute(
+    submissionId: String,
+    mode: QuestionSessionMode
+): String {
+    val modeValue = when (mode) {
+        QuestionSessionMode.ADMIN_PREVIEW -> "preview"
+        QuestionSessionMode.ADMIN_TEST -> "test"
+        QuestionSessionMode.NORMAL -> error("Normalan režim nije admin pregled.")
+    }
+    return "admin-task-play:$modeValue:${Uri.encode(submissionId)}"
+}
+
+private fun adminUserRoute(userId: String): String {
+    return "admin-user:${Uri.encode(userId)}"
+}
+
+private fun adminUserTaskRoute(userId: String, taskId: String): String {
+    return "admin-user-task:${Uri.encode(userId)}:${Uri.encode(taskId)}"
+}
+
+private fun leaderboardRoute(): String {
+    return "leaderboard"
 }
 
 private fun vsAiRoute(): String {
@@ -516,6 +889,55 @@ private fun vsAiLevelIdFromRoute(route: String): String? {
     return route
         .takeIf { it.startsWith("vs-ai-level:") }
         ?.substringAfter("vs-ai-level:")
+}
+
+private fun adminUserIdFromRoute(route: String): String? {
+    return route
+        .takeIf { it.startsWith("admin-user:") }
+        ?.substringAfter("admin-user:")
+        ?.let(Uri::decode)
+}
+
+private fun adminTaskSubmissionIdFromRoute(route: String): String? {
+    return route
+        .takeIf { it.startsWith("admin-task-submission:") }
+        ?.substringAfter("admin-task-submission:")
+        ?.let(Uri::decode)
+}
+
+private data class AdminTaskPlayRoute(
+    val submissionId: String,
+    val mode: QuestionSessionMode
+)
+
+private fun adminTaskPlayFromRoute(route: String): AdminTaskPlayRoute? {
+    if (!route.startsWith("admin-task-play:")) return null
+    val parts = route.substringAfter("admin-task-play:").split(':', limit = 2)
+    if (parts.size != 2) return null
+    val mode = when (parts[0]) {
+        "preview" -> QuestionSessionMode.ADMIN_PREVIEW
+        "test" -> QuestionSessionMode.ADMIN_TEST
+        else -> return null
+    }
+    return AdminTaskPlayRoute(
+        submissionId = Uri.decode(parts[1]),
+        mode = mode
+    )
+}
+
+private data class AdminUserTaskRoute(
+    val userId: String,
+    val taskId: String
+)
+
+private fun adminUserTaskFromRoute(route: String): AdminUserTaskRoute? {
+    if (!route.startsWith("admin-user-task:")) return null
+    val parts = route.substringAfter("admin-user-task:").split(':', limit = 2)
+    if (parts.size != 2) return null
+    return AdminUserTaskRoute(
+        userId = Uri.decode(parts[0]),
+        taskId = Uri.decode(parts[1])
+    )
 }
 
 private fun encyclopediaCategoryIdFromRoute(route: String): String? {

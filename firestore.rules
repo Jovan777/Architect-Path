@@ -6,14 +6,221 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
     function isApprovedPublicSubmission() {
       return resource.data.reviewStatus == 'APPROVED'
         && resource.data.isPublic == true;
     }
 
+    function validOfficialRemoteTask(taskId) {
+      return request.resource.data.keys().hasAll([
+          'id',
+          'title',
+          'level',
+          'taskType',
+          'source',
+          'createdByRole',
+          'status',
+          'publicationMode',
+          'isPublic',
+          'schemaVersion',
+          'payload',
+          'originalSubmissionId',
+          'createdAt',
+          'updatedAt',
+          'promotedAt',
+          'promotedBy'
+        ])
+        && request.resource.data.id == taskId
+        && request.resource.data.title is string
+        && request.resource.data.level is string
+        && request.resource.data.taskType is string
+        && request.resource.data.source == 'ADMIN'
+        && request.resource.data.createdByRole == 'ADMIN'
+        && request.resource.data.status == 'ACTIVE'
+        && request.resource.data.publicationMode == 'MAIN_TASK_LIST'
+        && request.resource.data.isPublic == true
+        && request.resource.data.schemaVersion is int
+        && request.resource.data.schemaVersion >= 1
+        && request.resource.data.payload is map
+        && request.resource.data.originalSubmissionId is string
+        && request.resource.data.originalSubmissionId.size() > 0
+        && request.resource.data.promotedBy == request.auth.uid;
+    }
+
+    function validAdminModerationUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'reviewStatus',
+          'isPublic',
+          'approvedBy',
+          'approvedAt',
+          'updatedAt',
+          'rejectedBy',
+          'rejectedAt',
+          'rejectionReason',
+          'promotedToRemoteTaskId',
+          'promotedBy',
+          'promotedAt'
+        ])
+        && request.resource.data.reviewStatus in [
+          'PENDING',
+          'APPROVED',
+          'REJECTED'
+        ]
+        && request.resource.data.isPublic is bool
+        && (
+          request.resource.data.reviewStatus == 'APPROVED'
+          || request.resource.data.isPublic == false
+        )
+        && (
+          request.resource.data.isPublic == false
+          || request.resource.data.reviewStatus == 'APPROVED'
+        );
+    }
+
+    function validUserProfile(userId) {
+      return request.resource.data.keys().hasAll([
+          'uid',
+          'displayName',
+          'totalPoints',
+          'totalAttempts',
+          'uniqueTasksAttempted',
+          'completedTasksCount',
+          'lastActiveAt',
+          'progressByLevel',
+          'schemaVersion',
+          'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'displayName',
+          'totalPoints',
+          'totalAttempts',
+          'uniqueTasksAttempted',
+          'completedTasksCount',
+          'lastActiveAt',
+          'progressByLevel',
+          'schemaVersion',
+          'updatedAt'
+        ])
+        && request.resource.data.uid == userId
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 80
+        && request.resource.data.totalPoints is int
+        && request.resource.data.totalPoints >= 0
+        && request.resource.data.totalAttempts is int
+        && request.resource.data.totalAttempts >= 0
+        && request.resource.data.uniqueTasksAttempted is int
+        && request.resource.data.uniqueTasksAttempted >= 0
+        && request.resource.data.completedTasksCount is int
+        && request.resource.data.completedTasksCount >= 0
+        && request.resource.data.lastActiveAt is timestamp
+        && request.resource.data.progressByLevel is map
+        && request.resource.data.schemaVersion is int
+        && request.resource.data.schemaVersion >= 1
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function validTaskAttempt(attemptId) {
+      return request.resource.data.keys().hasAll([
+          'attemptId',
+          'taskId',
+          'taskTitle',
+          'level',
+          'taskType',
+          'taskSource',
+          'percentage',
+          'pointsAwarded',
+          'attemptNumber',
+          'completedAt',
+          'schemaVersion'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'attemptId',
+          'taskId',
+          'taskTitle',
+          'level',
+          'taskType',
+          'taskSource',
+          'percentage',
+          'pointsAwarded',
+          'attemptNumber',
+          'completedAt',
+          'schemaVersion'
+        ])
+        && request.resource.data.attemptId == attemptId
+        && request.resource.data.taskId is string
+        && request.resource.data.taskTitle is string
+        && request.resource.data.level is string
+        && request.resource.data.taskType is string
+        && request.resource.data.taskSource is string
+        && request.resource.data.percentage is int
+        && request.resource.data.percentage >= 0
+        && request.resource.data.percentage <= 100
+        && request.resource.data.pointsAwarded is int
+        && request.resource.data.pointsAwarded >= 0
+        && request.resource.data.attemptNumber is int
+        && request.resource.data.attemptNumber >= 1
+        && request.resource.data.completedAt is timestamp
+        && request.resource.data.schemaVersion is int
+        && request.resource.data.schemaVersion >= 1;
+    }
+
+    function validLeaderboardEntry(userId) {
+      return request.resource.data.keys().hasAll([
+          'uid',
+          'displayName',
+          'totalPoints',
+          'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'displayName',
+          'totalPoints',
+          'updatedAt'
+        ])
+        && request.resource.data.uid == userId
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 80
+        && request.resource.data.totalPoints is int
+        && request.resource.data.totalPoints >= 0
+        && request.resource.data.updatedAt is timestamp
+        && getAfter(/databases/$(database)/documents/users/$(userId)).data.uid == userId
+        && getAfter(/databases/$(database)/documents/users/$(userId)).data.displayName
+          == request.resource.data.displayName
+        && getAfter(/databases/$(database)/documents/users/$(userId)).data.totalPoints
+          == request.resource.data.totalPoints;
+    }
+
     match /remote_tasks/{taskId} {
-      allow read: if isSignedIn() && resource.data.status == 'ACTIVE';
-      allow write: if false;
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.status == 'ACTIVE');
+
+      allow create: if isAdmin()
+        && validOfficialRemoteTask(taskId)
+        && existsAfter(
+          /databases/$(database)/documents/task_submissions/$(request.resource.data.originalSubmissionId)
+        )
+        && getAfter(
+          /databases/$(database)/documents/task_submissions/$(request.resource.data.originalSubmissionId)
+        ).data.promotedToRemoteTaskId == taskId
+        && getAfter(
+          /databases/$(database)/documents/task_submissions/$(request.resource.data.originalSubmissionId)
+        ).data.reviewStatus == 'APPROVED'
+        && getAfter(
+          /databases/$(database)/documents/task_submissions/$(request.resource.data.originalSubmissionId)
+        ).data.isPublic == false;
+
+      allow update, delete: if false;
     }
 
     match /task_submissions/{submissionId} {
@@ -24,6 +231,16 @@ service cloud.firestore {
         && request.resource.data.reviewStatus == 'PENDING'
         && request.resource.data.isPublic == false
         && request.resource.data.publicationMode == 'USER_TASKS'
+        && request.resource.data.approvedAt == null
+        && request.resource.data.approvedBy == null
+        && request.resource.data.rejectionReason == null
+        && !request.resource.data.keys().hasAny([
+          'promotedToRemoteTaskId',
+          'promotedBy',
+          'promotedAt',
+          'rejectedBy',
+          'rejectedAt'
+        ])
         && request.resource.data.keys().hasAll([
           'id',
           'title',
@@ -41,13 +258,35 @@ service cloud.firestore {
           'payload'
         ]);
 
-      allow read: if isSignedIn()
-        && (
+      allow read: if isAdmin()
+        || (
+          isSignedIn()
+          && (
           resource.data.createdByUserId == request.auth.uid
           || isApprovedPublicSubmission()
+          )
         );
 
-      allow update, delete: if false;
+      allow update: if isAdmin() && validAdminModerationUpdate();
+      allow delete: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if isOwner(userId) && validUserProfile(userId);
+      allow delete: if false;
+
+      match /task_attempts/{attemptId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && validTaskAttempt(attemptId);
+        allow update, delete: if false;
+      }
+    }
+
+    match /leaderboard/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(userId) && validLeaderboardEntry(userId);
+      allow delete: if false;
     }
   }
 }

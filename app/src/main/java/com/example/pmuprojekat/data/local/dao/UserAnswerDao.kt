@@ -27,6 +27,13 @@ interface UserAnswerDao {
 
     @Query("""
         SELECT * FROM user_question_progress
+        WHERE userId = :userId
+        ORDER BY updatedAt DESC
+    """)
+    suspend fun getUserProgress(userId: String): List<UserQuestionProgressEntity>
+
+    @Query("""
+        SELECT * FROM user_question_progress
         WHERE userId = :userId AND questionId = :questionId
         LIMIT 1
     """)
