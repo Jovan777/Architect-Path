@@ -46,7 +46,7 @@ import com.example.pmuprojekat.data.local.entity.VsAiMessageEntity
         TaskAttemptSyncEntity::class,
         SeedMetaEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = true
 )
 @TypeConverters(RoomConverters::class)

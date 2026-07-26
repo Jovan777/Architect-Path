@@ -242,6 +242,38 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                "ALTER TABLE users ADD COLUMN longestStreak INTEGER NOT NULL DEFAULT 0"
+            )
+            database.execSQL(
+                "ALTER TABLE users ADD COLUMN lastQualifyingTaskDate TEXT"
+            )
+            database.execSQL(
+                "ALTER TABLE users ADD COLUMN lastQualifyingTaskCompletedAt INTEGER"
+            )
+            database.execSQL(
+                "ALTER TABLE users ADD COLUMN dailyCompletionDate TEXT"
+            )
+            database.execSQL(
+                "ALTER TABLE users ADD COLUMN tasksCompletedToday INTEGER NOT NULL DEFAULT 0"
+            )
+            database.execSQL(
+                "ALTER TABLE users ADD COLUMN lastCompletedWaveDate TEXT"
+            )
+            database.execSQL(
+                "ALTER TABLE users ADD COLUMN lastReminderNotificationDate TEXT"
+            )
+            database.execSQL(
+                "ALTER TABLE users ADD COLUMN notificationPermissionAsked INTEGER NOT NULL DEFAULT 0"
+            )
+            database.execSQL(
+                "UPDATE users SET longestStreak = streakDays WHERE streakDays > longestStreak"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -265,7 +297,8 @@ object DatabaseModule {
                 MIGRATION_7_8,
                 MIGRATION_8_9,
                 MIGRATION_9_10,
-                MIGRATION_10_11
+                MIGRATION_10_11,
+                MIGRATION_11_12
             )
             .fallbackToDestructiveMigration()
             .build()

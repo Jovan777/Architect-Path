@@ -249,7 +249,7 @@ class HomeViewModel @Inject constructor(
             totalQuestions = questions.size,
             selectedLevelQuestions = selectedLevelQuestions.size,
             completedQuestions = completedQuestionsCount,
-            streakDays = user?.streakDays ?: 0,
+            streakDays = repository.activeStreakForDisplay(user),
             xp = totalXp,
             levelXpProgress = levelXpProgress,
             overallProgressPercent = overallProgress,
@@ -277,6 +277,7 @@ class HomeViewModel @Inject constructor(
             preferredTaskFormat = user?.preferredTaskFormat ?: "Interaktivni koraci",
             learningFocus = user?.learningFocus ?: "Balansirano učenje",
             aiFollowUpEnabled = user?.aiFollowUpEnabled ?: true,
+            notificationPermissionAsked = user?.notificationPermissionAsked ?: false,
             hasCompletedOnboarding = user?.hasCompletedOnboarding ?: false,
         )
     }
@@ -290,6 +291,8 @@ class HomeViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             repository.initializeDatabaseIfNeeded()
+            repository.validateLearningContinuity()
+            repository.ensureStudyReminderScheduled()
             launch {
                 remoteTaskRepository.refreshRemoteTasks()
             }
@@ -347,6 +350,19 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             repository.resetProgress()
             userProgressSyncRepository.syncPendingProgress()
+        }
+    }
+
+    fun refreshLearningContinuity() {
+        viewModelScope.launch {
+            repository.validateLearningContinuity()
+            repository.ensureStudyReminderScheduled()
+        }
+    }
+
+    fun markNotificationPermissionAsked() {
+        viewModelScope.launch {
+            repository.markNotificationPermissionAsked()
         }
     }
 

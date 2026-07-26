@@ -1,7 +1,11 @@
 package com.example.pmuprojekat
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.content.ContextCompat
 import com.example.pmuprojekat.ui.home.HomeViewModel
 import com.example.pmuprojekat.ui.home.LevelQuestionsScreen
 import com.example.pmuprojekat.ui.home.SoftwareDesignHomeScreen
@@ -21,6 +26,7 @@ import com.example.pmuprojekat.ui.main.ProfileScreen
 import com.example.pmuprojekat.ui.main.ProgressScreen
 import com.example.pmuprojekat.ui.main.TasksScreen
 import com.example.pmuprojekat.ui.main.WavesScreen
+import com.example.pmuprojekat.ui.main.StudyNotificationPermissionDialog
 import com.example.pmuprojekat.ui.onboarding.OnboardingScreen
 import com.example.pmuprojekat.ui.question.QuestionScreen
 import com.example.pmuprojekat.ui.question.QuestionSessionMode
@@ -57,6 +63,12 @@ import com.example.pmuprojekat.ui.encyclopedia.EncyclopediaViewModel
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        homeViewModel.markNotificationPermissionAsked()
+    }
+
     private val homeViewModel: HomeViewModel by viewModels()
     private val questionViewModel: QuestionViewModel by viewModels()
     private val taskCreationViewModel: TaskCreationViewModel by viewModels()
@@ -86,6 +98,9 @@ class MainActivity : ComponentActivity() {
                 val adminTaskSubmissionsUiState by
                     adminTaskSubmissionsViewModel.uiState.collectAsStateWithLifecycle()
                 val leaderboardUiState by leaderboardViewModel.uiState.collectAsStateWithLifecycle()
+                var showNotificationPermissionDialog by rememberSaveable {
+                    mutableStateOf(false)
+                }
 
                 var routeBackStack by rememberSaveable {
                     mutableStateOf(listOf(tabRoute(MainTab.HOME)))
@@ -175,6 +190,25 @@ class MainActivity : ComponentActivity() {
                             tabRoute(MainTab.HOME),
                             targetLevelRoute
                         )
+                    }
+                }
+
+                LaunchedEffect(Unit) {
+                    questionViewModel.notificationPermissionRequests.collect {
+                        val permissionRequired =
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                        val permissionGranted = !permissionRequired ||
+                            ContextCompat.checkSelfPermission(
+                                this@MainActivity,
+                                Manifest.permission.POST_NOTIFICATIONS
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                        when {
+                            permissionGranted ->
+                                homeViewModel.markNotificationPermissionAsked()
+                            !homeViewModel.uiState.value.notificationPermissionAsked ->
+                                showNotificationPermissionDialog = true
+                        }
                     }
                 }
 
@@ -772,8 +806,29 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+
+                if (showNotificationPermissionDialog) {
+                    StudyNotificationPermissionDialog(
+                        onAllow = {
+                            showNotificationPermissionDialog = false
+                            homeViewModel.markNotificationPermissionAsked()
+                            notificationPermissionLauncher.launch(
+                                Manifest.permission.POST_NOTIFICATIONS
+                            )
+                        },
+                        onDismiss = {
+                            showNotificationPermissionDialog = false
+                            homeViewModel.markNotificationPermissionAsked()
+                        }
+                    )
+                }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        homeViewModel.refreshLearningContinuity()
     }
 }
 

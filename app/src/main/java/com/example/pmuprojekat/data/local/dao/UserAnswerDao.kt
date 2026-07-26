@@ -43,6 +43,24 @@ interface UserAnswerDao {
     ): UserQuestionProgressEntity?
 
     @Query("""
+        SELECT COUNT(*)
+        FROM questions AS question
+        LEFT JOIN user_question_progress AS progress
+          ON progress.questionId = question.questionId
+          AND progress.userId = :userId
+        WHERE question.level = :level
+          AND question.wave = :wave
+          AND question.isActive = 1
+          AND question.publicationMode != 'USER_TASKS'
+          AND (progress.status IS NULL OR progress.status != 'completed')
+    """)
+    suspend fun countIncompleteQuestionsInWave(
+        userId: String,
+        level: String,
+        wave: Int
+    ): Int
+
+    @Query("""
         SELECT * FROM user_step_answers
         WHERE userId = :userId AND questionId = :questionId
     """)

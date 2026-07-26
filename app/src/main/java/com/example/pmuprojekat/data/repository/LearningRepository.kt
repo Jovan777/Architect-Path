@@ -1,6 +1,9 @@
 package com.example.pmuprojekat.data.repository
 
 import androidx.room.withTransaction
+import com.example.pmuprojekat.core.learning.LearningTimeProvider
+import com.example.pmuprojekat.core.learning.StoredLearningContinuity
+import com.example.pmuprojekat.core.learning.StreakCalculator
 import com.example.pmuprojekat.data.local.PMUDatabase
 import com.example.pmuprojekat.data.local.dao.QuestionDao
 import com.example.pmuprojekat.data.local.dao.TaskAttemptSyncDao
@@ -26,11 +29,22 @@ class LearningRepository @Inject constructor(
     private val questionDao: QuestionDao,
     private val userAnswerDao: UserAnswerDao,
     private val taskAttemptSyncDao: TaskAttemptSyncDao,
-    private val seedInserter: SeedInserter
+    private val seedInserter: SeedInserter,
+    private val timeProvider: LearningTimeProvider,
+    private val studyReminderScheduler: StudyReminderScheduler
 ) {
 
     fun observeActiveUser(): Flow<UserEntity?> {
         return userDao.observeActiveUser()
+    }
+
+    fun activeStreakForDisplay(user: UserEntity?): Int {
+        user ?: return 0
+        return StreakCalculator.activeStreak(
+            currentStreak = user.streakDays,
+            lastQualifyingTaskDate = user.lastQualifyingTaskDate,
+            today = timeProvider.localDate()
+        )
     }
 
     fun observeAllQuestions(): Flow<List<QuestionEntity>> {
@@ -73,6 +87,7 @@ class LearningRepository @Inject constructor(
         learningFocus: String,
         aiFollowUpEnabled: Boolean
     ) {
+        val previousUser = userDao.getUserById(LOCAL_USER_ID)
         userDao.updateProfileSettings(
             userId = LOCAL_USER_ID,
             displayName = displayName,
@@ -82,6 +97,13 @@ class LearningRepository @Inject constructor(
             learningFocus = learningFocus,
             aiFollowUpEnabled = aiFollowUpEnabled
         )
+
+        if (previousUser?.learningGoal != learningGoal) {
+            val updatedUser = userDao.getUserById(LOCAL_USER_ID)
+            studyReminderScheduler.rescheduleForLearningGoal(
+                updatedUser?.lastQualifyingTaskCompletedAt
+            )
+        }
     }
 
     suspend fun completeOnboarding(
@@ -117,6 +139,40 @@ class LearningRepository @Inject constructor(
     suspend fun resetProgress() {
         userAnswerDao.clearUserProgress(LOCAL_USER_ID)
         userDao.resetLearningStats(LOCAL_USER_ID)
+        studyReminderScheduler.rescheduleForLearningGoal(null)
+    }
+
+    suspend fun validateLearningContinuity() {
+        val user = userDao.getUserById(LOCAL_USER_ID) ?: return
+        val today = timeProvider.localDate()
+        val activeStreak = StreakCalculator.activeStreak(
+            currentStreak = user.streakDays,
+            lastQualifyingTaskDate = user.lastQualifyingTaskDate,
+            today = today
+        )
+        val tasksToday = StreakCalculator.tasksCompletedOnDate(
+            dailyCompletionDate = user.dailyCompletionDate,
+            storedCount = user.tasksCompletedToday,
+            date = today
+        )
+
+        if (activeStreak != user.streakDays || tasksToday != user.tasksCompletedToday) {
+            userDao.normalizeLearningContinuity(
+                userId = LOCAL_USER_ID,
+                currentStreak = activeStreak,
+                dailyCompletionDate = user.dailyCompletionDate.takeIf { tasksToday > 0 },
+                tasksCompletedToday = tasksToday
+            )
+        }
+    }
+
+    suspend fun ensureStudyReminderScheduled() {
+        val user = userDao.getUserById(LOCAL_USER_ID)
+        studyReminderScheduler.ensureScheduled(user?.lastQualifyingTaskCompletedAt)
+    }
+
+    suspend fun markNotificationPermissionAsked() {
+        userDao.markNotificationPermissionAsked(LOCAL_USER_ID)
     }
 
     suspend fun saveStepAnswer(answer: UserStepAnswerEntity) {
@@ -127,10 +183,11 @@ class LearningRepository @Inject constructor(
         questionId: String,
         scorePercent: Int
     ): QuestionCompletionReward {
-        val now = System.currentTimeMillis()
+        val now = timeProvider.nowMillis()
+        val today = timeProvider.localDate(now)
         val attemptId = "attempt_${UUID.randomUUID()}"
 
-        return database.withTransaction {
+        val reward = database.withTransaction {
             val existingProgress = userAnswerDao.getQuestionProgress(
                 userId = LOCAL_USER_ID,
                 questionId = questionId
@@ -142,6 +199,7 @@ class LearningRepository @Inject constructor(
             val bestEarnedXp = maxOf(previousBestXp, earnedXpForAttempt)
             val newlyAwardedXp = bestEarnedXp - previousBestXp
             val attemptNumber = (existingProgress?.attempts ?: 0) + 1
+            val user = userDao.getUserById(LOCAL_USER_ID)
 
             userAnswerDao.upsertQuestionProgress(
                 UserQuestionProgressEntity(
@@ -170,6 +228,43 @@ class LearningRepository @Inject constructor(
             }
 
             val question = questionDao.getQuestion(questionId)
+            if (user != null) {
+                val continuity = StreakCalculator.recordQualifyingCompletion(
+                    state = StoredLearningContinuity(
+                        currentStreak = user.streakDays,
+                        longestStreak = user.longestStreak,
+                        lastQualifyingTaskDate = user.lastQualifyingTaskDate,
+                        dailyCompletionDate = user.dailyCompletionDate,
+                        tasksCompletedToday = user.tasksCompletedToday
+                    ),
+                    today = today
+                )
+                userDao.updateLearningContinuity(
+                    userId = LOCAL_USER_ID,
+                    currentStreak = continuity.currentStreak,
+                    longestStreak = continuity.longestStreak,
+                    lastQualifyingTaskDate = continuity.lastQualifyingTaskDate,
+                    lastQualifyingTaskCompletedAt = now,
+                    dailyCompletionDate = continuity.dailyCompletionDate,
+                    tasksCompletedToday = continuity.tasksCompletedToday,
+                    updatedAt = now
+                )
+            }
+
+            if (!alreadyCompleted && question?.wave != null) {
+                val incompleteInWave = userAnswerDao.countIncompleteQuestionsInWave(
+                    userId = LOCAL_USER_ID,
+                    level = question.level,
+                    wave = question.wave
+                )
+                if (incompleteInWave == 0) {
+                    userDao.updateLastCompletedWaveDate(
+                        userId = LOCAL_USER_ID,
+                        completionDate = today.toString()
+                    )
+                }
+            }
+
             taskAttemptSyncDao.insert(
                 TaskAttemptSyncEntity(
                     attemptId = attemptId,
@@ -191,9 +286,17 @@ class LearningRepository @Inject constructor(
                 attemptNumber = attemptNumber,
                 earnedXpForAttempt = earnedXpForAttempt,
                 newlyAwardedXp = newlyAwardedXp,
-                bestEarnedXp = bestEarnedXp
+                bestEarnedXp = bestEarnedXp,
+                shouldRequestNotificationPermission =
+                    user?.notificationPermissionAsked == false
             )
         }
+
+        runCatching {
+            studyReminderScheduler.scheduleAfterQualifyingCompletion(now)
+        }
+
+        return reward
     }
 
     companion object {
@@ -207,5 +310,6 @@ data class QuestionCompletionReward(
     val attemptNumber: Int,
     val earnedXpForAttempt: Int,
     val newlyAwardedXp: Int,
-    val bestEarnedXp: Int
+    val bestEarnedXp: Int,
+    val shouldRequestNotificationPermission: Boolean
 )

@@ -13,6 +13,14 @@ data class UserEntity(
 
     val xp: Int = 0,
     val streakDays: Int = 0,
+    val longestStreak: Int = 0,
+    val lastQualifyingTaskDate: String? = null,
+    val lastQualifyingTaskCompletedAt: Long? = null,
+    val dailyCompletionDate: String? = null,
+    val tasksCompletedToday: Int = 0,
+    val lastCompletedWaveDate: String? = null,
+    val lastReminderNotificationDate: String? = null,
+    val notificationPermissionAsked: Boolean = false,
     val completedQuestions: Int = 0,
 
     val learningGoal: String = "1–2 zadatka dnevno",

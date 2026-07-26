@@ -20,7 +20,10 @@ import com.example.pmuprojekat.data.repository.UserProgressSyncRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -57,6 +60,11 @@ class QuestionViewModel @Inject constructor(
     private val sketchAnalysisText = MutableStateFlow<String?>(null)
     private val sketchAnalysisError = MutableStateFlow<String?>(null)
     private val completingQuestionIds = mutableSetOf<String>()
+    private val _notificationPermissionRequests = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1
+    )
+    val notificationPermissionRequests: SharedFlow<Unit> =
+        _notificationPermissionRequests.asSharedFlow()
 
     private data class QuestionRuntimeState(
         val questionWithSteps: QuestionWithSteps?,
@@ -402,6 +410,7 @@ class QuestionViewModel @Inject constructor(
                                 questionId = questionId,
                                 scorePercent = 100
                             )
+                            emitNotificationPermissionRequestIfNeeded(reward)
 
                             newlyAwardedXpByQuestionId.value =
                                 newlyAwardedXpByQuestionId.value + (
@@ -682,6 +691,7 @@ class QuestionViewModel @Inject constructor(
                     questionId = questionId,
                     scorePercent = scorePercent
                 )
+                emitNotificationPermissionRequestIfNeeded(reward)
 
                 newlyAwardedXpByQuestionId.value =
                     newlyAwardedXpByQuestionId.value + (questionId to reward.newlyAwardedXp)
@@ -696,6 +706,14 @@ class QuestionViewModel @Inject constructor(
     private fun syncProgressInBackground() {
         viewModelScope.launch {
             userProgressSyncRepository.syncPendingProgress()
+        }
+    }
+
+    private fun emitNotificationPermissionRequestIfNeeded(
+        reward: com.example.pmuprojekat.data.repository.QuestionCompletionReward
+    ) {
+        if (reward.shouldRequestNotificationPermission) {
+            _notificationPermissionRequests.tryEmit(Unit)
         }
     }
 

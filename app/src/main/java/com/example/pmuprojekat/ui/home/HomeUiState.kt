@@ -42,6 +42,7 @@ data class HomeUiState(
     val preferredTaskFormat: String = "Interaktivni koraci",
     val learningFocus: String = "Balansirano učenje",
     val aiFollowUpEnabled: Boolean = true,
+    val notificationPermissionAsked: Boolean = false,
     val hasCompletedOnboarding: Boolean = false,
 )
 
