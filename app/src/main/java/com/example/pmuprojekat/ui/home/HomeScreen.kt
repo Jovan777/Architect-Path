@@ -32,6 +32,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -106,6 +107,7 @@ fun SoftwareDesignHomeScreen(
     onOpenTaskCreation: () -> Unit,
     onOpenEncyclopedia: () -> Unit,
     onOpenAiChat: () -> Unit,
+    onOpenLeaderboard: () -> Unit,
     onQuestionClick: (String) -> Unit,
     selectedTab: MainTab = MainTab.HOME,
     onBottomTabSelected: (MainTab) -> Unit = {}
@@ -179,7 +181,8 @@ fun SoftwareDesignHomeScreen(
                     uiState = uiState,
                     onOpenTaskCreation = onOpenTaskCreation,
                     onOpenEncyclopedia = onOpenEncyclopedia,
-                    onOpenAiChat = onOpenAiChat
+                    onOpenAiChat = onOpenAiChat,
+                    onOpenLeaderboard = onOpenLeaderboard
                 )
 
                 RecommendedQuestionsSection(
@@ -616,7 +619,8 @@ private fun DashboardPreviewSection(
     uiState: HomeUiState,
     onOpenTaskCreation: () -> Unit,
     onOpenEncyclopedia: () -> Unit,
-    onOpenAiChat: () -> Unit
+    onOpenAiChat: () -> Unit,
+    onOpenLeaderboard: () -> Unit
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -696,6 +700,8 @@ private fun DashboardPreviewSection(
             }
         }
 
+        LeaderboardHomeCard(onClick = onOpenLeaderboard)
+
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -750,6 +756,67 @@ private fun DashboardPreviewSection(
                     fontWeight = FontWeight.Light
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun LeaderboardHomeCard(onClick: () -> Unit) {
+    val trophyColor = Color(0xFFEAB308)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp),
+        border = BorderStroke(1.dp, trophyColor.copy(alpha = 0.30f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFFFFFDE7)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_trophy),
+                    contentDescription = "Rang-lista",
+                    modifier = Modifier.size(26.dp),
+                    tint = trophyColor
+                )
+            }
+
+            Spacer(modifier = Modifier.width(13.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Rang-lista",
+                    color = AppPalette.TextPrimary,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    text = "Uporedi osvojene poene i prati svoj plasman.",
+                    color = AppPalette.TextSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp
+                )
+            }
+
+            Text(
+                text = ">",
+                color = trophyColor,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Light
+            )
         }
     }
 }
@@ -1420,6 +1487,7 @@ fun SoftwareDesignHomeScreenPreview() {
             onOpenTaskCreation = {},
             onOpenEncyclopedia = {},
             onOpenAiChat = {},
+            onOpenLeaderboard = {},
             onQuestionClick = {}
         )
     }

@@ -719,6 +719,9 @@ class MainActivity : ComponentActivity() {
                             onOpenAiChat = {
                                 navigateTo(aiChatRoute())
                             },
+                            onOpenLeaderboard = {
+                                navigateTo(leaderboardRoute())
+                            },
                             onQuestionClick = ::openQuestion,
                             selectedTab = MainTab.HOME,
                             onBottomTabSelected = ::selectTab
@@ -762,9 +765,6 @@ class MainActivity : ComponentActivity() {
                             onBottomTabSelected = ::selectTab,
                             onOpenSettings = {
                                 navigateTo(settingsRoute())
-                            },
-                            onOpenLeaderboard = {
-                                navigateTo(leaderboardRoute())
                             },
                             onOpenAdminAccess = {
                                 navigateTo(adminAccessRoute())

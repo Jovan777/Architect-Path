@@ -184,29 +184,37 @@ private fun LeaderboardRow(
     entry: LeaderboardEntry,
     isCurrentUser: Boolean
 ) {
+    val podiumStyle = podiumStyleFor(position)
+    val containerColor = when {
+        podiumStyle != null -> podiumStyle.containerColor
+        isCurrentUser -> Color(0xFFEFF6FF)
+        else -> Color.White
+    }
+    val borderColor = when {
+        podiumStyle != null -> podiumStyle.borderColor
+        isCurrentUser -> Color(0xFF93C5FD)
+        else -> AppPalette.Border
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isCurrentUser) Color(0xFFEFF6FF) else Color.White
+            containerColor = containerColor
         ),
-        border = BorderStroke(
-            1.dp,
-            if (isCurrentUser) Color(0xFF93C5FD) else AppPalette.Border
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = BorderStroke(if (podiumStyle != null) 1.5.dp else 1.dp, borderColor),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (podiumStyle != null) 4.dp else 2.dp
+        )
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             position?.let {
-                Text(
-                    text = "$it.",
-                    modifier = Modifier.padding(end = 12.dp),
-                    color = AppPalette.Indigo,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.ExtraBold
+                LeaderboardPosition(
+                    position = it,
+                    podiumStyle = podiumStyle
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
@@ -238,11 +246,76 @@ private fun LeaderboardRow(
             }
             Text(
                 text = "${entry.totalPoints} poena",
-                color = AppPalette.TextPrimary,
+                color = podiumStyle?.accentColor ?: AppPalette.TextPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.ExtraBold
             )
         }
+    }
+}
+
+@Composable
+private fun LeaderboardPosition(
+    position: Int,
+    podiumStyle: PodiumStyle?
+) {
+    if (podiumStyle == null) {
+        Text(
+            text = "$position.",
+            modifier = Modifier.padding(end = 12.dp),
+            color = AppPalette.Indigo,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+        return
+    }
+
+    Surface(
+        modifier = Modifier
+            .padding(end = 12.dp)
+            .size(40.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = podiumStyle.badgeColor
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = position.toString(),
+                color = Color.White,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Black
+            )
+        }
+    }
+}
+
+private data class PodiumStyle(
+    val containerColor: Color,
+    val borderColor: Color,
+    val badgeColor: Color,
+    val accentColor: Color
+)
+
+private fun podiumStyleFor(position: Int?): PodiumStyle? {
+    return when (position) {
+        1 -> PodiumStyle(
+            containerColor = Color(0xFFFFFDE7),
+            borderColor = Color(0xFFFACC15),
+            badgeColor = Color(0xFFEAB308),
+            accentColor = Color(0xFF854D0E)
+        )
+        2 -> PodiumStyle(
+            containerColor = Color(0xFFF8FAFC),
+            borderColor = Color(0xFF94A3B8),
+            badgeColor = Color(0xFF64748B),
+            accentColor = Color(0xFF475569)
+        )
+        3 -> PodiumStyle(
+            containerColor = Color(0xFFFFF7ED),
+            borderColor = Color(0xFFEA580C),
+            badgeColor = Color(0xFFC2410C),
+            accentColor = Color(0xFF9A3412)
+        )
+        else -> null
     }
 }
 
